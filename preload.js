@@ -309,5 +309,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
         handleIpcError('updateAdminPassword', error, null);
         throw error;
       });
+  },
+  // AI 心理测验 - psyseen.com 集成
+  psyseenLogin: (credentials) => {
+    return ipcRenderer
+      .invoke('psyseen-login', credentials)
+      .catch((error) => {
+        handleIpcError('psyseenLogin', error, null);
+        throw error;
+      });
+  },
+  loadPsyseenView: () => {
+    return ipcRenderer
+      .invoke('psyseen-load-view')
+      .catch((error) => {
+        handleIpcError('loadPsyseenView', error, null);
+        throw error;
+      });
+  },
+  closePsyseenView: () => {
+    return ipcRenderer
+      .invoke('psyseen-close-view')
+      .catch((error) => {
+        handleIpcError('closePsyseenView', error, null);
+        throw error;
+      });
   }
 });

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, Menu, BrowserView } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const hardware = require('./hardware');
@@ -14,6 +14,7 @@ const activationCrypto = require('./modules/activation-crypto');
 const vmDetector = require('./modules/vm-detector');
 
 let mainWindow;
+let psyseenView = null;  // AI 心理测验 BrowserView
 const logger = getLogger('MAIN');
 
 function createWindow() {
@@ -463,5 +464,98 @@ ipcMain.handle(config.ipcChannels.updateAdminPassword, async (event, data) => {
   } catch (error) {
     logger.error('Failed to update admin password', { error: error.message });
     return { success: false, message: error.message };
+  }
+});
+
+// ===== AI 心理测验 - psyseen.com 集成 =====
+
+// psyseen 登录 - 创建 BrowserView 并加载登录页面
+ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl }) => {
+  try {
+    logger.info('Psyseen login request received', { username });
+    
+    // 如果已有 BrowserView，先关闭
+    if (psyseenView) {
+      mainWindow.removeBrowserView(psyseenView);
+      psyseenView.webContents.destroy();
+      psyseenView = null;
+    }
+    
+    // 创建 BrowserView
+    psyseenView = new BrowserView({
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+      }
+    });
+    
+    mainWindow.setBrowserView(psyseenView);
+    
+    // 设置 BrowserView 位置（全屏）
+    const { width, height } = mainWindow.getBounds();
+    psyseenView.setBounds({ x: 0, y: 0, width, height });
+    
+    // 加载 psyseen.com 登录页
+    await psyseenView.webContents.loadURL(redirectUrl);
+    
+    // 等待页面加载完成后预填充登录表单
+    psyseenView.webContents.on('did-finish-load', () => {
+      psyseenView.webContents.executeJavaScript(`
+        (function() {
+          var usernameInput = document.querySelector('input[type="text"], input[type="email"], input[name="username"], input[id="username"]');
+          var passwordInput = document.querySelector('input[type="password"], input[name="password"], input[id="password"]');
+          if (usernameInput) usernameInput.value = '${username.replace(/'/g, "\\'")}';
+          if (passwordInput) passwordInput.value = '${password.replace(/'/g, "\\'")}';
+        })();
+      `).catch(() => {});
+    });
+    
+    logger.info('Psyseen login BrowserView created successfully');
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to create psyseen login BrowserView', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+// 加载 psyseen dashboard
+ipcMain.handle('psyseen-load-view', async (event) => {
+  try {
+    logger.info('Psyseen load view request received');
+    
+    if (psyseenView) {
+      // 导航到 dashboard
+      await psyseenView.webContents.loadURL('https://org.psyseen.com/#/dashboard');
+      
+      // 调整 BrowserView 大小以适应窗口
+      const { width, height } = mainWindow.getBounds();
+      psyseenView.setBounds({ x: 0, y: 0, width, height });
+    }
+    
+    logger.info('Psyseen dashboard loaded successfully');
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to load psyseen dashboard', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+// 关闭 psyseen BrowserView
+ipcMain.handle('psyseen-close-view', async (event) => {
+  try {
+    logger.info('Psyseen close view request received');
+    
+    if (psyseenView) {
+      mainWindow.removeBrowserView(psyseenView);
+      psyseenView.webContents.destroy();
+      psyseenView = null;
+      logger.info('Psyseen BrowserView closed successfully');
+    }
+    
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to close psyseen BrowserView', { error: error.message });
+    return { success: false, error: error.message };
   }
 });

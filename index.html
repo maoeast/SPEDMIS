@@ -197,7 +197,7 @@ if (result.success) {
                 background: 'images/modules/emotional-bg.png'
             },
             { 
-                name: '系统数据管理', 
+                name: 'AI 心理测验', 
                 color: '#DF99F0',
                 icon: 'images/modules/system.png',
                 background: 'images/modules/system-bg.png'
@@ -233,8 +233,8 @@ if (result.success) {
                 case '情绪行为领域':
                     iconElement.innerHTML = '<i class="fas fa-grin-beam" style="font-size: 64px;"></i>';
                     break;
-                case '系统数据管理':
-                    iconElement.innerHTML = '<i class="fas fa-cubes" style="font-size: 64px;"></i>';
+                case 'AI 心理测验':
+                    iconElement.innerHTML = '<i class="fas fa-brain" style="font-size: 64px;"></i>';
                     break;
                 default:
                     iconElement.innerHTML = '<i class="fas fa-compass" style="font-size: 64px;"></i>';
@@ -249,11 +249,11 @@ if (result.success) {
             card.appendChild(iconElement);
             card.appendChild(nameElement);
             
-            // 特殊处理系统数据管理模块
+            // 特殊处理 AI 心理测验模块
             if (index === 5) {
                 card.addEventListener('click', () => {
-                    // 在新窗口/标签页中打开系统数据管理链接
-                    window.open('https://xcpm.hzxckj308.com:8008/', '_blank');
+                    // 跳转到 AI 心理测验登录页面
+                    window.location.href = 'psy-login.html';
                 });
             } else {
                 card.addEventListener('click', () => {
