@@ -117,6 +117,14 @@
             margin-top: 15px;
             display: none;
         }
+        
+        .success-message {
+            text-align: center;
+            color: #27ae60;
+            font-size: 16px;
+            margin-top: 20px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -124,7 +132,7 @@
         <i class="fas fa-arrow-left"></i> 返回
     </button>
     
-    <div class="login-container">
+    <div class="login-container" id="loginContainer">
         <div class="login-header">
             <h2>心理测验云平台登录</h2>
         </div>
@@ -143,7 +151,11 @@
             <button type="submit" class="login-btn">登录</button>
             
             <div class="loading" id="loadingMessage">
-                <i class="fas fa-spinner fa-spin"></i> 登录中...
+                <i class="fas fa-spinner fa-spin"></i> 正在登录，请稍候...
+            </div>
+            
+            <div class="success-message" id="successMessage">
+                <i class="fas fa-check-circle"></i> 登录成功！正在进入系统...
             </div>
             
             <div class="error-message" id="errorMessage"></div>
@@ -162,12 +174,14 @@
             const password = document.getElementById('password').value;
             const errorMessage = document.getElementById('errorMessage');
             const loadingMessage = document.getElementById('loadingMessage');
+            const successMessage = document.getElementById('successMessage');
+            const loginContainer = document.getElementById('loginContainer');
             
             errorMessage.style.display = 'none';
             loadingMessage.style.display = 'block';
             
             try {
-                // 调用主进程打开 BrowserView 并登录
+                // 调用主进程在后台静默登录
                 const result = await window.electronAPI.psyseenLogin({ 
                     username, 
                     password,
@@ -175,11 +189,16 @@
                 });
                 
                 if (result.success) {
-                    // 登录成功，加载 dashboard 页面
-                    loadingMessage.innerHTML = '<i class="fas fa-check"></i> 登录成功，正在跳转...';
+                    // 登录成功，显示成功消息，隐藏登录表单
+                    loadingMessage.style.display = 'none';
+                    successMessage.style.display = 'block';
+                    
+                    // 1 秒后关闭登录页（BrowserView 已经显示 dashboard）
                     setTimeout(() => {
-                        window.electronAPI.loadPsyseenView();
-                    }, 1000);
+                        // 通知主进程关闭登录窗口，返回主页并显示 dashboard
+                        window.electronAPI.closePsyseenView();
+                        window.location.href = 'index.html';
+                    }, 1500);
                 } else {
                     errorMessage.textContent = result.error || '登录失败';
                     errorMessage.style.display = 'block';

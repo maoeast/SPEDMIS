@@ -251,9 +251,22 @@ if (result.success) {
             
             // 特殊处理 AI 心理测验模块
             if (index === 5) {
-                card.addEventListener('click', () => {
-                    // 跳转到 AI 心理测验登录页面
-                    window.location.href = 'psy-login.html';
+                card.addEventListener('click', async () => {
+                    // 尝试直接打开 dashboard（如果已登录）
+                    try {
+                        const result = await window.electronAPI.openPsyseenDashboard();
+                        if (result.success) {
+                            // Dashboard 打开成功，说明已登录
+                            // 跳转到一个显示 dashboard 的页面
+                            window.location.href = 'psy-dashboard.html';
+                        } else {
+                            // 未登录或打开失败，跳转到登录页
+                            window.location.href = 'psy-login.html';
+                        }
+                    } catch (error) {
+                        // 错误情况，跳转到登录页
+                        window.location.href = 'psy-login.html';
+                    }
                 });
             } else {
                 card.addEventListener('click', () => {

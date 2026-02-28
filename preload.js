@@ -334,5 +334,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
         handleIpcError('closePsyseenView', error, null);
         throw error;
       });
+  },
+  openPsyseenDashboard: () => {
+    return ipcRenderer
+      .invoke('psyseen-open-dashboard')
+      .catch((error) => {
+        handleIpcError('openPsyseenDashboard', error, null);
+        throw error;
+      });
   }
 });

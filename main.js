@@ -469,7 +469,7 @@ ipcMain.handle(config.ipcChannels.updateAdminPassword, async (event, data) => {
 
 // ===== AI 心理测验 - psyseen.com 集成 =====
 
-// psyseen 登录 - 创建 BrowserView 并加载登录页面
+// psyseen 登录 - 在后台静默登录，成功后再显示
 ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl }) => {
   try {
     logger.info('Psyseen login request received', { username });
@@ -481,8 +481,8 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
       psyseenView = null;
     }
     
-    // 创建 BrowserView
-    psyseenView = new BrowserView({
+    // 创建隐藏的 BrowserView（先不添加到窗口）
+    const hiddenView = new BrowserView({
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -490,20 +490,40 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
       }
     });
     
-    mainWindow.setBrowserView(psyseenView);
-    
-    // 设置 BrowserView 位置（全屏）
+    // 设置为全屏大小（用于后台加载）
     const { width, height } = mainWindow.getBounds();
-    psyseenView.setBounds({ x: 0, y: 0, width, height });
+    hiddenView.setBounds({ x: 0, y: 0, width, height });
     
-    // 加载 psyseen.com 登录页
-    await psyseenView.webContents.loadURL(redirectUrl);
+    // 监听导航事件，检测是否登录成功（跳转到 dashboard）
+    let loginCompleted = false;
+    
+    const checkLoginComplete = (event, url) => {
+      logger.debug('BrowserView navigation', { url });
+      // 检测是否已跳转到 dashboard（登录成功标志）
+      if (url.includes('/dashboard') || url.includes('#/dashboard')) {
+        loginCompleted = true;
+        logger.info('Psyseen login completed, showing view');
+        
+        // 登录成功，添加到窗口显示
+        mainWindow.setBrowserView(hiddenView);
+        
+        // 移除监听器
+        hiddenView.webContents.removeListener('did-navigate', checkLoginComplete);
+        hiddenView.webContents.removeListener('did-navigate-in-page', checkLoginComplete);
+      }
+    };
+    
+    hiddenView.webContents.on('did-navigate', checkLoginComplete);
+    hiddenView.webContents.on('did-navigate-in-page', checkLoginComplete);
+    
+    // 加载登录页
+    await hiddenView.webContents.loadURL(redirectUrl);
     
     // 等待页面完全加载
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // 自动填充表单并提交
-    await psyseenView.webContents.executeJavaScript(`
+    const submitResult = await hiddenView.webContents.executeJavaScript(`
       (function() {
         return new Promise((resolve) => {
           // 查找用户名输入框
@@ -555,29 +575,40 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
       })();
     `);
     
-    logger.info('Psyseen login form auto-filled and submitted');
+    logger.info('Psyseen login form submitted', { result: submitResult });
+    
+    // 等待登录完成并跳转（最多等待 10 秒）
+    for (let i = 0; i < 20; i++) {
+      if (loginCompleted) {
+        psyseenView = hiddenView;
+        return { success: true };
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // 超时，可能已经登录成功了，直接显示
+    logger.warn('Psyseen login timeout, showing view anyway');
+    mainWindow.setBrowserView(hiddenView);
+    psyseenView = hiddenView;
     return { success: true };
+    
   } catch (error) {
-    logger.error('Failed to create psyseen login BrowserView', { error: error.message });
+    logger.error('Failed to login to psyseen', { error: error.message });
     return { success: false, error: error.message };
   }
 });
 
-// 加载 psyseen dashboard
+// 加载 psyseen dashboard（已废弃，登录成功后会自动显示）
 ipcMain.handle('psyseen-load-view', async (event) => {
   try {
-    logger.info('Psyseen load view request received');
+    logger.info('Psyseen load view request received (deprecated)');
     
     if (psyseenView) {
-      // 导航到 dashboard
-      await psyseenView.webContents.loadURL('https://org.psyseen.com/#/dashboard');
-      
       // 调整 BrowserView 大小以适应窗口
       const { width, height } = mainWindow.getBounds();
       psyseenView.setBounds({ x: 0, y: 0, width, height });
     }
     
-    logger.info('Psyseen dashboard loaded successfully');
     return { success: true };
   } catch (error) {
     logger.error('Failed to load psyseen dashboard', { error: error.message });
@@ -585,7 +616,7 @@ ipcMain.handle('psyseen-load-view', async (event) => {
   }
 });
 
-// 关闭 psyseen BrowserView
+// 关闭 psyseen BrowserView 并返回主页
 ipcMain.handle('psyseen-close-view', async (event) => {
   try {
     logger.info('Psyseen close view request received');
@@ -600,6 +631,44 @@ ipcMain.handle('psyseen-close-view', async (event) => {
     return { success: true };
   } catch (error) {
     logger.error('Failed to close psyseen BrowserView', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+// 打开 psyseen dashboard（用于从首页直接进入已登录的 dashboard）
+ipcMain.handle('psyseen-open-dashboard', async (event) => {
+  try {
+    logger.info('Psyseen open dashboard request received');
+    
+    // 如果已有 BrowserView，先关闭
+    if (psyseenView) {
+      mainWindow.removeBrowserView(psyseenView);
+      psyseenView.webContents.destroy();
+      psyseenView = null;
+    }
+    
+    // 创建 BrowserView
+    psyseenView = new BrowserView({
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+      }
+    });
+    
+    mainWindow.setBrowserView(psyseenView);
+    
+    // 设置 BrowserView 位置（全屏）
+    const { width, height } = mainWindow.getBounds();
+    psyseenView.setBounds({ x: 0, y: 0, width, height });
+    
+    // 直接加载 dashboard（用户需要已登录）
+    await psyseenView.webContents.loadURL('https://org.psyseen.com/#/dashboard');
+    
+    logger.info('Psyseen dashboard opened successfully');
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to open psyseen dashboard', { error: error.message });
     return { success: false, error: error.message };
   }
 });

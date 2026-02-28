@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 心理测验</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .dashboard-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .dashboard-title {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .back-home-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .back-home-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .dashboard-container {
+            margin-top: 50px;
+            height: calc(100vh - 50px);
+        }
+        
+        .loading-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #667eea;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <div class="dashboard-title">
+            <i class="fas fa-brain"></i> AI 心理测验云平台
+        </div>
+        <button class="back-home-btn" onclick="goHome()">
+            <i class="fas fa-home"></i> 返回首页
+        </button>
+    </div>
+    
+    <div class="dashboard-container">
+        <div class="loading-container" id="loadingContainer">
+            <div class="loading-spinner"></div>
+            <p>正在加载 dashboard...</p>
+        </div>
+    </div>
+    
+    <script>
+        function goHome() {
+            // 关闭 dashboard
+            window.electronAPI.closePsyseenView().then(() => {
+                window.location.href = 'index.html';
+            }).catch(() => {
+                window.location.href = 'index.html';
+            });
+        }
+        
+        // 页面加载完成后，通知主进程显示 dashboard
+        window.onload = async function() {
+            try {
+                // 等待 BrowserView 准备就绪
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // 隐藏加载动画
+                document.getElementById('loadingContainer').style.display = 'none';
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                document.getElementById('loadingContainer').innerHTML = '<p style="color: #e74c3c;">加载失败，请重试</p>';
+            }
+        };
+    </script>
+</body>
+</html>
