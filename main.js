@@ -482,14 +482,44 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
     const isIndependentWindow = (callerWindow === psyseenWindow);
     
     if (isIndependentWindow) {
-      // 独立窗口模式：直接在当前窗口中加载 dashboard 并自动登录
-      logger.info('Login from independent window mode');
+      // 独立窗口模式：在后台创建 BrowserView 完成登录，然后在窗口中显示 dashboard
+      logger.info('Login from independent window mode - using background BrowserView');
+      
+      // 创建隐藏的 BrowserView 用于后台登录
+      const loginView = new BrowserView({
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: path.join(__dirname, 'preload.js')
+        }
+      });
+      
+      // 监听导航事件，检测是否登录成功
+      let loginCompleted = false;
+      
+      const checkLoginComplete = (event, url) => {
+        logger.debug('BrowserView navigation', { url });
+        if (url.includes('/dashboard') || url.includes('#/dashboard')) {
+          loginCompleted = true;
+          logger.info('Psyseen login completed in background');
+          
+          // 移除监听器
+          loginView.webContents.removeListener('did-navigate', checkLoginComplete);
+          loginView.webContents.removeListener('did-navigate-in-page', checkLoginComplete);
+        }
+      };
+      
+      loginView.webContents.on('did-navigate', checkLoginComplete);
+      loginView.webContents.on('did-navigate-in-page', checkLoginComplete);
+      
+      // 加载登录页
+      await loginView.webContents.loadURL(redirectUrl);
       
       // 等待页面完全加载
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // 自动填充表单并提交
-      const submitResult = await callerWindow.webContents.executeJavaScript(`
+      await loginView.webContents.executeJavaScript(`
         (function() {
           return new Promise((resolve) => {
             var usernameInput = document.querySelector('input[type="text"], input[type="email"], input[name="username"], input[id="username"]');
@@ -533,7 +563,27 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
         })();
       `);
       
-      logger.info('Psyseen login form submitted in independent window', { result: submitResult });
+      logger.info('Psyseen login form submitted in background');
+      
+      // 等待登录完成（最多等待 10 秒）
+      for (let i = 0; i < 20; i++) {
+        if (loginCompleted) {
+          // 清理后台 BrowserView
+          loginView.webContents.destroy();
+          
+          // 在调用者窗口中加载 dashboard
+          await callerWindow.webContents.loadURL('https://org.psyseen.com/#/dashboard');
+          
+          logger.info('Dashboard loaded in independent window');
+          return { success: true };
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // 超时，直接加载 dashboard
+      logger.warn('Psyseen login timeout, loading dashboard anyway');
+      loginView.webContents.destroy();
+      await callerWindow.webContents.loadURL('https://org.psyseen.com/#/dashboard');
       return { success: true };
     } else {
       // 主窗口 BrowserView 模式（保留向后兼容）
