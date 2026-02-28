@@ -106,20 +106,6 @@
                 window.close();
             });
         }
-        
-        // 页面加载完成后，检查 BrowserView 是否存在
-        window.onload = async function() {
-            try {
-                // 等待 BrowserView 准备就绪
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // 隐藏加载动画
-                document.getElementById('loadingContainer').style.display = 'none';
-            } catch (error) {
-                console.error('Failed to load dashboard:', error);
-                document.getElementById('loadingContainer').innerHTML = '<p style="color: #e74c3c;">加载失败，请重试</p>';
-            }
-        };
     </script>
 </body>
 </html>

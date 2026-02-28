@@ -171,21 +171,6 @@
             });
         }
         
-        // 页面加载时检查是否已登录（BrowserView 是否存在）
-        window.onload = async function() {
-            try {
-                const result = await window.electronAPI.checkPsyseenView();
-                if (result.exists) {
-                    // 已登录，直接跳转到 dashboard 页面
-                    window.location.href = 'psy-dashboard.html';
-                }
-                // 未登录，显示登录表单
-            } catch (error) {
-                console.error('Failed to check psyseen view:', error);
-                // 显示登录表单
-            }
-        };
-        
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -194,7 +179,6 @@
             const errorMessage = document.getElementById('errorMessage');
             const loadingMessage = document.getElementById('loadingMessage');
             const successMessage = document.getElementById('successMessage');
-            const loginContainer = document.getElementById('loginContainer');
             
             errorMessage.style.display = 'none';
             loadingMessage.style.display = 'block';
@@ -208,13 +192,20 @@
                 });
                 
                 if (result.success) {
-                    // 登录成功，显示成功消息，隐藏登录表单
+                    // 登录成功，显示成功消息
                     loadingMessage.style.display = 'none';
                     successMessage.style.display = 'block';
                     
-                    // 1.5 秒后跳转到 dashboard 页面（在同一个窗口中）
+                    // 1.5 秒后在当前窗口中加载 dashboard
                     setTimeout(() => {
-                        window.location.href = 'psy-dashboard.html';
+                        // 通知主进程在当前窗口中加载 dashboard
+                        window.electronAPI.loadPsyseenView().then(() => {
+                            // Dashboard 已加载
+                        }).catch(err => {
+                            console.error('Failed to load dashboard:', err);
+                            // 如果失败，直接跳转 URL
+                            window.location.href = 'psy-dashboard.html';
+                        });
                     }, 1500);
                 } else {
                     errorMessage.textContent = result.error || '登录失败';

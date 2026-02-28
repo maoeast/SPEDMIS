@@ -482,17 +482,14 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
     const isIndependentWindow = (callerWindow === psyseenWindow);
     
     if (isIndependentWindow) {
-      // 独立窗口模式：直接在当前窗口中加载 dashboard
+      // 独立窗口模式：直接在当前窗口中加载 dashboard 并自动登录
       logger.info('Login from independent window mode');
-      
-      // 在调用者的窗口中直接加载登录页并自动提交
-      await callerWindow.webContents.loadURL(redirectUrl);
       
       // 等待页面完全加载
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // 自动填充表单并提交
-      await callerWindow.webContents.executeJavaScript(`
+      const submitResult = await callerWindow.webContents.executeJavaScript(`
         (function() {
           return new Promise((resolve) => {
             var usernameInput = document.querySelector('input[type="text"], input[type="email"], input[name="username"], input[id="username"]');
@@ -533,6 +530,137 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
               }
             }, 500);
           });
+        })();
+      `);
+      
+      logger.info('Psyseen login form submitted in independent window', { result: submitResult });
+      return { success: true };
+    } else {
+      // 主窗口 BrowserView 模式（保留向后兼容）
+      logger.info('Login from main window BrowserView mode (deprecated)');
+      
+      // 如果已有 BrowserView，先关闭
+      if (psyseenView) {
+        mainWindow.removeBrowserView(psyseenView);
+        psyseenView.webContents.destroy();
+        psyseenView = null;
+      }
+      
+      // 创建隐藏的 BrowserView（先不添加到窗口）
+      const hiddenView = new BrowserView({
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: path.join(__dirname, 'preload.js')
+        }
+      });
+      
+      // 设置为全屏大小（用于后台加载）
+      const { width, height } = mainWindow.getBounds();
+      hiddenView.setBounds({ x: 0, y: 0, width, height });
+      
+      // 监听导航事件，检测是否登录成功（跳转到 dashboard）
+      let loginCompleted = false;
+      
+      const checkLoginComplete = (event, url) => {
+        logger.debug('BrowserView navigation', { url });
+        // 检测是否已跳转到 dashboard（登录成功标志）
+        if (url.includes('/dashboard') || url.includes('#/dashboard')) {
+          loginCompleted = true;
+          logger.info('Psyseen login completed, showing view');
+          
+          // 登录成功，添加到窗口显示
+          mainWindow.setBrowserView(hiddenView);
+          
+          // 移除监听器
+          hiddenView.webContents.removeListener('did-navigate', checkLoginComplete);
+          hiddenView.webContents.removeListener('did-navigate-in-page', checkLoginComplete);
+        }
+      };
+      
+      hiddenView.webContents.on('did-navigate', checkLoginComplete);
+      hiddenView.webContents.on('did-navigate-in-page', checkLoginComplete);
+      
+      // 加载登录页
+      await hiddenView.webContents.loadURL(redirectUrl);
+      
+      // 等待页面完全加载
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // 自动填充表单并提交
+      const submitResult = await hiddenView.webContents.executeJavaScript(`
+        (function() {
+          return new Promise((resolve) => {
+            var usernameInput = document.querySelector('input[type="text"], input[type="email"], input[name="username"], input[id="username"]');
+            var passwordInput = document.querySelector('input[type="password"], input[name="password"], input[id="password"]');
+            
+            if (!usernameInput || !passwordInput) {
+              resolve({ success: false, error: 'Form fields not found' });
+              return;
+            }
+            
+            var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+            nativeInputValueSetter.call(usernameInput, '${username.replace(/'/g, "\\'")}');
+            usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+            usernameInput.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            nativeInputValueSetter.call(passwordInput, '${password.replace(/'/g, "\\'")}');
+            passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+            passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            setTimeout(() => {
+              var loginButton = document.querySelector('button[type="submit"], button[class*="login"], button[class*="submit"], input[type="submit"], .btn-login, .el-button--primary');
+              
+              if (!loginButton) {
+                var buttons = document.querySelectorAll('button, [role="button"]');
+                for (var i = 0; i < buttons.length; i++) {
+                  if (buttons[i].textContent.includes('登录')) {
+                    loginButton = buttons[i];
+                    break;
+                  }
+                }
+              }
+              
+              if (loginButton) {
+                loginButton.click();
+                resolve({ success: true, message: 'Login form submitted' });
+              } else {
+                resolve({ success: false, error: 'Login button not found' });
+              }
+            }, 500);
+          });
+        })();
+      `);
+      
+      logger.info('Psyseen login form submitted', { result: submitResult });
+      
+      // 等待登录完成并跳转（最多等待 10 秒）
+      for (let i = 0; i < 20; i++) {
+        if (loginCompleted) {
+          psyseenView = hiddenView;
+          
+          // 确保 BrowserView 大小正确
+          setTimeout(() => {
+            const { width, height } = mainWindow.getBounds();
+            psyseenView.setBounds({ x: 0, y: 0, width, height });
+          }, 500);
+          
+          return { success: true };
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // 超时，可能已经登录成功了，直接显示
+      logger.warn('Psyseen login timeout, showing view anyway');
+      psyseenView = hiddenView;
+      mainWindow.setBrowserView(hiddenView);
+      return { success: true };
+    }
+  } catch (error) {
+    logger.error('Failed to login to psyseen', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
         })();
       `);
       
@@ -665,17 +793,28 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
   }
 });
 
-// 加载 psyseen dashboard（已废弃，登录成功后会自动显示）
+// 加载 psyseen dashboard（用于独立窗口或主窗口）
 ipcMain.handle('psyseen-load-view', async (event) => {
   try {
-    logger.info('Psyseen load view request received (deprecated)');
+    logger.info('Psyseen load view request received');
     
-    if (psyseenView) {
-      // 调整 BrowserView 大小以适应窗口
-      const { width, height } = mainWindow.getBounds();
-      psyseenView.setBounds({ x: 0, y: 0, width, height });
+    // 获取调用者的窗口
+    const callerWindow = BrowserWindow.fromWebContents(event.sender);
+    
+    if (callerWindow === psyseenWindow) {
+      // 独立窗口模式：直接在窗口中加载 dashboard
+      logger.info('Loading dashboard in independent window');
+      await callerWindow.webContents.loadURL('https://org.psyseen.com/#/dashboard');
+    } else {
+      // 主窗口 BrowserView 模式（保留向后兼容）
+      if (psyseenView) {
+        // 调整 BrowserView 大小以适应窗口
+        const { width, height } = mainWindow.getBounds();
+        psyseenView.setBounds({ x: 0, y: 0, width, height });
+      }
     }
     
+    logger.info('Psyseen dashboard loaded successfully');
     return { success: true };
   } catch (error) {
     logger.error('Failed to load psyseen dashboard', { error: error.message });
@@ -763,7 +902,7 @@ ipcMain.handle('psyseen-open-window', async (event) => {
       return { success: true };
     }
     
-    // 创建新窗口
+    // 创建新窗口（显示登录页面）
     psyseenWindow = new BrowserWindow({
       width: 1280,
       height: 800,
@@ -780,7 +919,7 @@ ipcMain.handle('psyseen-open-window', async (event) => {
     // 窗口创建后最大化
     psyseenWindow.maximize();
     
-    // 加载登录页面
+    // 加载本地登录页面
     psyseenWindow.loadFile('psy-login.html');
     
     // 监听窗口关闭事件
