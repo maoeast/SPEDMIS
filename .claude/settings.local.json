@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node build/clean-debug.js:*)",
+      "Bash(npm run build)",
+      "Bash(npx asar list:*)",
+      "Bash(taskkill /F /IM \"特殊教育多模态干预系统.exe\")",
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command \"Get-Process | Where-Object {$_ProcessName -like ''*electron*'' -or $_MainWindowTitle -like ''*特殊教育*''} | Select-Object Id,ProcessName,MainWindowTitle\")",
+      "Bash(dir \"dist\\win-unpacked\")",
+      "Bash(more:*)",
+      "Bash(dir:*)",
+      "Bash(npm run build:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}

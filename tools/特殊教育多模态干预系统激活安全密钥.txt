@@ -1,0 +1,4 @@
+特殊教育多模态干预系统激活安全密钥
+[Environment]::SetEnvironmentVariable("ACTIVATION_SECRET_KEY", "ShineCanSpecialEducationMultiModalInterventionSystem2025", "Machine")
+[Environment]::SetEnvironmentVariable("ACTIVATION_ENCRYPTION_KEY", "f650efae81371cba182554dc97cd75b82376e72671c2c4f5151d1c4ef41476bc", "Machine")
+[Environment]::SetEnvironmentVariable("ACTIVATION_ENCRYPTION_IV", "d2eb6bc23d3d58c5043a951a66968143", "Machine")

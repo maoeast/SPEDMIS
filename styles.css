@@ -1,0 +1,923 @@
+/**
+ * 模块卡片样式 - 定义模块卡片的布局、动画和视觉效果
+ * 
+ * 包含以下特性：
+ * 1. 卡片基础样式：尺寸、圆角、阴影和边框
+ * 2. 悬停动画效果：上浮、放大和阴影增强
+ * 3. 模块特定背景：不同模块使用不同的渐变背景
+ * 4. 图标和文字动画：悬停时放大效果
+ * 5. 响应式设计：适配不同屏幕尺寸
+ * 
+ * 使用data-module属性为不同模块应用特定样式
+ */
+.logo-container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    cursor: pointer;
+}
+
+.logo {
+    width: 72px;
+    height: auto;
+    transition: all 0.3s ease;
+    /* 添加阻影效果 */
+    filter: drop-shadow(0px 4px 6px rgba(0, 0, 0, 0.5));
+    cursor: pointer;
+}
+
+.logo:hover {
+    transform: scale(1.15);
+    /* 悬停时增强阻影效果 */
+    filter: drop-shadow(0px 6px 12px rgba(0, 180, 252, 0.9));
+}
+
+/* 页脚样式 */
+.footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    padding: 10px 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: rgba(247, 243, 243, 0.884);
+    font-size: 16px;
+    z-index: 100;
+}
+
+/* 全局样式 */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 100vh;
+}
+
+/* index.html专用背景 */
+body.index-page {
+    background-image: url('images/back.jpg');
+}
+
+/* module.html专用背景 */
+body.module-page {
+    background-image: url('images/appback.png');
+}
+
+/* 首页模块布局 */
+.modules {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 800px;
+    margin: 50px auto 0;
+    justify-content: center;
+    align-items: center;
+}
+
+.module-card {
+    width: 256px;
+    height: 180px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    padding: 15px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.module-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.6;
+    z-index: 0;
+    transition: all 0.5s ease;
+}
+
+.module-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.3);
+}
+
+.module-card:hover::before {
+    opacity: 0.8;
+    transform: scale(1.1);
+}
+
+/* 模块特定样式 */
+.module-card[data-module="感知觉统合领域"]::before {
+    background-image: linear-gradient(45deg, rgba(250, 130, 120, 0.9), rgba(200, 80, 70, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="执行功能领域"]::before {
+    background-image: linear-gradient(45deg, rgba(8, 196, 235, 0.9), rgba(0, 150, 200, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="社交沟通领域"]::before {
+    background-image: linear-gradient(45deg, rgba(204, 223, 94, 0.9), rgba(170, 190, 70, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="生活适应领域"]::before {
+    background-image: linear-gradient(45deg, rgba(15, 212, 194, 0.9), rgba(10, 170, 155, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="情绪行为领域"]::before {
+    background-image: linear-gradient(45deg, rgba(255, 203, 58, 0.9), rgba(220, 170, 40, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="系统数据管理"]::before {
+    background-image: linear-gradient(45deg, rgba(223, 153, 240, 0.9), rgba(190, 120, 210, 0.9));
+    opacity: 0.8;
+}
+
+.module-card:hover::before {
+    opacity: 0.8;
+    transform: scale(1.1);
+}
+
+.module-icon {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    color: white;
+    transition: transform 0.3s ease;
+}
+
+.module-card:hover .module-icon {
+    transform: scale(1.1);
+}
+
+.module-name {
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+    z-index: 1;
+    transition: transform 0.3s ease;
+}
+
+.module-card:hover .module-name {
+    transform: scale(1.05);
+}
+
+.module-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 首页标题栏样式 */
+.index-header {
+    background: rgba(0, 123, 255, 0);
+    color: #ffffff;
+    padding: 20px 15px 10px;
+    text-align: center;
+    font-size: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    /* 使用多重text-shadow创建描边效果 */
+    text-shadow: 
+        -2px -2px 0 #00b4fc,  
+        2px -2px 0 #00b4fc,
+        -2px 2px 0 #00b4fc,
+        2px 2px 0 #00b4fc,
+        0px 0px 8px rgba(0, 0, 0, 0.7);
+    transition: all 0.5s ease;
+    position: relative;
+    overflow: hidden;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.index-header .subtitle {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+    margin-top: 10px;
+    /* 为副标题添加较细的描边效果 */
+    text-shadow: 
+        -1px -1px 0 #000,  
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000,
+        0px 0px 4px rgba(0, 0, 0, 0.7);
+    letter-spacing: 1px;
+    transition: all 0.5s ease;
+}
+
+.index-header:hover .subtitle {
+    color: rgba(255, 255, 255, 1);
+    text-shadow: 
+        -1px -1px 0 #000,  
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000,
+        0px 0px 8px rgba(71, 118, 230, 0.7);
+}
+
+.index-header:hover {
+    color: #ffffff;
+    text-shadow: 
+        -2px -2px 0 #000,  
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        2px 2px 0 #000,
+        0px 0px 12px rgba(71, 118, 230, 0.7);
+}
+
+/* 首页标题动画效果 */
+.index-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #ffffff, transparent);
+    transition: width 0.5s ease, left 0.5s ease;
+}
+
+.index-header:hover::after {
+    width: 80%;
+    left: 10%;
+}
+
+/* 模块页面标题栏样式 */
+.module-header {
+    background: rgba(0, 123, 255, 0);
+    color: #f4f7f7;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+    transition: all 0.5s ease;
+    position: relative;
+    overflow: hidden;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.module-header #moduleTitle {
+    font-size: 36px;
+    flex-grow: 1;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.module-header:hover #moduleTitle {
+    color: #fcfcfc;
+    text-shadow: 0 0 10px rgba(71, 118, 230, 0.5);
+}
+
+/* 兼容旧样式，将逐步淘汰 */
+.header {
+    background: rgba(0, 123, 255, 0);
+    color: #070606;
+    padding: 20px 15px 10px;
+    text-align: center;
+    font-size: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.7);
+    transition: all 0.5s ease;
+    position: relative;
+    overflow: hidden;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+/* 通用返回首页按钮样式 */
+/* 用于fixed定位的返回按钮（高级设置、使用统计等页面） */
+.back-button.fixed-back-button {
+    position: fixed !important;
+    top: 20px !important;
+    left: 20px !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    color: white !important;
+    padding: 10px 20px !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    transition: all 0.3s ease !important;
+    border: none !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    z-index: 99 !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+.back-button.fixed-back-button:hover {
+    background: rgba(0, 0, 0, 0.9) !important;
+    transform: translateX(-3px) !important;
+    scale: 1 !important;
+}
+
+/* 返回按鐐样式 */
+.back-button {
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    padding: 5px;
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.3);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.back-button .default-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: opacity 0.3s ease;
+}
+
+.back-button .default-state i {
+    font-size: 24px;
+    margin-bottom: 2px;
+}
+
+.back-button .default-state span {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.back-button .hover-state {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.back-button:hover .default-state {
+    opacity: 0;
+}
+
+.back-button:hover .hover-state {
+    opacity: 1;
+}
+
+.back-button:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+}
+
+/* 占位空白区域 */
+.spacer {
+    width: 60px;
+}
+
+/* 模块页面标题样式 */
+.module-header {
+    background-color: #2c3e5000;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    /*box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);*/
+    position: relative;
+    overflow: hidden;
+}
+
+.module-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    z-index: 0;
+}
+
+.module-title {
+    margin: 0;
+    font-size: 24px;
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.module-title {
+    position: relative;
+}
+
+.module-title:hover {
+    color: #4776E6;
+    text-shadow: 0 0 10px rgba(71, 118, 230, 0.5);
+}
+
+.module-title::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(71, 118, 230, 0.3), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.module-title:hover::after {
+    opacity: 1;
+}
+
+.module-title i {
+    margin-right: 10px;
+    font-size: 28px;
+}
+
+/* 标签页容器 */
+.tabs {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    background: linear-gradient(90deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05));
+    border-radius: 8px 8px 0 0;
+    margin: 0 20px;
+    padding: 10px 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* 单个标签样式 */
+.tab {
+    padding: 15px 30px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+    text-align: center;
+    margin: 0 5px;
+    font-size: 16px;
+    font-weight: bold;
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(230,240,255,0.7));
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+.tab::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #4776E6, #8E54E9);
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+.tab:hover::before {
+    transform: translateY(0);
+}
+
+/* 激活状态的标签 */
+.tab.active {
+    background: linear-gradient(135deg, rgba(71,118,230,0.9), rgba(142,84,233,0.8));
+    color: white;
+    box-shadow: 0 0 15px rgba(71,118,230,0.5);
+}
+
+.tab.active::before {
+    transform: translateY(0);
+    background: white;
+}
+
+.tab:hover:not(.active) {
+    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(230,240,255,0.8));
+}
+
+/* 应用列表容器 */
+.apps {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(64, 224, 208, 0.2), rgba(0, 139, 139, 0.3));
+    border-radius: 0 0 8px 8px;
+    margin: 0 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+    backdrop-filter: blur(5px);
+}
+
+/* 单个应用卡片 */
+.app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 15px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(102, 205, 170, 0.7), rgba(0, 191, 255, 0.7));
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.5);
+}
+
+/* 应用卡片背景效果 */
+.app::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #4776E6, #8E54E9);
+    transition: height 0.3s ease;
+}
+
+/* 鼠标悬停效果 */
+.app:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.app:hover::before {
+    height: 6px;
+}
+
+/* 应用图标容器 */
+.app-icon-container {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+    padding: 5px;
+    transition: transform 0.3s ease;
+    overflow: hidden;
+}
+
+.app-icon-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 应用图标 */
+.app img {
+    width: 78px;
+    height: 78px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.app:hover img {
+    transform: scale(1.1);
+}
+
+/* 应用名称 */
+.app-name {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 500;
+    color: #333;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.3s ease;
+    padding: 5px 0;
+}
+
+.app:hover .app-name {
+    color: #fafafa;
+}
+
+/* 无应用提示 */
+.no-apps {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+/* 错误信息样式 */
+.error {
+    background-color: #ffdddd;
+    color: #ff0000;
+    padding: 10px;
+    margin: 20px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* 加载指示器样式 */
+#loadingSpinner {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007AFF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    z-index: 1000;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 应用启动加载覆盖层 */
+.loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.loading-overlay.active {
+    display: flex;
+    opacity: 1;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba(255, 255, 255, 0.3);
+    border-top: 5px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+.loading-text {
+    color: white;
+    font-size: 18px;
+    font-weight: 500;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    max-width: 300px;
+    word-wrap: break-word;
+    white-space: pre-line; /* Allow line breaks */
+    line-height: 1.5;
+}
+
+/* 应用启动成功动画 */
+@keyframes launchSuccess {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.2); opacity: 0.8; }
+    100% { transform: scale(0); opacity: 0; }
+}
+
+/* 错误提示样式 */
+.error {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #ff3b30;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1100;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    max-width: 80%;
+    text-align: center;
+    animation: errorAppear 0.3s ease;
+}
+
+/* 退出按钮样式 */
+.exit-button {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.exit-button i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.exit-button span {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.exit-button:hover {
+    background: rgba(255, 59, 48, 0.8);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(255, 59, 48, 0.4);
+}
+
+/* 用户中心按钮样式 */
+.user-center-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.user-center-button i {
+    font-size: 18px;
+}
+
+.user-center-button span {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.user-center-button:hover {
+    background: rgba(0, 120, 212, 0.8);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 120, 212, 0.4);
+}
+
+/* 设置按钮样式 */
+.settings-button {
+    background: rgba(0, 120, 212, 0.8);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 30px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.settings-button:hover {
+    background: rgba(0, 90, 158, 0.9);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 120, 212, 0.4);
+}
+
+@keyframes errorAppear {
+    from { transform: translate(-50%, 20px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* 高级设置密码验证对话框样式 */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    backdrop-filter: blur(3px);
+}
+
+.auth-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    min-width: 320px;
+    max-width: 400px;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+.auth-dialog h2 {
+    margin: 0 0 10px 0;
+    font-size: 20px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.auth-dialog h2 i {
+    color: #0078d4;
+}
+
+.auth-dialog input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+    margin: 15px 0;
+}
+
+.auth-dialog input[type="password"]:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+}

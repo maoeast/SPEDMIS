@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">特殊教育多模态干预系统</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+</head>
+<body class="index-page">
+    <!-- 退出按钮 -->
+    <div class="exit-button" id="exitButton">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>退出</span>
+    </div>
+    
+    <!-- 用户中心按钮 -->
+    <div class="user-center-button" id="userCenterButton">
+        <i class="fas fa-user-circle"></i>
+        <span>用户中心</span>
+    </div>
+    
+    <div class="logo-container" id="logoContainer">
+        <img src="images/logo.png" alt="公司logo" class="logo" id="logoImage" title="点击进入高级设置">
+    </div>
+    <div class="index-header" id="indexHeader">
+        特殊教育多模态干预系统
+        <div class="subtitle">Special Education Multimodal Intervention System</div>
+    </div>
+    <div class="modules" id="modules">
+        <!-- 模块将通过JavaScript动态生成 -->
+    </div>
+    
+    <div class="footer" id="footerText">
+        ©2013-2025  杭州炫灿科技有限公司
+    </div>
+
+    <!-- 高级设置密码验证对话框 -->
+    <div class="auth-overlay" id="advancedAuthOverlay" style="display: none;"></div>
+    <div class="auth-dialog" id="advancedAuthDialog" style="display: none;">
+        <h2><i class="fas fa-lock"></i> 高级设置</h2>
+        <p style="text-align: center; color: #666; margin: 0 0 20px 0;">请输入管理员密码以访问高级设置</p>
+        <input type="password" id="advancedAuthPassword" placeholder="请输入管理员密码" />
+        <div class="auth-dialog-buttons" style="display: flex; gap: 10px;">
+            <button class="btn-cancel" onclick="closeAdvancedAuthDialog()" style="flex: 1; padding: 12px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">取消</button>
+            <button class="btn-submit" id="advancedAuthSubmit" onclick="submitAdvancedAuth()" style="flex: 1; padding: 12px; background: #0078d4; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">确定</button>
+        </div>
+    </div>
+
+    <script>
+        // 初始化页面，加载产品名称配置
+        async function initializePage() {
+            try {
+                // 获取产品名称配置
+                const result = await window.electronAPI.getProductConfig();
+                if (result.success && result.data) {
+                    const productConfig = result.data;
+                    
+                    // 更新页面标题
+                    document.getElementById('pageTitle').textContent = productConfig.fullName;
+                    document.getElementById('indexHeader').innerHTML = `
+                        ${productConfig.fullName}
+                        <div class="subtitle">${productConfig.engName || 'Special Education Multimodal Intervention System'}</div>
+                    `;
+                    
+                    // 更新页脚
+                    document.getElementById('footerText').textContent = 
+                        `${productConfig.copyright || '©2013-2025'}  ${productConfig.organization}`;
+                }
+            } catch (error) {
+}
+        }
+        
+        // 页面加载后初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializePage);
+        } else {
+            initializePage();
+        }
+        
+        // 退出按钮事件处理
+        document.getElementById('exitButton').addEventListener('click', () => {
+            if (window.electronAPI && window.electronAPI.closeApplication) {
+                window.electronAPI.closeApplication();
+            } else {
+// 在浏览器环境中，可以昺示一个提示
+                alert('此功能仅在桌面应用中可用');
+            }
+        });
+                
+        // 用户中心按钮事件处理
+        document.getElementById('userCenterButton').addEventListener('click', () => {
+            window.location.href = 'user-center.html';
+        });
+        
+        // Logo 上级设置事件处理
+        document.getElementById('logoImage').addEventListener('click', () => {
+            showAdvancedAuthDialog();
+        });
+        
+        // 高级设置密码验证对话框
+        function showAdvancedAuthDialog() {
+            document.getElementById('advancedAuthOverlay').style.display = 'block';
+            document.getElementById('advancedAuthDialog').style.display = 'block';
+            document.getElementById('advancedAuthPassword').value = '';
+            document.getElementById('advancedAuthPassword').focus();
+        }
+        
+        function closeAdvancedAuthDialog() {
+            document.getElementById('advancedAuthOverlay').style.display = 'none';
+            document.getElementById('advancedAuthDialog').style.display = 'none';
+            document.getElementById('advancedAuthPassword').value = '';
+        }
+        
+        async function submitAdvancedAuth() {
+            const password = document.getElementById('advancedAuthPassword');
+            const passwordValue = password.value;
+            
+            if (!passwordValue) {
+                alert('请输入管理员密码');
+                password.focus();
+                return;
+            }
+            
+            const submitBtn = document.getElementById('advancedAuthSubmit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '正在验证...';
+            
+            try {
+const result = await window.electronAPI.verifyAdminPassword(passwordValue);
+if (result.success) {
+                    closeAdvancedAuthDialog();
+                    // 由于每次都要重新验证，所以不需要传递令牌
+                    window.location.href = 'advanced-settings.html';
+                } else {
+                    alert(result.message || '密码错误，请重新输入');
+                    password.value = '';
+                    // 使用setTimeout以确保焦点合法设置
+                    setTimeout(() => {
+                        password.focus();
+                    }, 0);
+                }
+            } catch (error) {
+                console.error('验证异常:', error);
+                alert('验证失败: ' + error.message);
+                password.value = '';
+                setTimeout(() => {
+                    password.focus();
+                }, 0);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '确定';
+            }
+        }
+        
+        // 回车按键也可提交
+        document.getElementById('advancedAuthPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitAdvancedAuth();
+            }
+        });
+        
+        // 点击遮罩属也关闭Dialog
+        document.getElementById('advancedAuthOverlay').addEventListener('click', () => {
+            closeAdvancedAuthDialog();
+        });
+        
+        const modulesData = [
+            { 
+                name: '感知觉统合领域', 
+                color: '#FA8278',
+                icon: 'images/modules/perception.png',
+                background: 'images/modules/perception-bg.png'
+            },
+            { 
+                name: '执行功能领域', 
+                color: '#08C4EB',
+                icon: 'images/modules/executive.png',
+                background: 'images/modules/executive-bg.png'
+            },
+            { 
+                name: '社交沟通领域', 
+                color: '#CCDF5E',
+                icon: 'images/modules/social.png',
+                background: 'images/modules/social-bg.png'
+            },
+            { 
+                name: '生活适应领域', 
+                color: '#0FD4C2',
+                icon: 'images/modules/adaptive.png',
+                background: 'images/modules/adaptive-bg.png'
+            },
+            { 
+                name: '情绪行为领域', 
+                color: '#FFCB3A',
+                icon: 'images/modules/emotional.png',
+                background: 'images/modules/emotional-bg.png'
+            },
+            { 
+                name: '系统数据管理', 
+                color: '#DF99F0',
+                icon: 'images/modules/system.png',
+                background: 'images/modules/system-bg.png'
+            }
+        ];
+
+        const modulesContainer = document.getElementById('modules');
+        
+        modulesData.forEach((module, index) => {
+            const card = document.createElement('div');
+            card.className = 'module-card';
+            card.style.backgroundColor = module.color;
+            card.setAttribute('data-module', module.name);
+            
+            // 创建图标元素
+            const iconElement = document.createElement('div');
+            iconElement.className = 'module-icon';
+            
+            // 为每个模块设置不同的图标样式
+            switch(module.name) {
+                case '感知觉统合领域':
+                    iconElement.innerHTML = '<i class="fas fa-brain" style="font-size: 64px;"></i>';
+                    break;
+                case '执行功能领域':
+                    iconElement.innerHTML = '<i class="fas fa-tasks" style="font-size: 64px;"></i>';
+                    break;
+                case '社交沟通领域':
+                    iconElement.innerHTML = '<i class="fas fa-users" style="font-size: 64px;"></i>';
+                    break;
+                case '生活适应领域':
+                    iconElement.innerHTML = '<i class="fas fa-lightbulb" style="font-size: 64px;"></i>';
+                    break;
+                case '情绪行为领域':
+                    iconElement.innerHTML = '<i class="fas fa-grin-beam" style="font-size: 64px;"></i>';
+                    break;
+                case '系统数据管理':
+                    iconElement.innerHTML = '<i class="fas fa-cubes" style="font-size: 64px;"></i>';
+                    break;
+                default:
+                    iconElement.innerHTML = '<i class="fas fa-compass" style="font-size: 64px;"></i>';
+            }
+            
+            // 创建名称元素
+            const nameElement = document.createElement('div');
+            nameElement.className = 'module-name';
+            nameElement.textContent = module.name;
+            
+            // 添加元素到卡片
+            card.appendChild(iconElement);
+            card.appendChild(nameElement);
+            
+            // 特殊处理系统数据管理模块
+            if (index === 5) {
+                card.addEventListener('click', () => {
+                    // 在新窗口/标签页中打开系统数据管理链接
+                    window.open('https://xcpm.hzxckj308.com:8008/', '_blank');
+                });
+            } else {
+                card.addEventListener('click', () => {
+                    window.location.href = `module.html?domain=${encodeURIComponent(module.name)}`;
+                });
+            }
+            
+            modulesContainer.appendChild(card);
+        });
+    </script>
+     <!-- 扣子智能体 SDK -->
+    <!--<script src="https://lf-cdn.coze.cn/obj/unpkg/flow-platform/chat-app-sdk/1.2.0-beta.14/libs/cn/index.js"></script>
+    <script src="./cozechat.js"></script>-->
+</body>
+</html>

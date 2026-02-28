@@ -1,0 +1,555 @@
+﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模块详情 - 特殊教育多模态干预系统</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+</head>
+
+<body class="module-page">
+    <!-- 退出按钮 -->
+    <div class="exit-button" id="exitButton">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>退出</span>
+    </div>
+
+    <!-- 权限验证对话框 -->
+    <div id="authDialog" class="auth-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1001; min-width: 400px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: #333;"><i class="fas fa-lock"></i> 管理员授权</h2>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">输入管理员密码:</label>
+            <input type="password" id="authPassword" placeholder="输入管理员密码" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px;" />
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="authCancel" style="flex: 1; padding: 10px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 14px;">取消</button>
+            <button id="authSubmit" style="flex: 1; padding: 10px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">确定</button>
+        </div>
+    </div>
+    <div id="authOverlay" class="auth-overlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000;"></div>
+
+    <!-- 加载指示器 -->
+    <div id="loadingSpinner"></div>
+
+    <!-- 应用启动加载覆盖层 -->
+    <div id="appLoadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在启动应用...</div>
+    </div>
+
+    <!-- 页面头部 -->
+    <div class="module-header">
+        <button class="back-button" onclick="goHome()">
+            <div class="default-state">
+                <i class="fas fa-arrow-left"></i>
+                <span>返回首页</span>
+            </div>
+            <img class="hover-state" src="images/home.png" alt="返回首页">
+        </button>
+        <div id="moduleTitle">模块应用列表</div>
+        <div class="spacer"></div>
+    </div>
+
+    <!-- 分类标签 -->
+    <div class="tabs" id="tabsContainer"></div>
+
+    <!-- 应用列表 -->
+    <div class="apps" id="appsContainer"></div>
+
+    <!-- 错误信息 -->
+    <div class="error" id="errorMessage" style="display: none;"></div>
+
+    <script>
+        // 退出按钮事件处理
+        document.getElementById('exitButton').addEventListener('click', () => {
+            if (window.electronAPI && window.electronAPI.closeApplication) {
+                window.electronAPI.closeApplication();
+            } else {
+alert('此功能仅在桌面应用中可用');
+            }
+        });
+        
+        // 权限相关变量
+        let authToken = null; // 存储认证令牌
+        let settingsMenuOpen = false;
+        
+        // 权限验证对话框
+        const authDialog = document.getElementById('authDialog');
+        const authOverlay = document.getElementById('authOverlay');
+        const authPassword = document.getElementById('authPassword');
+        const authCancel = document.getElementById('authCancel');
+        const authSubmit = document.getElementById('authSubmit');
+        
+        function showAuthDialog() {
+            authDialog.style.display = 'block';
+            authOverlay.style.display = 'block';
+            authPassword.value = '';
+            authPassword.focus();
+        }
+        
+        function hideAuthDialog() {
+            authDialog.style.display = 'none';
+            authOverlay.style.display = 'none';
+            authPassword.value = '';
+        }
+        
+        authCancel.addEventListener('click', hideAuthDialog);
+        authOverlay.addEventListener('click', hideAuthDialog);
+        
+        authPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                authSubmit.click();
+            }
+        });
+        
+        authSubmit.addEventListener('click', async () => {
+            const password = authPassword.value;
+            if (!password) {
+                alert('请输入密码');
+                return;
+            }
+        
+            try {
+                authSubmit.disabled = true;
+                authSubmit.textContent = '正在验证...';
+        
+                const result = await window.electronAPI.verifyAdminPassword(password);
+        
+                if (result.success) {
+                    authToken = result.token;
+                    hideAuthDialog();
+                    showSettingsMenu();
+                } else {
+                    alert(result.message || '密码错误');
+                    authPassword.value = '';
+                    authPassword.focus();
+                }
+            } catch (error) {
+                alert('验证失败: ' + error.message);
+                console.error('验证失败:', error);
+            } finally {
+                authSubmit.disabled = false;
+                authSubmit.textContent = '确定';
+            }
+        });
+        
+        function showSettingsMenu() {
+            const menuHtml = `
+                <div id="settingsMenu" style="position: fixed; top: 60px; right: 20px; background: white; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; min-width: 200px;">
+                    <a href="#" onclick="goToSettings('product-name')" style="display: block; padding: 12px 16px; color: #333; text-decoration: none; border-bottom: 1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                        <i class="fas fa-signature" style="margin-right: 8px;"></i>修改产品名称
+                    </a>
+                    <a href="#" onclick="goToSettings('logo')" style="display: block; padding: 12px 16px; color: #333; text-decoration: none; border-bottom: 1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                        <i class="fas fa-image" style="margin-right: 8px;"></i>设置logo
+                    </a>
+                    <a href="#" onclick="closeSettingsMenu()" style="display: block; padding: 12px 16px; color: #d32f2f; text-decoration: none; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                        <i class="fas fa-sign-out-alt" style="margin-right: 8px;"></i>退出授权
+                    </a>
+                </div>
+                <div id="settingsMenuOverlay" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999;" onclick="closeSettingsMenu()"></div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', menuHtml);
+            settingsMenuOpen = true;
+        }
+        
+        window.closeSettingsMenu = function() {
+            const menu = document.getElementById('settingsMenu');
+            const overlay = document.getElementById('settingsMenuOverlay');
+            if (menu) menu.remove();
+            if (overlay) overlay.remove();
+            settingsMenuOpen = false;
+            if (authToken) {
+                window.electronAPI.revokeSession(authToken);
+                authToken = null;
+            }
+        };
+        
+        window.goToSettings = function(type) {
+            if (!authToken) {
+                alert('权限已过旨');
+                return;
+            }
+        
+            if (type === 'product-name') {
+                // 在前端显示产品名称设置对话
+                const newName = prompt('输入新的产品名称:', '');
+                if (newName && newName.trim()) {
+                    window.electronAPI.setProductName({ 
+                        fullName: newName, 
+                        shortName: newName.substring(0, 10)
+                    }).then(result => {
+                        if (result.success) {
+                            alert('产品名称已更新');
+                            location.reload();
+                        } else {
+                            alert('更新失败: ' + result.error);
+                        }
+                    }).catch(err => {
+                        alert('错误: ' + err.message);
+                    });
+                }
+            } else if (type === 'logo') {
+                // 在前端提示上传logo
+                alert('需要实现文件上传函数');
+                // 可以使用 electronAPI.uploadLogo(filePath)
+            }
+            window.closeSettingsMenu();
+        };
+
+        // 初始化模块
+        class ModuleApp {
+            constructor() {
+                this.isLaunching = false; // 会标记应用是否正在启动中
+                this.init();
+            }
+
+            async init() {
+                this.showLoading(true);
+                try {
+                    // 检查electronAPI是否可用
+                    if (!window.electronAPI) {
+                        throw new Error('Electron API not available. window.electronAPI is undefined');
+                    }
+                    
+                    // 首先加载产品名称配置
+                    try {
+                        const result = await window.electronAPI.getProductConfig();
+                        if (result.success && result.data) {
+                            const productConfig = result.data;
+                            // 更新文档标题 (可选)
+                            document.title = productConfig.fullName;
+                        }
+                    } catch (error) {
+}
+                    
+                    // 获取URL参数
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.domain = decodeURIComponent(urlParams.get('domain'));
+                    window.currentDomain = this.domain; // 保存到全局变量供后续使用
+
+                    // 设置模块标题和图标
+                    const moduleTitleElement = document.getElementById('moduleTitle');
+                    let iconClass = 'fas fa-cube'; // 默认图标
+
+                    // 根据模块名称设置不同的图标
+                    switch (this.domain) {
+                        case '感知觉统合领域':
+                            iconClass = 'fas fa-brain';
+                            break;
+                        case '执行功能领域':
+                            iconClass = 'fas fa-tasks';
+                            break;
+                        case '社交沟通领域':
+                            iconClass = 'fas fa-users';
+                            break;
+                        case '生活适应领域':
+                            iconClass = 'fas fa-lightbulb';
+                            break;
+                        case '情绪行为领域':
+                            iconClass = 'fas fa-grin-beam';
+                            break;
+                        case '系统数据管理':
+                            iconClass = 'fas fa-database';
+                            break;
+                    }
+
+                    moduleTitleElement.innerHTML = `<i class="${iconClass}" style="margin-right: 10px;"></i>${this.domain}`;
+
+                    // 获取模块分类数据
+                    this.categories = await window.electronAPI.getModuleCategories(this.domain);
+// 初始化UI
+                    this.initUI();
+
+                    // 显示第一个标签内容
+                    if (Object.keys(this.categories).length > 0) {
+                        this.currentSubCategory = Object.keys(this.categories)[0];
+                        this.displayApps(this.categories[this.currentSubCategory]);
+                    }
+                } catch (err) {
+                    this.showError(`加载应用分类失败: ${err.message}`);
+                    console.error('加载应用分类失败:', err);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+
+            initUI() {
+                // 初始化标签容器
+                this.tabsContainer = document.getElementById('tabsContainer');
+                this.appsContainer = document.getElementById('appsContainer');
+                this.errorMessage = document.getElementById('errorMessage');
+
+                // 确保错误信息元素存在
+                if (!this.errorMessage) {
+this.errorMessage = document.createElement('div');
+                    this.errorMessage.className = 'error';
+                    this.errorMessage.id = 'errorMessage';
+                    this.errorMessage.style.display = 'none';
+                    document.body.appendChild(this.errorMessage);
+                }
+
+                // 创建标签页
+                this.createTabs();
+            }
+
+            createTabs() {
+                const subCategories = Object.keys(this.categories);
+                subCategories.forEach((subCategory, index) => {
+                    const tab = document.createElement('div');
+                    tab.className = 'tab' + (index === 0 ? ' active' : '');
+                    tab.textContent = subCategory;
+                    tab.addEventListener('click', () => {
+                        this.currentSubCategory = subCategory;
+                        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        this.displayApps(this.categories[subCategory]);
+                    });
+
+                    this.tabsContainer.appendChild(tab);
+                });
+            }
+
+            displayApps(apps) {
+// 添加调试信息
+                this.appsContainer.innerHTML = '';
+
+                if (!apps || apps.length === 0) {
+                    this.appsContainer.innerHTML = '<div class="no-apps">暂无应用</div>';
+                    return;
+                }
+
+                // 创建并渲染应用卡片
+                const fragment = document.createDocumentFragment();
+                apps.forEach(app => {
+                    const appCard = this.createAppCard(app);
+                    fragment.appendChild(appCard);
+                });
+
+                this.appsContainer.appendChild(fragment);
+            }
+
+            createAppCard(app) {
+                const appDiv = document.createElement('div');
+                appDiv.className = 'app';
+
+                // 创建图标容器
+                const iconContainer = document.createElement('div');
+                iconContainer.className = 'app-icon-container';
+
+                // 创建图标元素
+                const img = document.createElement('img');
+                // 优先使用映射路径，否则使用原始路径
+                const relativePath = app.图标路径 ? app.图标路径.replace(/^.*[\\\/]/, '') : '';
+                img.src = this.getIconPath(relativePath) || 'images/default-app-icon.png';
+                img.alt = app.应用名称;
+                img.onerror = () => { img.src = 'images/default-app-icon.png'; };
+
+                // 将图标添加到容器
+                iconContainer.appendChild(img);
+
+                // 创建应用名称文本
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'app-name';
+                nameDiv.textContent = app.应用名称;
+                nameDiv.title = app.应用名称; // 添加工具提示，鼠标悬停时显示完整名称
+
+                // 绑定点击事件
+                appDiv.addEventListener('click', () => {
+                    // 如果已经有应用正在启动，则不处理此次点击
+                    if (this.isLaunching) {
+return;
+                    }
+// 标记正在启动
+                    this.isLaunching = true;
+                    
+                    // 添加点击反馈效果
+                    appDiv.style.transform = 'scale(0.95)';
+                    appDiv.style.opacity = '0.7';
+                    appDiv.style.pointerEvents = 'none'; // 禁用下一次点击
+
+                    // 显示加载覆盖层
+                    const appLoadingOverlay = document.getElementById('appLoadingOverlay');
+                    const loadingText = appLoadingOverlay?.querySelector('.loading-text');
+                    if (appLoadingOverlay) {
+                        // 更新加载文本以显示应用名称
+                        if (loadingText) {
+                            loadingText.textContent = `正在启动应用...\n${app.应用名称}`;
+                        }
+                        appLoadingOverlay.classList.add('active');
+                    }
+
+                    setTimeout(() => {
+                        // 记录应用使用开始
+                        window.electronAPI.recordUsageStart({
+                            appName: app.应用名称,
+                            appPath: app.可执行文件路径 || app.应用路径,
+                            category: window.currentDomain || '未知'
+                        }).then(startResult => {
+                            if (startResult.success) {
+                                const recordId = startResult.data.recordId;
+// 启动应用
+                                window.electronAPI.launchApplication(app.可执行文件路径 || app.应用路径)
+                                    .then(success => {
+// 应用启动成功，明亮地隐藏覆盖层
+                                        if (appLoadingOverlay) {
+                                            appLoadingOverlay.classList.remove('active');
+                                        }
+                                        
+                                        // 记录应用使用结束
+                                        // 策略：应用启动后，估算一个合理的使用时间，一般為30秒
+                                        // 这是模拟用户实际使用应用的时间
+                                        const estimatedDuration = 30000; // 30秒，即将应用关闭startResult.data.recordId
+                                        setTimeout(() => {
+                                            window.electronAPI.recordUsageEnd({
+                                                recordId: recordId
+                                            }).then(endResult => {
+}).catch(err => {
+                                                console.error('记录应用使用结束失败:', err);
+                                            });
+                                        }, estimatedDuration);
+                                    })
+                                    .catch(error => {
+                                        console.error('应用启动失败:', error);
+                                        
+                                        // 应用启动失败，也要记录结束
+                                        window.electronAPI.recordUsageEnd({
+                                            recordId: recordId
+                                        }).catch(err => {
+                                            console.error('记录应用使用结束失败(失败场景):', err);
+                                        });
+                                        
+                                        // 隐藏覆盖层
+                                        if (appLoadingOverlay) {
+                                            appLoadingOverlay.classList.remove('active');
+                                        }
+
+                                        // 恢复应用卡片的样式
+                                        appDiv.style.transform = '';
+                                        appDiv.style.opacity = '1';
+                                        appDiv.style.pointerEvents = ''; // 恢复事件监听
+
+                                        // 显示错误提示
+                                        const errorMessage = document.createElement('div');
+                                        errorMessage.className = 'error';
+                                        errorMessage.textContent = `无法启动应用: ${error.message || '未知错误'}`;
+                                        document.body.appendChild(errorMessage);
+
+                                        // 3秒后移除错误提示
+                                        setTimeout(() => {
+                                            errorMessage.style.opacity = '0';
+                                            setTimeout(() => {
+                                                document.body.removeChild(errorMessage);
+                                            }, 300);
+                                        }, 3000);
+                                    })
+                                    .finally(() => {
+                                        // 无论成失，都要恢复正常状态
+                                        this.isLaunching = false;
+                                        appDiv.style.transform = '';
+                                        appDiv.style.opacity = '1';
+                                        appDiv.style.pointerEvents = ''; // 恢复事件监听
+                                    });
+                            } else {
+                                console.error('记录应用使用开始失败:', startResult.error);
+                                // 应用启动失败，隐藏覆盖层
+                                if (appLoadingOverlay) {
+                                    appLoadingOverlay.classList.remove('active');
+                                }
+                                this.isLaunching = false;
+                            }
+                        }).catch(error => {
+                            console.error('记录应用使用开始异常:', error);
+                            // 应用启动失败，隐藏覆盖层
+                            if (appLoadingOverlay) {
+                                appLoadingOverlay.classList.remove('active');
+                            }
+                            this.isLaunching = false;
+                        });
+                    }, 100);
+                });
+
+                // 组合元素
+                appDiv.appendChild(iconContainer);
+                appDiv.appendChild(nameDiv);
+
+                return appDiv;
+            }
+
+            getIconPath(iconPath) {
+                if (!iconPath) return null;
+
+                // 从预加载脚本暴露的配置中获取图标映射表
+                const appIconMap = window.appConfig?.appIconMap;
+                if (!appIconMap) {
+return 'images/default-app-icon.png';
+                }
+
+                const filename = iconPath.split(/[\\/]/).pop();
+                
+                // 首先尝试在映射表中查找
+                if (appIconMap[filename]) {
+                    const mappedIcon = `images/${appIconMap[filename]}`;
+return mappedIcon;
+                }
+                
+                // 如果在映射表中找不到，使用默认图标
+return 'images/default-app-icon.png';
+            }
+
+            showError(message) {
+                if (this.errorMessage) {
+                    this.errorMessage.style.display = 'block';
+                    this.errorMessage.textContent = message;
+                } else {
+                    console.error('错误信息元素未找到:', message);
+                    // 尝试重新获取元素
+                    this.errorMessage = document.getElementById('errorMessage');
+                    if (this.errorMessage) {
+                        this.errorMessage.style.display = 'block';
+                        this.errorMessage.textContent = message;
+                    } else {
+                        // 如果仍然找不到元素，创建一个新的错误信息元素
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error';
+                        errorDiv.id = 'errorMessage';
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = message;
+                        document.body.appendChild(errorDiv);
+                        this.errorMessage = errorDiv;
+                    }
+                }
+            }
+
+            showLoading(show) {
+                const spinner = document.getElementById('loadingSpinner');
+                if (spinner) {
+                    spinner.style.display = show ? 'block' : 'none';
+                } else {
+}
+            }
+        }
+
+        // 返回首页
+        function goHome() {
+            window.location.href = 'index.html';
+        }
+
+        // 页面加载完成后初始化应用
+        window.addEventListener('DOMContentLoaded', () => {
+            new ModuleApp();
+
+            // 监听页面加载状态
+            window.addEventListener('load', () => {
+                if (performance.navigation.type !== PerformanceNavigation.TYPE_RELOAD) {
+} else {
+}
+            });
+        });
+    </script>
+</body>
+
+</html>

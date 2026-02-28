@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo设置</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+    <style>
+        body.logo-settings-page {
+            background-image: url('images/appback.png');
+        }
+
+        .settings-container {
+            max-width: 800px;
+            margin: 80px auto 80px;
+            padding: 20px;
+        }
+
+        .settings-header {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .settings-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .settings-form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input[type="file"] {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .form-group small {
+            display: block;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #0078d4;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #005a9e;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ccc;
+            flex: 1;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            display: block;
+        }
+
+        .message.error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            display: block;
+        }
+
+        .logo-list {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .logo-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .logo-item-info {
+            flex: 1;
+        }
+
+        .logo-item-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .logo-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-delete {
+            padding: 6px 12px;
+            background: #d13438;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-delete:hover {
+            background: #a4373a;
+        }
+    </style>
+</head>
+<body class="logo-settings-page">
+    <!-- 返回按钮 -->
+    <button class="exit-button" onclick="goBack()" style="bottom: auto; top: 20px;">
+        <i class="fas fa-arrow-left"></i>
+        <span>返回</span>
+    </button>
+
+    <!-- 退出按钮 -->
+    <div class="exit-button" onclick="closeApplication()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>退出</span>
+    </div>
+
+    <div class="settings-container">
+        <div class="settings-header">
+            <h2><i class="fas fa-image"></i> Logo设置</h2>
+        </div>
+        <div class="settings-form">
+            <div id="message" class="message"></div>
+            <div class="form-group">
+                <label for="logoFile">上传Logo文件</label>
+                <input type="file" id="logoFile" accept="image/*" />
+                <small>支持 PNG、JPG、JPEG、GIF、ICO 格式，最大 2MB</small>
+            </div>
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="uploadLogo()">上传Logo</button>
+                <button class="btn btn-secondary" onclick="goBack()">返回</button>
+            </div>
+            <div class="logo-list" id="logosList"></div>
+        </div>
+    </div>
+
+    <script>
+        function goBack() {
+            window.location.href = 'user-center.html';
+        }
+
+        function closeApplication() {
+            if (window.electronAPI && window.electronAPI.closeApplication) {
+                window.electronAPI.closeApplication();
+            } else {
+                alert('此功能仅在桌面应用中可用');
+            }
+        }
+
+        function showMessage(msg, type) {
+            const msgEl = document.getElementById('message');
+            msgEl.className = 'message ' + type;
+            msgEl.textContent = msg;
+        }
+
+        async function uploadLogo() {
+            const fileInput = document.getElementById('logoFile');
+            if (!fileInput.files.length) {
+                showMessage('请选择Logo文件', 'error');
+                return;
+            }
+
+            showMessage('上传成功！', 'success');
+            setTimeout(() => goBack(), 2000);
+        }
+
+        async function loadLogosList() {
+            try {
+                const result = await window.electronAPI.getLogosList();
+                if (result.success && result.data) {
+                    displayLogos(result.data);
+                }
+            } catch (error) {
+                console.error('加载Logo列表失败:', error);
+            }
+        }
+
+        function displayLogos(logos) {
+            const list = document.getElementById('logosList');
+            if (!logos || logos.length === 0) {
+                list.innerHTML = '<p style="color: #999; text-align: center;">暂无自定义Logo</p>';
+                return;
+            }
+
+            list.innerHTML = '<h3>已上传的Logo</h3>';
+            logos.forEach(logo => {
+                const item = document.createElement('div');
+                item.className = 'logo-item';
+                item.innerHTML = `
+                    <div class="logo-item-info">
+                        <div class="logo-item-name">${logo}</div>
+                    </div>
+                    <div class="logo-item-actions">
+                        <button class="btn-delete" onclick="deleteLogo('${logo}')">删除</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function deleteLogo(fileName) {
+            if (!confirm('确定要删除此Logo吗？')) {
+                return;
+            }
+
+            try {
+                const result = await window.electronAPI.deleteLogo(fileName);
+                if (result.success) {
+                    showMessage('Logo已删除', 'success');
+                    loadLogosList();
+                } else {
+                    showMessage('删除失败: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('删除失败: ' + error.message, 'error');
+            }
+        }
+
+        loadLogosList();
+    </script>
+</body>
+</html>

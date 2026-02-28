@@ -1,0 +1,31 @@
+{
+  "name": "activation-code-generator",
+  "version": "1.0.0",
+  "description": "激活码生成工具 - 包括命令行界面、Web 图形界面和核心生成库",
+  "main": "activation-code-generator.js",
+  "scripts": {
+    "cli": "node activation-tool-cli.js --interactive",
+    "cli:help": "node activation-tool-cli.js --help",
+    "cli:generate": "node activation-tool-cli.js",
+    "server": "node activation-tool-server.js",
+    "server:dev": "node activation-tool-server.js --port 3000",
+    "test": "node test-activation-generator.js"
+  },
+  "keywords": [
+    "activation",
+    "code",
+    "generator",
+    "tool"
+  ],
+  "author": "Special Education System",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.0",
+    "multer": "^1.4.5"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=12.0.0",
+    "npm": ">=6.0.0"
+  }
+}

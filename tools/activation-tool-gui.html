@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>激活码生成工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            color: #999;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-button:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input[type="text"],
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="file"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+
+        .btn-copy {
+            background: #4CAF50;
+            color: white;
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+
+        .btn-copy:hover {
+            background: #45a049;
+        }
+
+        .result {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            border-radius: 6px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            border-left-color: #4CAF50;
+        }
+
+        .result.error {
+            border-left-color: #f44336;
+        }
+
+        .result-label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .result-value {
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            word-break: break-all;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .success {
+            color: #4CAF50;
+        }
+
+        .error {
+            color: #f44336;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #4caf50;
+        }
+
+        .message-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #f44336;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th {
+            background: #f5f5f5;
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #fafafa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status-info {
+            background: #f5f5f5;
+            color: #333;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+
+        .status-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .mini-button {
+            padding: 4px 12px;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 激活码生成工具</h1>
+            <p>Activation Code Generator</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="single">单个生成</button>
+            <button class="tab-button" data-tab="batch">批量生成</button>
+            <button class="tab-button" data-tab="verify">验证激活码</button>
+            <button class="tab-button" data-tab="status">生成器状态</button>
+        </div>
+
+        <!-- 单个生成 -->
+        <div id="single" class="tab-content active">
+            <div class="section-title">生成单个激活码</div>
+            <div class="message" id="singleMessage"></div>
+            
+            <div class="form-group">
+                <label for="machineCode">机器码</label>
+                <textarea id="machineCode" placeholder="请输入 64 位十六进制机器码..."></textarea>
+                <small style="color: #999; margin-top: 5px; display: block;">
+                    机器码应为 64 位十六进制字符串 (a-f, 0-9)
+                </small>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="generateSingle()">生成激活码</button>
+                <button class="btn-secondary" onclick="clearSingleForm()">清空</button>
+            </div>
+
+            <div class="result" id="singleResult">
+                <div class="result-label">激活码</div>
+                <div class="result-value">
+                    <span id="activationCodeResult"></span>
+                    <button class="btn-copy mini-button" onclick="copySingleResult()">复制</button>
+                </div>
+            </div>
+
+            <div class="loading" id="singleLoading">
+                <div class="spinner"></div> 生成中...
+            </div>
+        </div>
+
+        <!-- 批量生成 -->
+        <div id="batch" class="tab-content">
+            <div class="section-title">从 CSV 文件批量生成</div>
+            <div class="message" id="batchMessage"></div>
+
+            <div class="form-group">
+                <label for="csvInput">选择 CSV 文件</label>
+                <input type="file" id="csvInput" accept=".csv" />
+                <small style="color: #999; margin-top: 5px; display: block;">
+                    CSV 格式：每行一个机器码（单列或多列，使用第一列）
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="hasHeader" /> 文件包含表头
+                </label>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="generateBatch()">生成</button>
+                <button class="btn-secondary" onclick="downloadTemplate()">下载模板</button>
+            </div>
+
+            <div class="loading" id="batchLoading">
+                <div class="spinner"></div> 处理中...
+            </div>
+
+            <div id="batchResults" style="display: none;">
+                <div class="status-info">
+                    <div class="status-info-item">
+                        <span>总数:</span>
+                        <strong id="batchTotal">0</strong>
+                    </div>
+                    <div class="status-info-item">
+                        <span>成功:</span>
+                        <strong style="color: #4caf50;" id="batchSuccess">0</strong>
+                    </div>
+                    <div class="status-info-item">
+                        <span>失败:</span>
+                        <strong style="color: #f44336;" id="batchFailed">0</strong>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="batchTable">
+                        <thead>
+                            <tr>
+                                <th>序号</th>
+                                <th>机器码</th>
+                                <th>激活码</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="batchTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="button-group" style="margin-top: 20px;">
+                    <button class="btn-primary" onclick="downloadResults()">下载结果</button>
+                    <button class="btn-secondary" onclick="clearBatchForm()">清空</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 验证激活码 -->
+        <div id="verify" class="tab-content">
+            <div class="section-title">验证激活码</div>
+            <div class="message" id="verifyMessage"></div>
+
+            <div class="form-group">
+                <label for="verifyMachineCode">机器码</label>
+                <textarea id="verifyMachineCode" placeholder="请输入 64 位十六进制机器码..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="verifyActivationCode">激活码</label>
+                <textarea id="verifyActivationCode" placeholder="请输入 64 位激活码..."></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="verifyCode()">验证</button>
+                <button class="btn-secondary" onclick="clearVerifyForm()">清空</button>
+            </div>
+
+            <div class="result" id="verifyResult">
+                <div class="result-label">验证结果</div>
+                <div class="result-value">
+                    <span id="verifyResultText"></span>
+                </div>
+            </div>
+
+            <div class="loading" id="verifyLoading">
+                <div class="spinner"></div> 验证中...
+            </div>
+        </div>
+
+        <!-- 生成器状态 -->
+        <div id="status" class="tab-content">
+            <div class="section-title">生成器状态</div>
+            <div class="message" id="statusMessage"></div>
+
+            <div class="status-info">
+                <div class="status-info-item">
+                    <span>已初始化:</span>
+                    <strong id="statusInitialized">-</strong>
+                </div>
+                <div class="status-info-item">
+                    <span>哈希算法:</span>
+                    <strong id="statusAlgorithm">-</strong>
+                </div>
+                <div class="status-info-item">
+                    <span>激活码长度:</span>
+                    <strong id="statusCodeLength">-</strong>
+                </div>
+                <div class="status-info-item">
+                    <span>密钥长度:</span>
+                    <strong id="statusKeyLength">-</strong>
+                </div>
+                <div class="status-info-item">
+                    <span>已加载密钥:</span>
+                    <strong id="statusHasKey">-</strong>
+                </div>
+            </div>
+
+            <div class="button-group" style="margin-top: 20px;">
+                <button class="btn-primary" onclick="loadStatus()">刷新状态</button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>激活码生成工具 v1.0.0</p>
+            <p>© 2024 特殊教育多模态干预系统</p>
+        </div>
+    </div>
+
+    <script>
+        // 选项卡切换
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tabName = e.target.dataset.tab;
+                
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                e.target.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
+
+                // 加载状态选项卡时自动刷新
+                if (tabName === 'status') {
+                    loadStatus();
+                }
+            });
+        });
+
+        /**
+         * 显示消息
+         */
+        function showMessage(elementId, message, type = 'success') {
+            const element = document.getElementById(elementId);
+            element.className = `message show message-${type}`;
+            element.textContent = message;
+        }
+
+        /**
+         * 隐藏消息
+         */
+        function hideMessage(elementId) {
+            const element = document.getElementById(elementId);
+            element.className = 'message';
+        }
+
+        /**
+         * 生成单个激活码
+         */
+        async function generateSingle() {
+            const machineCode = document.getElementById('machineCode').value.trim();
+            
+            if (!machineCode) {
+                showMessage('singleMessage', '请输入机器码', 'error');
+                return;
+            }
+
+            document.getElementById('singleLoading').classList.add('show');
+            document.getElementById('singleResult').classList.remove('show');
+
+            try {
+                const response = await fetch('./api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ machineCode })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('activationCodeResult').textContent = data.activationCode;
+                    document.getElementById('singleResult').classList.add('show');
+                    showMessage('singleMessage', '✓ 激活码生成成功！', 'success');
+                } else {
+                    showMessage('singleMessage', `× 生成失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage('singleMessage', `× 网络错误: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('singleLoading').classList.remove('show');
+            }
+        }
+
+        /**
+         * 复制单个激活码
+         */
+        function copySingleResult() {
+            const activationCode = document.getElementById('activationCodeResult').textContent;
+            navigator.clipboard.writeText(activationCode).then(() => {
+                showMessage('singleMessage', '✓ 已复制到剪贴板', 'success');
+            });
+        }
+
+        /**
+         * 清空单个生成表单
+         */
+        function clearSingleForm() {
+            document.getElementById('machineCode').value = '';
+            document.getElementById('singleResult').classList.remove('show');
+            hideMessage('singleMessage');
+        }
+
+        /**
+         * 生成批量激活码
+         */
+        async function generateBatch() {
+            const fileInput = document.getElementById('csvInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showMessage('batchMessage', '请选择 CSV 文件', 'error');
+                return;
+            }
+
+            const hasHeader = document.getElementById('hasHeader').checked;
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('hasHeader', hasHeader);
+
+            document.getElementById('batchLoading').classList.add('show');
+            document.getElementById('batchResults').style.display = 'none';
+
+            try {
+                const response = await fetch('./api/batch-generate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayBatchResults(data);
+                    showMessage('batchMessage', `✓ 批量生成成功！`, 'success');
+                } else {
+                    showMessage('batchMessage', `× 生成失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage('batchMessage', `× 网络错误: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('batchLoading').classList.remove('show');
+            }
+        }
+
+        /**
+         * 显示批量结果
+         */
+        function displayBatchResults(data) {
+            document.getElementById('batchTotal').textContent = data.total;
+            document.getElementById('batchSuccess').textContent = data.successCount;
+            document.getElementById('batchFailed').textContent = data.failureCount;
+
+            const tbody = document.getElementById('batchTableBody');
+            tbody.innerHTML = '';
+
+            data.results.forEach(result => {
+                const tr = document.createElement('tr');
+                const statusClass = result.status === 'success' ? 'status-success' : 'status-error';
+                const statusText = result.status === 'success' ? '成功' : '失败';
+
+                tr.innerHTML = `
+                    <td>${result.index}</td>
+                    <td style="font-family: monospace; font-size: 11px;">${result.machineCode}</td>
+                    <td style="font-family: monospace; font-size: 11px;">${result.activationCode || result.error || '-'}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('batchResults').style.display = 'block';
+        }
+
+        /**
+         * 下载模板
+         */
+        function downloadTemplate() {
+            const csv = '机器码\n' +
+                'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8c9d0e1f2g3\n' +
+                'f2e1d0c9b8a7g6h5i4j3k2l1m0n9o8p7q6r5s4t3u2v1w0x9y8z7a6b5c4d3e2f1g0';
+
+            downloadFile(csv, 'machine_codes_template.csv', 'text/csv');
+        }
+
+        /**
+         * 下载结果
+         */
+        function downloadResults() {
+            const rows = [];
+            rows.push('序号,机器码,激活码,状态');
+
+            document.querySelectorAll('#batchTableBody tr').forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                const index = cells[0].textContent;
+                const machineCode = cells[1].textContent;
+                const code = cells[2].textContent;
+                const status = cells[3].textContent;
+
+                rows.push(`${index},"${machineCode}","${code}",${status}`);
+            });
+
+            downloadFile(rows.join('\n'), 'activation_codes_result.csv', 'text/csv');
+        }
+
+        /**
+         * 下载文件
+         */
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }
+
+        /**
+         * 清空批量表单
+         */
+        function clearBatchForm() {
+            document.getElementById('csvInput').value = '';
+            document.getElementById('hasHeader').checked = false;
+            document.getElementById('batchResults').style.display = 'none';
+            hideMessage('batchMessage');
+        }
+
+        /**
+         * 验证激活码
+         */
+        async function verifyCode() {
+            const machineCode = document.getElementById('verifyMachineCode').value.trim();
+            const activationCode = document.getElementById('verifyActivationCode').value.trim();
+            
+            if (!machineCode || !activationCode) {
+                showMessage('verifyMessage', '请输入机器码和激活码', 'error');
+                return;
+            }
+
+            document.getElementById('verifyLoading').classList.add('show');
+            document.getElementById('verifyResult').classList.remove('show');
+
+            try {
+                const response = await fetch('./api/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ machineCode, activationCode })
+                });
+
+                const data = await response.json();
+
+                if (data.valid) {
+                    document.getElementById('verifyResultText').innerHTML = '<span class="success">✓ 激活码有效</span>';
+                    document.getElementById('verifyResult').classList.add('show');
+                    showMessage('verifyMessage', '✓ 激活码验证成功', 'success');
+                } else {
+                    document.getElementById('verifyResultText').innerHTML = '<span class="error">× 激活码无效</span>';
+                    document.getElementById('verifyResult').classList.add('show');
+                    showMessage('verifyMessage', '× 激活码与机器码不匹配', 'error');
+                }
+            } catch (error) {
+                showMessage('verifyMessage', `× 网络错误: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('verifyLoading').classList.remove('show');
+            }
+        }
+
+        /**
+         * 清空验证表单
+         */
+        function clearVerifyForm() {
+            document.getElementById('verifyMachineCode').value = '';
+            document.getElementById('verifyActivationCode').value = '';
+            document.getElementById('verifyResult').classList.remove('show');
+            hideMessage('verifyMessage');
+        }
+
+        /**
+         * 加载生成器状态
+         */
+        async function loadStatus() {
+            try {
+                const response = await fetch('./api/status');
+                const data = await response.json();
+
+                document.getElementById('statusInitialized').textContent = data.initialized ? '是' : '否';
+                document.getElementById('statusAlgorithm').textContent = data.hashAlgorithm;
+                document.getElementById('statusCodeLength').textContent = data.activationCodeLength + ' 位';
+                document.getElementById('statusKeyLength').textContent = data.secretKeyLength + ' 字符';
+                document.getElementById('statusHasKey').textContent = data.hasSecretKey ? '是' : '否';
+
+                if (!data.initialized) {
+                    showMessage('statusMessage', '⚠ 生成器未初始化，请检查密钥配置', 'error');
+                } else {
+                    hideMessage('statusMessage');
+                }
+            } catch (error) {
+                showMessage('statusMessage', `× 加载状态失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载时检查状态
+        window.addEventListener('load', () => {
+            loadStatus();
+        });
+    </script>
+</body>
+</html>

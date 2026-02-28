@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统激活</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e5799, #2989d8, #207cca, #7db9e8);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        @keyframes gradientBG {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        
+        .activation-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 80%;
+            max-width: 500px;
+            text-align: center;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            animation: fadeIn 1s ease;
+        }
+        
+        @keyframes fadeIn {
+            from {opacity: 0; transform: translateY(-20px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+        
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 28px;
+            position: relative;
+            display: inline-block;
+        }
+        
+        h2:after {
+            content: '';
+            position: absolute;
+            width: 60%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #3498db, transparent);
+            bottom: -10px;
+            left: 20%;
+        }
+        
+        .machine-code-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        
+        .machine-code {
+            background: #f5f5f5;
+            padding: 15px;
+            padding-right: 40px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 16px;
+            color: #2c3e50;
+            border: 1px solid #ddd;
+            word-break: break-all;
+            animation: pulse 2s infinite;
+            text-align: left;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #3498db;
+            transition: all 0.2s ease;
+            padding: 0;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .copy-btn:hover {
+            background: #3498db;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+        
+        .copy-success {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            background: rgba(46, 204, 113, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .copy-success.show {
+            opacity: 1;
+            animation: fadeOut 2s forwards;
+        }
+        
+        @keyframes fadeOut {
+            0% {opacity: 1;}
+            70% {opacity: 1;}
+            100% {opacity: 0;}
+        }
+        
+        @keyframes pulse {
+            0% {box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.4);}
+            70% {box-shadow: 0 0 0 10px rgba(52, 152, 219, 0);}
+            100% {box-shadow: 0 0 0 0 rgba(52, 152, 219, 0);}
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+        
+        input[type="text"]:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+            outline: none;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .error {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-size: 14px;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        @keyframes shake {
+            0%, 100% {transform: translateX(0);}
+            10%, 30%, 50%, 70%, 90% {transform: translateX(-5px);}
+            20%, 40%, 60%, 80% {transform: translateX(5px);}
+        }
+        
+        .contact-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .company-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="activation-container">
+        <h2>特殊教育多模态干预系统激活</h2>
+        <p>请复制下方机器码，并联系我们获取激活码</p>
+        <div class="machine-code-container">
+            <div class="machine-code" id="machineCode">正在生成机器码...</div>
+            <button class="copy-btn" onclick="copyMachineCode()" title="复制机器码">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                </svg>
+            </button>
+            <div class="copy-success" id="copySuccess">已复制!</div>
+        </div>
+        <input type="text" id="activationCode" placeholder="请输入64位激活码">
+        <button onclick="activate()">提交激活</button>
+        <div class="error" id="errorMessage"></div>
+        <div class="contact-info">
+            <p>获取激活码请联系：</p>
+            <p class="company-name">杭州炫灿科技有限公司</p>
+            <p>电话：0571-86087889</p>
+        </div>
+    </div>
+
+    <script>
+        // 获取机器码
+        window.onload = function() {
+            window.electronAPI.getMachineCode()
+                .then(machineCode => {
+                    document.getElementById('machineCode').textContent = machineCode;
+                })
+                .catch(error => {
+                    document.getElementById('machineCode').textContent = '无法生成机器码';
+                    showError(`错误：${error.message}`);
+                });
+        };
+        
+        // 复制机器码到剪贴板
+        function copyMachineCode() {
+            const machineCode = document.getElementById('machineCode').textContent;
+            if (machineCode && machineCode !== '正在生成机器码...' && machineCode !== '无法生成机器码') {
+                navigator.clipboard.writeText(machineCode)
+                    .then(() => {
+                        const copySuccess = document.getElementById('copySuccess');
+                        copySuccess.classList.add('show');
+                        setTimeout(() => {
+                            copySuccess.classList.remove('show');
+                        }, 2000);
+                    })
+                    .catch(err => {
+                        showError('复制失败，请手动复制');
+                        console.error('复制失败:', err);
+                    });
+            } else {
+                showError('机器码尚未生成，无法复制');
+            }
+        }
+
+        function activate() {
+            const activationCode = document.getElementById('activationCode').value.trim();
+            const errorMessage = document.getElementById('errorMessage');
+            
+            if (activationCode.length !== 64) {
+                showError('激活码长度不正确，请输入64位激活码');
+                return;
+            }
+            
+            // 调用主进程进行激活
+            window.electronAPI.activate({ activationCode: activationCode })
+                .then(result => {
+                    if (result && result.success) {
+                        // 激活成功，显示成功消息并跳转首页
+                        showSuccess();
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 1500);
+                    } else {
+                        showError('激活失败，请检查激活码是否正确');
+                    }
+                })
+                .catch(error => {
+                    showError(error.message);
+                });
+        }
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            
+            // 添加抖动动画
+            errorMessage.style.animation = 'none';
+            setTimeout(() => {
+                errorMessage.style.animation = 'shake 0.5s';
+            }, 10);
+        }
+        
+        function showSuccess() {
+            // 创建成功消息元素
+            const successMessage = document.createElement('div');
+            successMessage.textContent = '激活成功！正在跳转到主界面...';
+            successMessage.style.backgroundColor = 'rgba(46, 204, 113, 0.1)';
+            successMessage.style.color = '#2ecc71';
+            successMessage.style.padding = '15px';
+            successMessage.style.borderRadius = '8px';
+            successMessage.style.marginTop = '15px';
+            successMessage.style.animation = 'fadeIn 0.5s';
+            
+            // 替换错误消息
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.style.display = 'none';
+            errorMessage.parentNode.insertBefore(successMessage, errorMessage.nextSibling);
+        }
+    </script>
+</body>
+</html>

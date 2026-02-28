@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高级设置 - 特殊教育多模态干预系统</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+    <style>
+        body.advanced-settings-page {
+            background-image: url('images/appback.png');
+        }
+
+        .advanced-settings-container {
+            max-width: 800px;
+            margin: 80px auto 80px;
+            padding: 20px;
+        }
+
+        .settings-header {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .settings-header h2 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .settings-form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .form-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #0078d4;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group input[type="text"]:focus {
+            outline: none;
+            border-color: #0078d4;
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+        }
+
+        .form-group small {
+            display: block;
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .info-box {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .btn-primary {
+            background: #0078d4;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #005a9e;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            display: block;
+        }
+
+        .message.error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            display: block;
+        }
+
+        .message.info {
+            background: #eef;
+            border: 1px solid #ccf;
+            color: #33c;
+            display: block;
+        }
+    </style>
+</head>
+<body class="advanced-settings-page">
+    <!-- 返回按鐐 -->
+    <button class="back-button fixed-back-button" onclick="goBack()">
+        <i class="fas fa-arrow-left"></i>
+        <span>返回首页</span>
+    </button>
+
+    <!-- 退出按钮 -->
+    <div class="exit-button" onclick="closeApplication()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>退出</span>
+    </div>
+
+    <div class="advanced-settings-container">
+        <!-- 页面头部 -->
+        <div class="settings-header">
+            <h2>
+                <i class="fas fa-cog"></i>
+                高级设置
+            </h2>
+        </div>
+
+        <!-- 设置内容 -->
+        <div class="settings-form">
+            <div id="settingsMessage" class="message"></div>
+
+            <!-- Logo 设置部分 -->
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-image"></i>
+                    Logo 设置
+                </div>
+                <div class="info-box">
+                    支持 PNG、JPG、JPEG、GIF、ICO 格式，最大 2MB
+                </div>
+                <div class="form-group">
+                    <label for="logoFile">选择Logo文件</label>
+                    <input type="file" id="logoFile" accept="image/*" />
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="uploadLogo()">
+                        <i class="fas fa-upload"></i> 上传 Logo
+                    </button>
+                </div>
+            </div>
+
+            <!-- 产品名称部分 -->
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-signature"></i>
+                    产品信息
+                </div>
+                <div class="form-group">
+                    <label for="productFullName">产品全名</label>
+                    <input type="text" id="productFullName" placeholder="输入产品全名" />
+                </div>
+                <div class="form-group">
+                    <label for="productEngName">英文产品名</label>
+                    <input type="text" id="productEngName" placeholder="输入英文产品名，如Special Education Multimodal Intervention System" />
+                </div>
+                <div class="form-group">
+                    <label for="productShortName">产品简称</label>
+                    <input type="text" id="productShortName" placeholder="输入产品简称（建议10个字符以内）" maxlength="10" />
+                </div>
+                <div class="form-group">
+                    <label for="productOrganization">组织名称</label>
+                    <input type="text" id="productOrganization" placeholder="输入组织名称" />
+                </div>
+                <div class="form-group">
+                    <label for="productCopyright">版权信息</label>
+                    <input type="text" id="productCopyright" placeholder="输入版权信息，如©2013-2025" />
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="saveProductInfo()">
+                        <i class="fas fa-save"></i> 保存更改
+                    </button>
+                    <button class="btn btn-secondary" onclick="reloadProductInfo()">
+                        <i class="fas fa-redo"></i> 重置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+
+        function closeApplication() {
+            if (window.electronAPI && window.electronAPI.closeApplication) {
+                window.electronAPI.closeApplication();
+            } else {
+                alert('此功能仅在桌面应用中可用');
+            }
+        }
+
+        function showMessage(msg, type) {
+            const msgEl = document.getElementById('settingsMessage');
+            msgEl.className = 'message ' + type;
+            msgEl.textContent = msg;
+            setTimeout(() => {
+                msgEl.className = 'message';
+            }, 3000);
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await loadProductInfo();
+            } catch (error) {
+                showMessage('加载产品信息失败: ' + error.message, 'error');
+                console.error('加载产品信息失败:', error);
+            }
+        });
+
+        // 加载产品信息
+        async function loadProductInfo() {
+            try {
+                const result = await window.electronAPI.getProductConfig();
+                if (result.success && result.data) {
+                    const config = result.data;
+                    document.getElementById('productFullName').value = config.fullName || '';
+                    document.getElementById('productEngName').value = config.engName || '';
+                    document.getElementById('productShortName').value = config.shortName || '';
+                    document.getElementById('productOrganization').value = config.organization || '';
+                    document.getElementById('productCopyright').value = config.copyright || '';
+                }
+            } catch (error) {
+                console.error('加载产品配置失败:', error);
+                showMessage('加载产品配置失败', 'error');
+            }
+        }
+
+        // 上传Logo
+        async function uploadLogo() {
+            const fileInput = document.getElementById('logoFile');
+            if (!fileInput.files.length) {
+                showMessage('请选择Logo文件', 'error');
+                return;
+            }
+
+            try {
+                showMessage('上传中...', 'info');
+                // 这里可以集成实际的文件上传逻辑
+                showMessage('上传成功！', 'success');
+                fileInput.value = '';
+            } catch (error) {
+                showMessage('上传失败: ' + error.message, 'error');
+            }
+        }
+
+        // 保存产品信息
+        async function saveProductInfo() {
+            const fullName = document.getElementById('productFullName').value.trim();
+            const engName = document.getElementById('productEngName').value.trim();
+            const shortName = document.getElementById('productShortName').value.trim();
+            const organization = document.getElementById('productOrganization').value.trim();
+            const copyright = document.getElementById('productCopyright').value.trim();
+
+            if (!fullName) {
+                showMessage('请输入产品全名', 'error');
+                return;
+            }
+
+            if (!engName) {
+                showMessage('请输入英文产品名', 'error');
+                return;
+            }
+
+            if (!shortName) {
+                showMessage('请输入产品简称', 'error');
+                return;
+            }
+
+            if (!organization) {
+                showMessage('请输入组织名称', 'error');
+                return;
+            }
+
+            if (!copyright) {
+                showMessage('请输入版权信息', 'error');
+                return;
+            }
+
+            try {
+                showMessage('保存中...', 'info');
+                const result = await window.electronAPI.setProductName({
+                    fullName,
+                    engName,
+                    shortName,
+                    organization,
+                    copyright
+                });
+
+                if (result.success) {
+                    showMessage('产品信息已保存，页面将刷新', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    showMessage('保存失败: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('保存失败: ' + error.message, 'error');
+            }
+        }
+
+        // 重置产品信息
+        async function reloadProductInfo() {
+            if (confirm('确定要重置为默认配置吗？')) {
+                try {
+                    showMessage('重置中...', 'info');
+                    await loadProductInfo();
+                    showMessage('已重置为保存的配置', 'success');
+                } catch (error) {
+                    showMessage('重置失败: ' + error.message, 'error');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

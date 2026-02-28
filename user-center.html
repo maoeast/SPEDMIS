@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户中心 - 特殊教育多模态干预系统</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+    <style>
+        body.user-center-page {
+            background-image: url('images/appback.png');
+        }
+
+        .user-center-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .user-center-header {
+            background: rgba(0, 123, 255, 0);
+            color: #ffffff;
+            padding: 40px 15px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .user-center-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+            margin-bottom: 80px;
+        }
+
+        .center-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .center-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .center-card-icon {
+            font-size: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .center-card-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .center-card-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .center-card-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .center-card-button:hover {
+            background: #005a9e;
+            transform: scale(1.02);
+        }
+
+        .center-card.blue .center-card-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .center-card.green .center-card-icon {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+        }
+
+        .center-card.orange .center-card-icon {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .user-center-back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 30px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .user-center-back-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+        }
+
+    </style>
+</head>
+<body class="user-center-page">
+    <!-- 返回按钮 -->
+    <button class="user-center-back-button" onclick="goHome()">
+        <i class="fas fa-arrow-left"></i>
+        <span>返回首页</span>
+    </button>
+
+    <!-- 退出按钮 -->
+    <div class="exit-button" onclick="closeApplication()">
+        <i class="fas fa-sign-out-alt"></i>
+        <span>退出</span>
+    </div>
+
+    <div class="user-center-container">
+        <!-- 标题 -->
+        <div class="user-center-header">
+            <i class="fas fa-user-circle"></i>
+            用户中心
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="user-center-content" id="centerContent">
+            <!-- 使用统计卡片 -->
+            <div class="center-card blue" onclick="goToStatistics()">
+                <div class="center-card-icon">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div class="center-card-title">使用统计分析</div>
+                <div class="center-card-desc">
+                    查看应用模块的使用频率和时间统计，了解使用趋势和数据分析。
+                </div>
+                <button class="center-card-button">查看统计</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function goHome() {
+            window.location.href = 'index.html';
+        }
+
+        function closeApplication() {
+            if (window.electronAPI && window.electronAPI.closeApplication) {
+                window.electronAPI.closeApplication();
+            } else {
+                alert('此功能仅在桌面应用中可用');
+            }
+        }
+
+        function goToStatistics() {
+            window.location.href = 'statistics.html';
+        }
+    </script>
+</body>
+</html>

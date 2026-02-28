@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build output
+dist/
+build/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# 🔑 敏感信息（密钥管理）
+# 嵌入式密钥配置（包含敏感密钥）
+embedded-secrets.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Electron
+dist_electron/
+out/
+
+# Cache
+.cache/
+*.cache
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Media/Assets that are too large
+flash/
+*.exe
+
+# Windows reserved
+nul
