@@ -73,6 +73,9 @@
                 if (psyResult.exists) {
                     // BrowserView 已存在，隐藏首页内容，显示 dashboard
                     document.body.classList.add('dashboard-visible');
+                } else {
+                    // BrowserView 不存在，显示首页内容
+                    document.body.classList.remove('dashboard-visible');
                 }
             } catch (error) {
 }

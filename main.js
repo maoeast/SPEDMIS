@@ -581,6 +581,13 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
     for (let i = 0; i < 20; i++) {
       if (loginCompleted) {
         psyseenView = hiddenView;
+        
+        // 确保 BrowserView 大小正确
+        setTimeout(() => {
+          const { width, height } = mainWindow.getBounds();
+          psyseenView.setBounds({ x: 0, y: 0, width, height });
+        }, 500);
+        
         return { success: true };
       }
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -588,8 +595,8 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
     
     // 超时，可能已经登录成功了，直接显示
     logger.warn('Psyseen login timeout, showing view anyway');
-    mainWindow.setBrowserView(hiddenView);
     psyseenView = hiddenView;
+    mainWindow.setBrowserView(hiddenView);
     return { success: true };
     
   } catch (error) {
