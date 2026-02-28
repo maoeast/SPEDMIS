@@ -499,19 +499,63 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
     // 加载 psyseen.com 登录页
     await psyseenView.webContents.loadURL(redirectUrl);
     
-    // 等待页面加载完成后预填充登录表单
-    psyseenView.webContents.on('did-finish-load', () => {
-      psyseenView.webContents.executeJavaScript(`
-        (function() {
-          var usernameInput = document.querySelector('input[type="text"], input[type="email"], input[name="username"], input[id="username"]');
-          var passwordInput = document.querySelector('input[type="password"], input[name="password"], input[id="password"]');
-          if (usernameInput) usernameInput.value = '${username.replace(/'/g, "\\'")}';
-          if (passwordInput) passwordInput.value = '${password.replace(/'/g, "\\'")}';
-        })();
-      `).catch(() => {});
-    });
+    // 等待页面完全加载
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    logger.info('Psyseen login BrowserView created successfully');
+    // 自动填充表单并提交
+    await psyseenView.webContents.executeJavaScript(`
+      (function() {
+        return new Promise((resolve) => {
+          // 查找用户名输入框
+          var usernameInput = document.querySelector('input[type="text"], input[type="email"], input[name="username"], input[id="username"]');
+          // 查找密码输入框
+          var passwordInput = document.querySelector('input[type="password"], input[name="password"], input[id="password"]');
+          
+          if (!usernameInput || !passwordInput) {
+            resolve({ success: false, error: 'Form fields not found' });
+            return;
+          }
+          
+          // 填充用户名（触发 input 事件以兼容 React/Vue）
+          var nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+          nativeInputValueSetter.call(usernameInput, '${username.replace(/'/g, "\\'")}');
+          usernameInput.dispatchEvent(new Event('input', { bubbles: true }));
+          usernameInput.dispatchEvent(new Event('change', { bubbles: true }));
+          
+          // 填充密码
+          nativeInputValueSetter.call(passwordInput, '${password.replace(/'/g, "\\'")}');
+          passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+          passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+          
+          // 等待一小段时间让表单验证
+          setTimeout(() => {
+            // 查找登录按钮
+            var loginButton = document.querySelector('button[type="submit"], button[class*="login"], button[class*="submit"], input[type="submit"], .btn-login, .el-button--primary');
+            
+            if (!loginButton) {
+              // 尝试查找包含"登录"文字的按钮
+              var buttons = document.querySelectorAll('button, [role="button"]');
+              for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].textContent.includes('登录')) {
+                  loginButton = buttons[i];
+                  break;
+                }
+              }
+            }
+            
+            if (loginButton) {
+              // 点击登录按钮
+              loginButton.click();
+              resolve({ success: true, message: 'Login form submitted' });
+            } else {
+              resolve({ success: false, error: 'Login button not found' });
+            }
+          }, 500);
+        });
+      })();
+    `);
+    
+    logger.info('Psyseen login form auto-filled and submitted');
     return { success: true };
   } catch (error) {
     logger.error('Failed to create psyseen login BrowserView', { error: error.message });
