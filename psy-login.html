@@ -3,170 +3,335 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 心理测验登录</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>心理测验云平台登录</title>
     <link rel="stylesheet" href="./fontawesome/css/all.min.css">
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
             display: flex;
+            flex-direction: column;
+        }
+        
+        /* 顶部关闭按钮 */
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: 1px solid #d9d9d9;
+            color: #666;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-btn:hover {
+            background: #f5f5f5;
+            border-color: #999;
+            color: #333;
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        
+        .login-wrapper {
+            display: flex;
+            max-width: 900px;
+            width: 100%;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 左侧图片区 */
+        .login-banner {
+            flex: 1;
+            background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
+            display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            padding: 60px 40px;
+            color: #fff;
+            min-width: 400px;
         }
         
-        .login-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-        }
-        
-        .login-header {
-            text-align: center;
+        .banner-icon {
+            font-size: 80px;
             margin-bottom: 30px;
+            opacity: 0.9;
         }
         
-        .login-header h2 {
-            color: #333;
+        .banner-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .banner-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        /* 右侧登录表单区 */
+        .login-form-section {
+            flex: 1;
+            padding: 60px 50px;
+            min-width: 400px;
+        }
+        
+        .form-header {
+            margin-bottom: 40px;
+        }
+        
+        .form-title {
             font-size: 24px;
-            margin: 0;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 500;
         }
         
+        .form-subtitle {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        /* 表单元素 */
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
         
         .form-group label {
             display: block;
-            color: #666;
+            color: #333;
             font-size: 14px;
             margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #bfbfbf;
+            font-size: 16px;
+            transition: color 0.3s;
         }
         
         .form-group input {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
+            padding: 12px 14px 12px 42px;
+            border: 1px solid #d9d9d9;
             border-radius: 4px;
             font-size: 14px;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
         }
         
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
         }
         
+        .form-group input:focus + .input-icon,
+        .form-group input:focus ~ .input-icon {
+            color: #1890ff;
+        }
+        
+        .form-group input::placeholder {
+            color: #bfbfbf;
+        }
+        
+        /* 登录按钮 */
         .login-btn {
             width: 100%;
             padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: #1890ff;
+            color: #fff;
             border: none;
             border-radius: 4px;
             font-size: 16px;
             cursor: pointer;
-            margin-top: 10px;
-            transition: opacity 0.3s;
+            transition: all 0.3s;
+            font-weight: 500;
+            margin-top: 12px;
         }
         
         .login-btn:hover {
-            opacity: 0.9;
+            background: #40a9ff;
         }
         
-        .back-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s;
+        .login-btn:active {
+            background: #096dd9;
         }
         
-        .back-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+        .login-btn:disabled {
+            background: #d9d9d9;
+            cursor: not-allowed;
         }
         
-        .error-message {
-            color: #e74c3c;
-            font-size: 14px;
+        /* 状态消息 */
+        .loading,
+        .error-message,
+        .success-message {
             text-align: center;
-            margin-top: 15px;
-            display: none;
-            background: rgba(231, 76, 60, 0.1);
-            padding: 10px;
+            font-size: 14px;
+            margin-top: 16px;
+            padding: 12px;
             border-radius: 4px;
+            display: none;
         }
         
         .loading {
-            text-align: center;
-            color: #667eea;
-            font-size: 14px;
-            margin-top: 15px;
-            display: none;
+            color: #1890ff;
+            background: #e6f7ff;
+        }
+        
+        .error-message {
+            color: #f5222d;
+            background: #fff1f0;
+            border: 1px solid #ffa39e;
         }
         
         .success-message {
+            color: #52c41a;
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+        }
+        
+        /* 底部信息 */
+        .login-footer {
             text-align: center;
-            color: #27ae60;
-            font-size: 16px;
-            margin-top: 20px;
-            display: none;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #f0f0f0;
+        }
+        
+        .footer-text {
+            color: #999;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .login-wrapper {
+                flex-direction: column;
+            }
+            
+            .login-banner {
+                min-width: auto;
+                padding: 40px 30px;
+            }
+            
+            .login-form-section {
+                min-width: auto;
+                padding: 40px 30px;
+            }
+            
+            .banner-icon {
+                font-size: 60px;
+            }
+            
+            .banner-title {
+                font-size: 22px;
+            }
         }
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="closeWindow()">
-        <i class="fas fa-times"></i> 关闭
+    <button class="close-btn" onclick="closeWindow()" title="关闭窗口">
+        <i class="fas fa-times"></i>
     </button>
     
-    <div class="login-container" id="loginContainer">
-        <div class="login-header">
-            <h2>心理测验云平台登录</h2>
+    <div class="main-content">
+        <div class="login-wrapper">
+            <!-- 左侧 banner -->
+            <div class="login-banner">
+                <i class="fas fa-heart banner-icon"></i>
+                <h1 class="banner-title">心理测验云平台</h1>
+                <p class="banner-subtitle">专业的心理健康评估系统<br>为您提供科学、准确的测验结果</p>
+            </div>
+            
+            <!-- 右侧登录表单 -->
+            <div class="login-form-section">
+                <div class="form-header">
+                    <h2 class="form-title">欢迎登录</h2>
+                    <p class="form-subtitle">请输入您的账号信息</p>
+                </div>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">账号</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="username" name="username" placeholder="请输入用户名/邮箱" required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                            <i class="fas fa-lock input-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="login-btn" id="loginBtn">登 录</button>
+                    
+                    <div class="loading" id="loadingMessage">
+                        <i class="fas fa-spinner fa-spin"></i> 正在登录，请稍候...
+                    </div>
+                    
+                    <div class="success-message" id="successMessage">
+                        <i class="fas fa-check-circle"></i> 登录成功！正在进入系统...
+                    </div>
+                    
+                    <div class="error-message" id="errorMessage"></div>
+                </form>
+                
+                <div class="login-footer">
+                    <p class="footer-text">
+                        本系统仅供专业人员使用<br>
+                        请妥善保管您的账号信息
+                    </p>
+                </div>
+            </div>
         </div>
-        
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="username">用户名/邮箱</label>
-                <input type="text" id="username" name="username" placeholder="请输入用户名或邮箱" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="password">密码</label>
-                <input type="password" id="password" name="password" placeholder="请输入密码" required>
-            </div>
-            
-            <button type="submit" class="login-btn">登录</button>
-            
-            <div class="loading" id="loadingMessage">
-                <i class="fas fa-spinner fa-spin"></i> 正在登录，请稍候...
-            </div>
-            
-            <div class="success-message" id="successMessage">
-                <i class="fas fa-check-circle"></i> 登录成功！正在进入系统...
-            </div>
-            
-            <div class="error-message" id="errorMessage"></div>
-        </form>
     </div>
     
     <script>
         function closeWindow() {
-            // 关闭当前独立窗口
             window.electronAPI.closePsyseenWindow().catch(() => {
-                // 如果 API 不可用，尝试直接关闭窗口
                 window.close();
             });
         }
@@ -179,12 +344,18 @@
             const errorMessage = document.getElementById('errorMessage');
             const loadingMessage = document.getElementById('loadingMessage');
             const successMessage = document.getElementById('successMessage');
+            const loginBtn = document.getElementById('loginBtn');
             
+            // 隐藏所有消息
             errorMessage.style.display = 'none';
+            loadingMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            
+            // 禁用按钮
+            loginBtn.disabled = true;
             loadingMessage.style.display = 'block';
             
             try {
-                // 调用主进程在后台静默登录
                 const result = await window.electronAPI.psyseenLogin({ 
                     username, 
                     password,
@@ -192,30 +363,26 @@
                 });
                 
                 if (result.success) {
-                    // 登录成功，显示成功消息
                     loadingMessage.style.display = 'none';
                     successMessage.style.display = 'block';
                     
-                    // 1.5 秒后在当前窗口中加载 dashboard
                     setTimeout(() => {
-                        // 通知主进程在当前窗口中加载 dashboard
                         window.electronAPI.loadPsyseenView().then(() => {
                             // Dashboard 已加载
                         }).catch(err => {
                             console.error('Failed to load dashboard:', err);
-                            // 如果失败，直接跳转 URL
                             window.location.href = 'psy-dashboard.html';
                         });
                     }, 1500);
                 } else {
-                    errorMessage.textContent = result.error || '登录失败';
+                    errorMessage.textContent = result.error || '登录失败，请检查账号密码';
                     errorMessage.style.display = 'block';
-                    loadingMessage.style.display = 'none';
+                    loginBtn.disabled = false;
                 }
             } catch (error) {
-                errorMessage.textContent = error.message;
+                errorMessage.textContent = error.message || '登录失败，请稍后重试';
                 errorMessage.style.display = 'block';
-                loadingMessage.style.display = 'none';
+                loginBtn.disabled = false;
             }
         });
     </script>
