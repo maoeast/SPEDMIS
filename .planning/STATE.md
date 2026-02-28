@@ -23,29 +23,39 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 - 模块名称从"系统数据管理"改为"AI 心理测验"
 - 创建 psy-login.html 登录页面
 - 创建 psy-dashboard.html Dashboard 页面
-- 实现 BrowserView 内嵌 psyseen.com
-- **实现后台静默登录**（用户无感登录）
-- 自动检测登录状态，已登录用户直接进入 dashboard
-- 返回按钮功能
+- **实现独立窗口模式**（点击模块打开新窗口）
+- 窗口默认最大化
+- 实现后台静默登录
+- 登录成功后自动显示 dashboard
+- 关闭窗口返回主应用
 
 ## Implementation Details
 
-**Silent Login Flow:**
-1. 用户输入账号密码
-2. 在隐藏 BrowserView 中自动填充并提交
-3. 监听 URL 跳转检测 dashboard（登录成功标志）
-4. 成功后显示 dashboard，用户无感知
+**Independent Window Flow:**
+1. 用户点击"AI 心理测验"模块
+2. 创建新的 BrowserWindow（最大化）
+3. 窗口加载 psy-login.html
+4. 用户输入账号密码
+5. 后台静默登录（自动填充 + 自动提交）
+6. 登录成功后跳转到 psy-dashboard.html
+7. 点击"关闭窗口"返回主应用
 
 **Key Files:**
-- `main.js` - BrowserView 和 IPC 处理器
+- `main.js` - 创建窗口和 IPC 处理器
 - `psy-login.html` - 登录页面
 - `psy-dashboard.html` - Dashboard 显示页面
-- `index.html` - 模块入口（智能路由）
+- `index.html` - 模块入口（打开新窗口）
+
+## Benefits
+
+- **多任务处理** - 用户可以在使用 AI 心理测验的同时使用其他模块
+- **窗口管理** - 窗口可独立最小化/最大化/关闭
+- **清晰分离** - psyseen.com 与主应用清晰分离
+- **更好体验** - 无需返回首页，可同时使用多个功能
 
 ## Open Issues
 
-- [ ] 需要在实际 psyseen.com 环境中验证登录流程
-- [ ] 测试 Cookie/Session 持久化（下次是否需要重新登录）
+- [ ] 测试 Cookie/Session 持久化（关闭窗口后是否保持登录状态）
 
 ## Next Action
 
@@ -56,9 +66,11 @@ npm start
 ```
 
 **Test scenarios:**
-1. First-time login (unauthenticated user)
-2. Return visit (already logged in)
-3. Return to home from dashboard
+1. Click "AI 心理测验" → New maximized window opens
+2. Login with credentials → Silent auto-fill and submit
+3. Dashboard displayed after successful login
+4. Close window → Return to main app
+5. Main app still usable with window open
 
 ---
-*Last updated: 2026-02-28 after silent login implementation*
+*Last updated: 2026-02-28 after independent window implementation*
