@@ -106,9 +106,16 @@
             });
         }
         
-        // 页面加载完成后，通知主进程显示 dashboard
+        // 页面加载完成后，检查 BrowserView 是否存在
         window.onload = async function() {
             try {
+                const result = await window.electronAPI.checkPsyseenView();
+                if (!result.exists) {
+                    // BrowserView 不存在，说明未登录，跳转到登录页
+                    window.location.href = 'psy-login.html';
+                    return;
+                }
+                
                 // 等待 BrowserView 准备就绪
                 await new Promise(resolve => setTimeout(resolve, 500));
                 

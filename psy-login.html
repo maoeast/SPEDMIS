@@ -167,6 +167,21 @@
             window.location.href = 'index.html';
         }
         
+        // 页面加载时检查是否已登录（BrowserView 是否存在）
+        window.onload = async function() {
+            try {
+                const result = await window.electronAPI.checkPsyseenView();
+                if (result.exists) {
+                    // 已登录，直接跳转到 dashboard 页面
+                    window.location.href = 'psy-dashboard.html';
+                }
+                // 未登录，显示登录表单
+            } catch (error) {
+                console.error('Failed to check psyseen view:', error);
+                // 显示登录表单
+            }
+        };
+        
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             

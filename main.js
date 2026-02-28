@@ -635,6 +635,18 @@ ipcMain.handle('psyseen-close-view', async (event) => {
   }
 });
 
+// 检查 psyseen BrowserView 是否存在（用于判断是否已登录）
+ipcMain.handle('psyseen-check-view', async (event) => {
+  try {
+    const exists = psyseenView !== null;
+    logger.debug('Psyseen check view', { exists });
+    return { exists };
+  } catch (error) {
+    logger.error('Failed to check psyseen view', { error: error.message });
+    return { exists: false };
+  }
+});
+
 // 打开 psyseen dashboard（用于从首页直接进入已登录的 dashboard）
 ipcMain.handle('psyseen-open-dashboard', async (event) => {
   try {
