@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心理测验云平台登录</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* 动态几何背景 */
+        .geometric-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+        
+        .geo-shape {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(24, 144, 255, 0.1) 0%, rgba(54, 207, 209, 0.1) 100%);
+            animation: float 20s infinite ease-in-out;
+        }
+        
+        .geo-shape:nth-child(1) {
+            width: 200px;
+            height: 200px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+        
+        .geo-shape:nth-child(2) {
+            width: 300px;
+            height: 300px;
+            top: 50%;
+            right: 5%;
+            animation-delay: -5s;
+            background: linear-gradient(135deg, rgba(114, 103, 255, 0.06) 0%, rgba(24, 144, 255, 0.06) 100%);
+        }
+        
+        .geo-shape:nth-child(3) {
+            width: 150px;
+            height: 150px;
+            bottom: 15%;
+            left: 20%;
+            animation-delay: -10s;
+            background: linear-gradient(135deg, rgba(54, 207, 209, 0.1) 0%, rgba(24, 144, 255, 0.1) 100%);
+        }
+        
+        .geo-shape:nth-child(4) {
+            width: 250px;
+            height: 250px;
+            top: 20%;
+            right: 25%;
+            animation-delay: -15s;
+        }
+        
+        .geo-shape:nth-child(5) {
+            width: 180px;
+            height: 180px;
+            bottom: 25%;
+            right: 15%;
+            animation-delay: -7s;
+            background: linear-gradient(135deg, rgba(114, 103, 255, 0.08) 0%, rgba(54, 207, 209, 0.08) 100%);
+        }
+        
+        .geo-shape:nth-child(6) {
+            width: 120px;
+            height: 120px;
+            top: 35%;
+            left: 5%;
+            animation-delay: -12s;
+            background: linear-gradient(135deg, rgba(54, 207, 209, 0.06) 0%, rgba(24, 144, 255, 0.06) 100%);
+        }
+        
+        .geo-triangle {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 50px solid transparent;
+            border-right: 50px solid transparent;
+            border-bottom: 86px solid rgba(24, 144, 255, 0.06);
+            animation: rotate 25s infinite linear;
+        }
+        
+        .geo-triangle:nth-child(7) {
+            top: 15%;
+            left: 35%;
+            animation-delay: -3s;
+            transform: rotate(30deg);
+        }
+        
+        .geo-triangle:nth-child(8) {
+            bottom: 20%;
+            right: 35%;
+            animation-delay: -18s;
+            transform: rotate(-45deg);
+        }
+        
+        .geo-hexagon {
+            position: absolute;
+            width: 100px;
+            height: 57.74px;
+            background: rgba(114, 103, 255, 0.05);
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            animation: pulse 15s infinite ease-in-out;
+        }
+        
+        .geo-hexagon:nth-child(9) {
+            top: 60%;
+            left: 45%;
+            animation-delay: -6s;
+        }
+        
+        .geo-hexagon:nth-child(10) {
+            top: 25%;
+            left: 60%;
+            animation-delay: -20s;
+            width: 60px;
+            height: 34.64px;
+            background: rgba(54, 207, 209, 0.06);
+        }
+        
+        .geo-dots {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background-image: radial-gradient(circle, rgba(24, 144, 255, 0.15) 2px, transparent 2px);
+            background-size: 12px 12px;
+            animation: float 18s infinite ease-in-out;
+            animation-delay: -9s;
+            opacity: 0.5;
+        }
+        
+        .geo-dots:nth-child(11) {
+            top: 40%;
+            left: 75%;
+        }
+        
+        .geo-dots:nth-child(12) {
+            top: 70%;
+            left: 30%;
+            width: 80px;
+            height: 80px;
+            background-image: radial-gradient(circle, rgba(114, 103, 255, 0.12) 1.5px, transparent 1.5px);
+            background-size: 10px 10px;
+            animation-delay: -14s;
+        }
+        
+        .geo-wave {
+            position: absolute;
+            width: 200px;
+            height: 100px;
+            border: 2px solid rgba(24, 144, 255, 0.06);
+            border-radius: 50%;
+            animation: wave 12s infinite ease-in-out;
+        }
+        
+        .geo-wave:nth-child(13) {
+            top: 5%;
+            left: 50%;
+            animation-delay: -4s;
+        }
+        
+        .geo-wave:nth-child(14) {
+            bottom: 10%;
+            left: 60%;
+            animation-delay: -8s;
+            width: 150px;
+            height: 75px;
+            border-color: rgba(114, 103, 255, 0.05);
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(20px, 30px) rotate(90deg); }
+            50% { transform: translate(-20px, 60px) rotate(180deg); }
+            75% { transform: translate(20px, 30px) rotate(270deg); }
+        }
+        
+        @keyframes rotate {
+            0% { transform: rotate(0deg) translate(0, 0); }
+            50% { transform: rotate(180deg) translate(20px, 20px); }
+            100% { transform: rotate(360deg) translate(0, 0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.5; }
+            50% { transform: scale(1.2) rotate(180deg); opacity: 0.8; }
+        }
+        
+        @keyframes wave {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, 20px) scale(1.1); }
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .login-wrapper {
+            display: flex;
+            max-width: 900px;
+            width: 100%;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 左侧图片区 */
+        .login-banner {
+            flex: 1;
+            background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 40px;
+            color: #fff;
+            min-width: 400px;
+        }
+        
+        .banner-icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .banner-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .banner-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        /* 右侧登录表单区 */
+        .login-form-section {
+            flex: 1;
+            padding: 60px 50px;
+            min-width: 400px;
+        }
+        
+        .form-header {
+            margin-bottom: 40px;
+        }
+        
+        .form-title {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-subtitle {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #bfbfbf;
+            font-size: 16px;
+            transition: color 0.3s;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 14px 12px 42px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        
+        .form-group input:focus + .input-icon {
+            color: #1890ff;
+        }
+        
+        .form-group input::placeholder {
+            color: #bfbfbf;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #1890ff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+            margin-top: 12px;
+        }
+        
+        .login-btn:hover {
+            background: #40a9ff;
+        }
+        
+        .login-btn:active {
+            background: #096dd9;
+        }
+        
+        .login-btn:disabled {
+            background: #d9d9d9;
+            cursor: not-allowed;
+        }
+        
+        .loading,
+        .error-message,
+        .success-message {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .loading {
+            color: #1890ff;
+            background: #e6f7ff;
+        }
+        
+        .error-message {
+            color: #f5222d;
+            background: #fff1f0;
+            border: 1px solid #ffa39e;
+        }
+        
+        .success-message {
+            color: #52c41a;
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #f0f0f0;
+        }
+        
+        .footer-text {
+            color: #999;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .login-wrapper {
+                flex-direction: column;
+            }
+            
+            .login-banner {
+                min-width: auto;
+                padding: 40px 30px;
+            }
+            
+            .login-form-section {
+                min-width: auto;
+                padding: 40px 30px;
+            }
+            
+            .banner-icon {
+                font-size: 60px;
+            }
+            
+            .banner-title {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 动态几何背景 -->
+    <div class="geometric-bg">
+        <div class="geo-shape"></div>
+        <div class="geo-shape"></div>
+        <div class="geo-shape"></div>
+        <div class="geo-shape"></div>
+        <div class="geo-shape"></div>
+        <div class="geo-shape"></div>
+        <div class="geo-triangle"></div>
+        <div class="geo-triangle"></div>
+        <div class="geo-hexagon"></div>
+        <div class="geo-hexagon"></div>
+        <div class="geo-dots"></div>
+        <div class="geo-dots"></div>
+        <div class="geo-wave"></div>
+        <div class="geo-wave"></div>
+    </div>
+    
+    <div class="main-content">
+        <div class="login-wrapper">
+            <!-- 左侧 banner -->
+            <div class="login-banner">
+                <i class="fas fa-heart banner-icon"></i>
+                <h1 class="banner-title">心理测验云平台</h1>
+                <p class="banner-subtitle">专业的心理健康评估系统<br>为您提供科学、准确的测验结果</p>
+            </div>
+            
+            <!-- 右侧登录表单 -->
+            <div class="login-form-section">
+                <div class="form-header">
+                    <h2 class="form-title">欢迎登录</h2>
+                    <p class="form-subtitle">请输入您的账号信息</p>
+                </div>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">账号</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="username" name="username" placeholder="请输入用户名/邮箱" required>
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="password" name="password" placeholder="请输入密码" required>
+                            <i class="fas fa-lock input-icon"></i>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="login-btn" id="loginBtn">登 录</button>
+                    
+                    <div class="loading" id="loadingMessage">
+                        <i class="fas fa-spinner fa-spin"></i> 正在登录，请稍候...
+                    </div>
+                    
+                    <div class="success-message" id="successMessage">
+                        <i class="fas fa-check-circle"></i> 登录成功！正在跳转...
+                    </div>
+                    
+                    <div class="error-message" id="errorMessage"></div>
+                </form>
+                
+                <div class="login-footer">
+                    <p class="footer-text">
+                        本系统仅供专业人员使用<br>
+                        请妥善保管您的账号信息
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 配置 - 可以修改为实际的 psyseen.com 登录地址
+        const PSYSEEN_LOGIN_URL = 'https://org.psyseen.com/#/login?redirect=%2Fdashboard';
+        
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMessage = document.getElementById('errorMessage');
+            const loadingMessage = document.getElementById('loadingMessage');
+            const successMessage = document.getElementById('successMessage');
+            const loginBtn = document.getElementById('loginBtn');
+            
+            // 隐藏所有消息
+            errorMessage.style.display = 'none';
+            loadingMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+            
+            // 禁用按钮
+            loginBtn.disabled = true;
+            loadingMessage.style.display = 'block';
+            
+            try {
+                // 打开 psyseen.com 登录页面
+                // 注意：由于浏览器安全限制，无法自动填充表单
+                // 需要用户手动在 psyseen.com 页面输入
+                
+                // 显示提示信息
+                successMessage.innerHTML = '<i class="fas fa-info-circle"></i> 即将打开 psyseen.com 登录页面，请在该页面输入账号密码';
+                successMessage.style.display = 'block';
+                loadingMessage.style.display = 'none';
+                loginBtn.disabled = false;
+                
+                // 延迟打开新窗口
+                setTimeout(() => {
+                    // 在新窗口打开 psyseen.com
+                    const newWindow = window.open(PSYSEEN_LOGIN_URL, '_blank');
+                    
+                    if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+                        // 如果弹出窗口被阻止，显示提示
+                        errorMessage.textContent = '弹出窗口被阻止，请点击下方按钮手动打开';
+                        errorMessage.style.display = 'block';
+                        successMessage.style.display = 'none';
+                        loginBtn.textContent = '前往 psyseen.com 登录';
+                        loginBtn.disabled = false;
+                        loginBtn.onclick = () => {
+                            window.open(PSYSEEN_LOGIN_URL, '_blank');
+                        };
+                    } else {
+                        // 窗口成功打开
+                        successMessage.innerHTML = '<i class="fas fa-external-link-alt"></i> 已在新窗口打开 psyseen.com，请登录';
+                        loginBtn.textContent = '已打开登录页面';
+                        loginBtn.disabled = false;
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                errorMessage.textContent = '打开失败，请检查网络连接';
+                errorMessage.style.display = 'block';
+                loginBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
