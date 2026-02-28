@@ -208,10 +208,9 @@
                     loadingMessage.style.display = 'none';
                     successMessage.style.display = 'block';
                     
-                    // 1 秒后关闭登录页（BrowserView 已经显示 dashboard）
+                    // 1.5 秒后返回首页（BrowserView 已显示 dashboard，不要关闭）
                     setTimeout(() => {
-                        // 通知主进程关闭登录窗口，返回主页并显示 dashboard
-                        window.electronAPI.closePsyseenView();
+                        // 直接返回首页，BrowserView 保持显示
                         window.location.href = 'index.html';
                     }, 1500);
                 } else {

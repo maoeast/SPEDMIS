@@ -67,6 +67,13 @@
                     document.getElementById('footerText').textContent = 
                         `${productConfig.copyright || '©2013-2025'}  ${productConfig.organization}`;
                 }
+                
+                // 检查是否有 BrowserView（dashboard）正在显示
+                const psyResult = await window.electronAPI.checkPsyseenView();
+                if (psyResult.exists) {
+                    // BrowserView 已存在，隐藏首页内容，显示 dashboard
+                    document.body.classList.add('dashboard-visible');
+                }
             } catch (error) {
 }
         }

@@ -897,9 +897,19 @@ body.module-page {
     margin: 0 0 10px 0;
     font-size: 20px;
     color: #333;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+}
+
+/* Dashboard visible state - hide index page content when dashboard is shown */
+body.index-page.dashboard-visible .modules,
+body.index-page.dashboard-visible .index-header,
+body.index-page.dashboard-visible .footer,
+body.index-page.dashboard-visible .logo-container {
+    display: none;
+}
+
+body.index-page.dashboard-visible .exit-button,
+body.index-page.dashboard-visible .user-center-button {
+    z-index: 1001;
 }
 
 .auth-dialog h2 i {
