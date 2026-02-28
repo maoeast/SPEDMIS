@@ -343,11 +343,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
         throw error;
       });
   },
+  openPsyseenWindow: () => {
+    return ipcRenderer
+      .invoke('psyseen-open-window')
+      .catch((error) => {
+        handleIpcError('openPsyseenWindow', error, null);
+        throw error;
+      });
+  },
   openPsyseenDashboard: () => {
     return ipcRenderer
       .invoke('psyseen-open-dashboard')
       .catch((error) => {
         handleIpcError('openPsyseenDashboard', error, null);
+        throw error;
+      });
+  },
+  closePsyseenWindow: () => {
+    return ipcRenderer
+      .invoke('psyseen-close-window')
+      .catch((error) => {
+        handleIpcError('closePsyseenWindow', error, null);
         throw error;
       });
   }

@@ -259,25 +259,11 @@ if (result.success) {
             card.appendChild(iconElement);
             card.appendChild(nameElement);
             
-            // 特殊处理 AI 心理测验模块
+            // 特殊处理 AI 心理测验模块 - 打开新窗口
             if (index === 5) {
                 card.addEventListener('click', () => {
-                    // 检查是否已有 BrowserView（已登录）
-                    if (window.electronAPI && window.electronAPI.checkPsyseenView) {
-                        window.electronAPI.checkPsyseenView().then(result => {
-                            if (result.exists) {
-                                // 已登录，直接显示 dashboard
-                                window.location.href = 'psy-dashboard.html';
-                            } else {
-                                // 未登录，跳转到登录页
-                                window.location.href = 'psy-login.html';
-                            }
-                        }).catch(() => {
-                            window.location.href = 'psy-login.html';
-                        });
-                    } else {
-                        window.location.href = 'psy-login.html';
-                    }
+                    // 打开新的独立窗口
+                    window.electronAPI.openPsyseenWindow();
                 });
             } else {
                 card.addEventListener('click', () => {

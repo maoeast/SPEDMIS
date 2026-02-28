@@ -128,8 +128,8 @@
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="goBack()">
-        <i class="fas fa-arrow-left"></i> 返回
+    <button class="back-btn" onclick="closeWindow()">
+        <i class="fas fa-times"></i> 关闭
     </button>
     
     <div class="login-container" id="loginContainer">
@@ -163,8 +163,12 @@
     </div>
     
     <script>
-        function goBack() {
-            window.location.href = 'index.html';
+        function closeWindow() {
+            // 关闭当前独立窗口
+            window.electronAPI.closePsyseenWindow().catch(() => {
+                // 如果 API 不可用，尝试直接关闭窗口
+                window.close();
+            });
         }
         
         // 页面加载时检查是否已登录（BrowserView 是否存在）
@@ -208,10 +212,9 @@
                     loadingMessage.style.display = 'none';
                     successMessage.style.display = 'block';
                     
-                    // 1.5 秒后返回首页（BrowserView 已显示 dashboard，不要关闭）
+                    // 1.5 秒后跳转到 dashboard 页面（在同一个窗口中）
                     setTimeout(() => {
-                        // 直接返回首页，BrowserView 保持显示
-                        window.location.href = 'index.html';
+                        window.location.href = 'psy-dashboard.html';
                     }, 1500);
                 } else {
                     errorMessage.textContent = result.error || '登录失败';

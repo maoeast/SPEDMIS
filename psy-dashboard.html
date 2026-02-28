@@ -84,8 +84,8 @@
         <div class="dashboard-title">
             <i class="fas fa-brain"></i> AI 心理测验云平台
         </div>
-        <button class="back-home-btn" onclick="goHome()">
-            <i class="fas fa-home"></i> 返回首页
+        <button class="back-home-btn" onclick="closeWindow()">
+            <i class="fas fa-times"></i> 关闭窗口
         </button>
     </div>
     
@@ -97,25 +97,19 @@
     </div>
     
     <script>
-        function goHome() {
-            // 关闭 dashboard
-            window.electronAPI.closePsyseenView().then(() => {
-                window.location.href = 'index.html';
+        function closeWindow() {
+            // 关闭当前独立窗口
+            window.electronAPI.closePsyseenWindow().then(() => {
+                // 窗口已关闭
             }).catch(() => {
-                window.location.href = 'index.html';
+                // 如果 API 不可用，尝试直接关闭窗口
+                window.close();
             });
         }
         
         // 页面加载完成后，检查 BrowserView 是否存在
         window.onload = async function() {
             try {
-                const result = await window.electronAPI.checkPsyseenView();
-                if (!result.exists) {
-                    // BrowserView 不存在，说明未登录，跳转到登录页
-                    window.location.href = 'psy-login.html';
-                    return;
-                }
-                
                 // 等待 BrowserView 准备就绪
                 await new Promise(resolve => setTimeout(resolve, 500));
                 
