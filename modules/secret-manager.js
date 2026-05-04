@@ -173,11 +173,11 @@ function initialize() {
             logger.warn('Using default activation secret key in development mode. NOT SECURE for production!');
         }
         if (!secretConfig.encryptionKey) {
-            secretConfig.encryptionKey = '0123456789abcdef0123456789abcdef';
+            secretConfig.encryptionKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
             logger.warn('Using default encryption key in development mode. NOT SECURE for production!');
         }
         if (!secretConfig.encryptionIV) {
-            secretConfig.encryptionIV = '0123456789abcdef';
+            secretConfig.encryptionIV = '0123456789abcdef0123456789abcdef';
             logger.warn('Using default encryption IV in development mode. NOT SECURE for production!');
         }
     }

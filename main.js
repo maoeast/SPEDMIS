@@ -1,7 +1,6 @@
 const { app, BrowserWindow, shell, ipcMain, Menu, BrowserView } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const hardware = require('./hardware');
 const config = require('./config');
 const { getGlobalCacheManager } = require('./cache');
 const { getLogger } = require('./logger');
@@ -11,6 +10,7 @@ const usageStats = require('./modules/usage-stats');
 const permissionManager = require('./modules/permission-manager');
 const secretManager = require('./modules/secret-manager');
 const activationCrypto = require('./modules/activation-crypto');
+const machineCodeManager = require('./modules/machine-code-manager');
 const vmDetector = require('./modules/vm-detector');
 
 let mainWindow;
@@ -63,18 +63,18 @@ async function checkActivationStatus() {
 
     const activationDataString = await fs.promises.readFile(storagePath, 'utf8');
     const activationData = JSON.parse(activationDataString);
+    const { machineCode } = await machineCodeManager.getMachineCodeData();
 
-    // 验证机器码是否匹配
-    return new Promise((resolve, reject) => {
-      hardware.getHardwareInfo(hardwareInfo => {
-        const machineCode = hardware.generateMachineCode(hardwareInfo);
-        // 检查是否什么一次的激活存储（有可能是encrypted或machineCode）
-        const savedMachineCode = activationData.machineCode || 'saved_once';
-        const isActivated = machineCode === savedMachineCode;
-        logger.info('Activation check completed', { activated: isActivated, machineCode: machineCode.substring(0, 8) + '...' });
-        resolve(isActivated);
-      });
+    // 检查是否什么一次的激活存储（有可能是encrypted或machineCode）
+    const savedMachineCode = activationData.machineCode || 'saved_once';
+    const isActivated = machineCode === savedMachineCode;
+
+    logger.info('Activation check completed', {
+      activated: isActivated,
+      machineCode: machineCode.substring(0, 8) + '...'
     });
+
+    return isActivated;
   } catch (err) {
     logger.warn('Activation status check failed', { error: err.message });
     return false;
@@ -85,86 +85,86 @@ async function checkActivationStatus() {
 ipcMain.handle(config.ipcChannels.activate, async (event, arg) => {
   logger.info('Activation request received');
 
-  return new Promise((resolve, reject) => {
-    hardware.getHardwareInfo(hardwareInfo => {
-      const machineCode = hardware.generateMachineCode(hardwareInfo);
+  const { hardwareInfo, machineCode } = await machineCodeManager.getMachineCodeData();
 
-      // 验证激活码
-      if (arg.activationCode.length !== config.activationConfig.activationCodeLength) {
-        const error = config.logMessages.activation.codeFormatInvalid;
-        logger.warn('Activation code format invalid', { receivedLength: arg.activationCode.length });
-        reject(new Error(error));
-        return;
-      }
+  // 验证激活码
+  if (arg.activationCode.length !== config.activationConfig.activationCodeLength) {
+    const error = config.logMessages.activation.codeFormatInvalid;
+    logger.warn('Activation code format invalid', { receivedLength: arg.activationCode.length });
+    throw new Error(error);
+  }
 
-      // 验证激活码与机器码的匹配关系
-      // 使用密钥管理器获取SECRET_KEY（不再硬编码）
-      const crypto = require('crypto');
-      const secretKey = secretManager.getActivationSecretKey();
-      const hmac = crypto.createHmac(config.activationConfig.hashAlgorithm, secretKey);
-      hmac.update(machineCode);
-      const expectedActivationCode = hmac.digest('hex');
+  // 验证激活码与机器码的匹配关系
+  // 使用密钥管理器获取SECRET_KEY（不再硬编码）
+  const crypto = require('crypto');
+  const secretKey = secretManager.getActivationSecretKey();
+  const hmac = crypto.createHmac(config.activationConfig.hashAlgorithm, secretKey);
+  hmac.update(machineCode);
+  const expectedActivationCode = hmac.digest('hex');
 
-      if (arg.activationCode !== expectedActivationCode) {
-        const error = config.logMessages.activation.codeInvalid;
-        logger.warn('Activation code mismatch', { expected: expectedActivationCode.substring(0, 8) + '...', received: arg.activationCode.substring(0, 8) + '...' });
-        reject(new Error(error));
-        return;
-      }
-
-      const storagePath = config.getActivationStoragePath();
-
-      // 保存激活信息（使用AES-256-GCM加密）
-      const activationData = {
-        machineCode: machineCode,
-        activationCode: arg.activationCode,
-        activatedDate: new Date().toISOString(),
-        deviceLedger: hardwareInfo
-      };
-
-      // 加密激活信息
-      let encryptedData;
-      try {
-        encryptedData = activationCrypto.encryptActivationData(activationData);
-      } catch (encryptError) {
-        logger.error('Failed to encrypt activation data', { error: encryptError.message });
-        reject(new Error('加密激活信息失败'));
-        return;
-      }
-
-      logger.info('Saving activation information');
-      fs.promises.mkdir(path.dirname(storagePath), { recursive: true })
-        .then(() => {
-          // 保存激活信息，同时包含机器码和加密数据
-          const activationFileContent = {
-            machineCode: machineCode,  // 清文机器码（用于检查下次启动）
-            activationCode: arg.activationCode,  // 清文激活码
-            activatedDate: new Date().toISOString(),
-            encrypted: encryptedData  // 加密的详细信息
-          };
-          return fs.promises.writeFile(storagePath, JSON.stringify(activationFileContent));
-        })
-        .then(() => {
-          logger.info('Activation information saved successfully');
-          // 激活成功，让前端处理界面跳转
-          resolve({ success: true });
-        })
-        .catch(err => {
-          logger.error('Failed to save activation information', { error: err.message });
-          reject(new Error(config.logMessages.activation.failedToSaveActivationInfo));
-        });
+  if (arg.activationCode !== expectedActivationCode) {
+    const error = config.logMessages.activation.codeInvalid;
+    logger.warn('Activation code mismatch', {
+      machineCode: machineCode.substring(0, 8) + '...',
+      expected: expectedActivationCode.substring(0, 8) + '...',
+      received: arg.activationCode.substring(0, 8) + '...'
     });
-  });
+    throw new Error(error);
+  }
+
+  const storagePath = config.getActivationStoragePath();
+
+  // 保存激活信息（使用AES-256-GCM加密）
+  const activationData = {
+    machineCode: machineCode,
+    activationCode: arg.activationCode,
+    activatedDate: new Date().toISOString(),
+    deviceLedger: hardwareInfo
+  };
+
+  let encryptedData;
+  try {
+    encryptedData = activationCrypto.encryptActivationData(activationData);
+  } catch (encryptError) {
+    logger.error('Failed to encrypt activation data', { error: encryptError.message });
+    throw new Error('加密激活信息失败');
+  }
+
+  logger.info('Saving activation information');
+
+  try {
+    await fs.promises.mkdir(path.dirname(storagePath), { recursive: true });
+    const activationFileContent = {
+      machineCode: machineCode,  // 清文机器码（用于检查下次启动）
+      activationCode: arg.activationCode,  // 清文激活码
+      activatedDate: new Date().toISOString(),
+      encrypted: encryptedData  // 加密的详细信息
+    };
+
+    await fs.promises.writeFile(storagePath, JSON.stringify(activationFileContent));
+    logger.info('Activation information saved successfully');
+    return { success: true };
+  } catch (err) {
+    logger.error('Failed to save activation information', { error: err.message });
+    throw new Error(config.logMessages.activation.failedToSaveActivationInfo);
+  }
 });
 
 // 获取机器码
 ipcMain.on(config.ipcChannels.getMachineCode, (event) => {
   logger.debug('Machine code request received');
-  hardware.getHardwareInfo(hardwareInfo => {
-    const machineCode = hardware.generateMachineCode(hardwareInfo);
-    logger.debug('Machine code generated', { code: machineCode.substring(0, 8) + '...' });
-    event.reply(config.ipcChannels.machineCodeResponse, machineCode);
-  });
+  machineCodeManager.getMachineCodeData()
+    .then(({ machineCode, hardwareInfo }) => {
+      logger.debug('Machine code generated', {
+        code: machineCode.substring(0, 8) + '...',
+        hardwareInfo
+      });
+      event.reply(config.ipcChannels.machineCodeResponse, machineCode);
+    })
+    .catch((error) => {
+      logger.error('Failed to generate machine code', { error: error.message });
+      event.reply('error', '无法生成机器码');
+    });
 });
 
 // 获取模块分类数据
