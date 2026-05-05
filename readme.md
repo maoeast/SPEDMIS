@@ -1,167 +1,192 @@
-# 特殊教育多模态干预系统 (SPEDMIS)
+# 特殊教育多模态干预系统（SPEDMIS）
 
-## 项目概述
+## 项目简介
 
-特殊教育多模态干预系统是一个基于 Electron 开发的桌面应用程序，旨在为特殊教育领域提供多模态干预工具。该系统集成了多个功能模块，包括感知觉统合、执行功能、社交沟通等领域的应用程序，通过统一的界面进行管理和启动。
+SPEDMIS 是一个基于 Electron 的桌面应用，用于集中展示、分类和启动特殊教育相关的多模态干预工具。应用包含激活校验、模块导航、使用统计、管理员配置、Logo 管理等能力，目标平台为 Windows 桌面环境。
 
-## 系统架构
+## 当前能力
 
-### 前端界面
-- **主页面 (index.html)**: 展示各个功能模块
-- **模块页面 (module.html)**: 展示特定领域的应用列表
-- **激活页面 (activation.html)**: 系统激活界面
-
-### 后端逻辑
-- **主进程 (main.js)**: 负责窗口管理、IPC 通信和应用程序生命周期
-- **预加载脚本 (preload.js)**: 为渲染进程提供安全的 IPC 通信接口
-- **硬件信息模块 (hardware.js)**: 获取硬件信息并生成机器码
-
-### 数据存储
-- **应用配置 (apps.json)**: 存储所有应用程序的元数据
-- **激活信息**: 存储在用户数据目录下的 activation.json 文件中
-
-## 功能模块
-
-### 系统激活
-- 基于硬件信息生成机器码
-- 使用 HMAC-SHA256 算法验证激活码
-- 激活信息持久化存储
-
-### 模块管理
-- 按领域分类展示应用程序
-- 支持二级分类（子功能）
-- 动态加载应用列表
-
-### 应用启动器
-- 支持启动外部应用程序
-- 提供应用程序运行状态反馈
+- 系统激活：基于机器码生成激活码，使用 HMAC-SHA256 校验，并以 AES-256-GCM 加密保存激活信息
+- 模块导航：按领域和子功能展示应用列表，并支持启动外部应用
+- 系统管理：提供用户中心、高级设置、Logo 配置、使用统计等页面
+- 心理测验入口：支持独立的登录页和 Dashboard 页面
+- 构建注入：打包前自动生成 `embedded-secrets.js`，将生产密钥嵌入安装包
 
 ## 技术栈
 
-### 核心框架
-- **Electron v23.0.0**: 跨平台桌面应用框架
-- **Node.js**: JavaScript 运行时环境
+- Electron 23
+- Node.js
+- sql.js
+- Jest
+- Font Awesome
 
-### 构建工具
-- **electron-builder v26.0.12**: 应用打包工具
-- **electron-packager v14.0.0**: 应用打包工具
-- **cross-env v7.0.3**: 跨平台环境变量设置
+## 目录结构
 
-### 前端技术
-- **HTML5/CSS3**: 页面结构和样式
-- **JavaScript**: 客户端逻辑
-- **Font Awesome**: 图标库
+```text
+SPEDMIS/
+├── activation.html               # 激活页面
+├── advanced-settings.html        # 高级设置页面
+├── apps.json                     # 应用元数据
+├── build/
+│   └── inject-keys.js            # 打包前密钥注入脚本
+├── config.js                     # 统一配置
+├── hardware.js                   # 硬件信息与机器码生成
+├── images/                       # 图片资源
+├── index.html                    # 主首页
+├── logger.js                     # 日志模块
+├── logo-settings.html            # Logo 管理页面
+├── main.js                       # Electron 主进程
+├── module.html                   # 模块列表页
+├── modules/
+│   ├── activation-crypto.js
+│   ├── logo-handler.js
+│   ├── machine-code-manager.js
+│   ├── permission-manager.js
+│   ├── product-name-manager.js
+│   ├── secret-manager.js
+│   ├── usage-stats.js
+│   └── vm-detector.js
+├── preload.js                    # 预加载脚本
+├── psy-dashboard.html            # 心理测验 Dashboard
+├── psy-login.html                # 心理测验登录页
+├── statistics.html               # 使用统计页面
+├── styles.css                    # 公共样式
+├── test/                         # Jest 测试
+├── tools/                        # 激活码生成工具
+├── user-center.html              # 用户中心
+├── verify-keys.js                # 密钥一致性检查脚本
+└── readme.md
+```
 
 ## 安装与运行
 
 ### 环境要求
-- Node.js LTS 版本
-- Windows 操作系统（主要支持平台）
 
-### 安装步骤
+- Node.js 16+
+- npm 8+
+- Windows 为主要运行目标；Linux / WSL 更适合开发和测试
+
+### 本地启动
+
 ```bash
-# 克隆项目（如果是从源码安装）
-git clone <repository-url>
-
-# 进入项目目录
-cd SPEDMIS
-
-# 安装依赖
 npm install
-
-# 重建原生模块（如果需要）
-npm run rebuild
-
-# 启动应用
 npm start
 ```
 
-### 构建应用
+`npm start` 会以开发模式启动 Electron：
+
+- `NODE_ENV=development`
+- 未激活时加载 `activation.html`
+- 已激活时加载 `index.html`
+
+## 激活与密钥
+
+### 开发环境
+
+开发模式下，应用会按以下优先级加载密钥：
+
+1. `embedded-secrets.js`
+2. 系统环境变量
+3. 项目根目录 `.env`
+4. 开发默认值
+
+相关变量：
+
+- `ACTIVATION_SECRET_KEY`
+- `ACTIVATION_ENCRYPTION_KEY`
+- `ACTIVATION_ENCRYPTION_IV`
+
+其中：
+
+- `ACTIVATION_SECRET_KEY` 长度至少为 32 个字符
+- `ACTIVATION_ENCRYPTION_KEY` 必须是 64 位十六进制字符串
+- `ACTIVATION_ENCRYPTION_IV` 必须是 32 位十六进制字符串
+
+### 生产构建
+
+执行 `npm run build` 时，会先自动执行 `prebuild`，再进入 Electron Builder：
+
 ```bash
-# 构建 Windows 安装包
 npm run build
 ```
 
-## 使用流程
+其中 `prebuild` 会执行：
 
-### 首次启动
-1. 系统检查激活状态
-2. 未激活时，显示激活页面
-3. 需要输入有效的激活码
-
-### 主界面
-- 显示各个功能模块（感知觉统合、执行功能等）
-- 点击模块进入对应的应用列表
-
-### 模块页面
-- 显示所选模块下的应用列表
-- 按子功能分类展示应用
-- 点击应用卡片启动对应的应用程序
-
-### 退出系统
-- 点击界面右上角的退出按钮
-- 或关闭主窗口
-
-## 项目特点
-
-### 模块化设计
-- 清晰的代码结构和职责分离
-- 易于扩展和维护
-
-### 安全机制
-- 基于硬件信息的激活系统
-- 安全的 IPC 通信
-
-### 用户友好界面
-- 直观的卡片式布局
-- 响应式设计
-- 动画和过渡效果
-
-### 错误处理
-- 完善的错误捕获和反馈机制
-- 超时处理和重试机制
-
-## 开发建议
-
-### 功能扩展
-- 添加用户管理和权限控制
-- 实现应用程序更新机制
-- 增加数据同步和备份功能
-
-### 性能优化
-- 优化应用启动速度
-- 减少资源占用
-
-### 界面改进
-- 增加深色模式支持
-- 优化移动设备适配
-
-### 安全增强
-- 加强激活机制的安全性
-- 实现应用程序完整性验证
-
-## 目录结构
-
+```bash
+node build/inject-keys.js
 ```
-SPEDMIS/
-├── activation.html      # 激活页面
-├── apps.json            # 应用配置数据
-├── hardware.js          # 硬件信息模块
-├── index.html           # 主页面
-├── main.js              # 主进程
-├── module.html          # 模块页面
-├── package.json         # 项目配置
-├── preload.js           # 预加载脚本
-├── styles.css           # 样式表
-├── dist/                # 构建输出目录
-├── flash/               # 应用程序目录
-└── images/              # 图片资源目录
+
+该脚本会读取环境变量或 `.env`，生成未纳入版本控制的 `embedded-secrets.js`，供打包阶段使用。
+
+### 激活码生成工具
+
+仓库内置激活码工具，位于 `tools/` 目录。常用方式：
+
+```bash
+cd tools
+node activation-tool-cli.js --interactive
 ```
+
+相关文档：
+
+- [tools/README.md](tools/README.md)
+- [tools/QUICKSTART.md](tools/QUICKSTART.md)
+
+## 测试
+
+项目使用 Jest，测试文件位于 `test/` 目录。
+
+常用命令：
+
+```bash
+npm test
+npm run test:watch
+npm run test:coverage
+```
+
+当前测试覆盖的主要模块包括：
+
+- 激活加密
+- 机器码管理
+- 缓存
+- 配置
+- 日志
+- 权限管理
+- 产品名称管理
+- 使用统计
+
+## 打包说明
+
+```bash
+npm run build
+```
+
+打包配置位于 `package.json` 的 `build` 字段中，当前已明确将以下内容排除出安装包：
+
+- `test/`
+- `tools/`
+- 构建辅助脚本
+- 临时文档和归档文档
+
+输出目录：
+
+- `dist/`
+
+## 相关文档
+
+- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+- [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)
+- [USER_ACTIVATION_GUIDE.md](USER_ACTIVATION_GUIDE.md)
+- [系统使用说明书.md](系统使用说明书.md)
+- [系统参数技术文档.md](系统参数技术文档.md)
+
+## 维护建议
+
+- 修改激活逻辑后，优先同步更新 `tools/` 下的生成工具
+- 修改密钥策略后，验证 `build/inject-keys.js`、`secret-manager.js` 和 `verify-keys.js`
+- 修改页面入口后，同步检查 `main.js`、`preload.js` 和对应 HTML 跳转关系
+- 提交前至少运行一次 `npm test`
 
 ## 许可证
 
-MIT License
-
-## 作者
-
-杭州炫灿科技有限公司
+MIT

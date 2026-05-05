@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 yarn.lock
 
 # Build output
@@ -42,11 +41,14 @@ out/
 # Cache
 .cache/
 *.cache
+coverage/
 
 # Temporary files
 temp/
 tmp/
 *.tmp
+.agents/
+.codex/
 
 # Media/Assets that are too large
 flash/

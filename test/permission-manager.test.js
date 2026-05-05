@@ -1,153 +1,118 @@
-/**
- * 权限管理模块单元测试
- */
-
 const fs = require('fs');
 const path = require('path');
 
+jest.mock('electron', () => ({
+    app: {
+        getPath: jest.fn((pathName) => {
+            if (pathName === 'appData') {
+                return 'C:\\Users\\test\\AppData\\Roaming';
+            }
+            return '/tmp/spedmis-permission-test-home';
+        })
+    }
+}));
+
+jest.mock('../logger', () => ({
+    getLogger: jest.fn(() => ({
+        info: jest.fn(),
+        debug: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn()
+    }))
+}));
+
+const permissionManager = require('../modules/permission-manager');
+
+const TEST_HOME_DIR = '/tmp/spedmis-permission-test-home';
+const TEST_CONFIG_DIR = path.join(
+    TEST_HOME_DIR,
+    'Library',
+    'Application Support',
+    '特殊教育多模态干预系统'
+);
+
 describe('Permission Manager Module', () => {
-    // 由于permission-manager会使用electron的app.getPath()
-    // 我们先创建一个简化版本的测试
-
-    test('should have permission-manager module', () => {
-        // 检查模块是否存在并可以导入
-        const permissionPath = path.join(__dirname, '../modules/permission-manager.js');
-        expect(fs.existsSync(permissionPath)).toBe(true);
+    beforeEach(() => {
+        fs.rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+        jest.clearAllMocks();
     });
 
-    test('should have all required exports', () => {
-        // 不需要mock的简单检查
-        const moduleContent = fs.readFileSync(
-            path.join(__dirname, '../modules/permission-manager.js'),
-            'utf8'
-        );
-
-        // 检查关键函数是否存在
-        expect(moduleContent).toContain('initializePermissions');
-        expect(moduleContent).toContain('verifyAdminPassword');
-        expect(moduleContent).toContain('checkPermission');
-        expect(moduleContent).toContain('verifySessionToken');
-        expect(moduleContent).toContain('revokeSession');
-        expect(moduleContent).toContain('updateAdminPassword');
-        expect(moduleContent).toContain('clearAllSessions');
+    afterAll(() => {
+        fs.rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
     });
 
-    test('should export module.exports correctly', () => {
-        const moduleContent = fs.readFileSync(
-            path.join(__dirname, '../modules/permission-manager.js'),
-            'utf8'
-        );
+    test('should initialize permission config with default permissions', async () => {
+        await permissionManager.initializePermissions();
 
-        // 检查所有函数都被导出
-        expect(moduleContent).toContain('module.exports = {');
-        expect(moduleContent).toContain('initializePermissions,');
-        expect(moduleContent).toContain('verifyAdminPassword,');
-        expect(moduleContent).toContain('checkPermission,');
-        expect(moduleContent).toContain('getPermissionConfigPath,');
+        const config = permissionManager.getPermissionConfig();
+
+        expect(config).toBeTruthy();
+        expect(config.permissions.setProductName.requiresAuth).toBe(true);
+        expect(config.permissions.getUsageStats.requiresAuth).toBe(false);
+        expect(config.sessionTokens).toEqual({});
     });
 
-    test('should have proper password hashing', () => {
-        const moduleContent = fs.readFileSync(
-            path.join(__dirname, '../modules/permission-manager.js'),
-            'utf8'
-        );
+    test('should verify the default admin password and issue a valid session token', async () => {
+        await permissionManager.initializePermissions();
 
-        // 检查是否使用了crypto.createHash
-        expect(moduleContent).toContain('createHash');
-        expect(moduleContent).toContain('sha256');
-        expect(moduleContent).toContain('hashPassword');
-        expect(moduleContent).toContain('verifyPassword');
+        const result = permissionManager.verifyAdminPassword('299451');
+
+        expect(result.success).toBe(true);
+        expect(result.token).toMatch(/^[a-f0-9]{64}$/);
+        expect(permissionManager.verifySessionToken(result.token)).toBe(true);
     });
 
-    test('should have session token management', () => {
-        const moduleContent = fs.readFileSync(
-            path.join(__dirname, '../modules/permission-manager.js'),
-            'utf8'
-        );
+    test('should require admin authentication for protected actions', async () => {
+        await permissionManager.initializePermissions();
 
-        // 检查是否有session token相关逻辑
-        expect(moduleContent).toContain('sessionTokens');
-        expect(moduleContent).toContain('expiresAt');
-        expect(moduleContent).toContain('crypto.randomBytes');
+        const denied = permissionManager.checkPermission('setProductName');
+
+        expect(denied).toEqual({
+            allowed: false,
+            message: '需要管理员认证',
+            requiresAuth: true,
+        });
+
+        const authResult = permissionManager.verifyAdminPassword('299451');
+        const allowed = permissionManager.checkPermission('setProductName', authResult.token);
+
+        expect(allowed).toEqual({
+            allowed: true,
+            message: '权限验证通过',
+        });
     });
 
-    test('should have permission checking logic', () => {
-        const moduleContent = fs.readFileSync(
-            path.join(__dirname, '../modules/permission-manager.js'),
-            'utf8'
-        );
+    test('should allow public actions without authentication', async () => {
+        await permissionManager.initializePermissions();
 
-        // 检查权限相关的逻辑
-        expect(moduleContent).toContain('requiresAuth');
-        expect(moduleContent).toContain('setProductName');
-        expect(moduleContent).toContain('uploadLogo');
-        expect(moduleContent).toContain('getUsageStats');
+        expect(permissionManager.checkPermission('getUsageStats')).toEqual({
+            allowed: true,
+            message: '不需要认证',
+        });
+
+        expect(permissionManager.checkPermission('unknownAction')).toEqual({
+            allowed: true,
+            message: '无权限限制',
+        });
     });
 
-    test('should have proper error handling', () => {
-        const moduleContent = fs.readFileSync(
-            path.join(__dirname, '../modules/permission-manager.js'),
-            'utf8'
-        );
+    test('should revoke sessions and invalidate old tokens after password update', async () => {
+        await permissionManager.initializePermissions();
 
-        // 检查是否有try-catch和logger
-        expect(moduleContent).toContain('try {');
-        expect(moduleContent).toContain('catch (error)');
-        expect(moduleContent).toContain('getLogger');
-    });
+        const loginResult = permissionManager.verifyAdminPassword('299451');
+        expect(permissionManager.revokeSession(loginResult.token)).toBe(true);
+        expect(permissionManager.verifySessionToken(loginResult.token)).toBe(false);
 
-    test('should use correct default password', () => {
-        const moduleContent = fs.readFileSync(
-            path.join(__dirname, '../modules/permission-manager.js'),
-            'utf8'
-        );
+        const secondLogin = permissionManager.verifyAdminPassword('299451');
+        const updateResult = permissionManager.updateAdminPassword('299451', 'new-password-123');
 
-        // 检查默认密码是否存在
-        expect(moduleContent).toContain('DEFAULT_ADMIN_PASSWORD');
-        expect(moduleContent).toContain("'299451'");
-    });
+        expect(updateResult.success).toBe(true);
+        expect(permissionManager.verifySessionToken(secondLogin.token)).toBe(false);
 
-    test('should have IPC handler in main.js', () => {
-        const mainPath = path.join(__dirname, '../main.js');
-        const mainContent = fs.readFileSync(mainPath, 'utf8');
+        const oldPasswordResult = permissionManager.verifyAdminPassword('299451');
+        expect(oldPasswordResult.success).toBe(false);
 
-        // 检查是否正确导入了permission-manager
-        expect(mainContent).toContain("require('./modules/permission-manager')");
-
-        // 检查是否有权限相关的IPC处理器
-        expect(mainContent).toContain('verifyAdminPassword');
-        expect(mainContent).toContain('checkPermission');
-        expect(mainContent).toContain('revokeSession');
-        expect(mainContent).toContain('updateAdminPassword');
-    });
-
-    test('should have preload API for permission management', () => {
-        const preloadPath = path.join(__dirname, '../preload.js');
-        const preloadContent = fs.readFileSync(preloadPath, 'utf8');
-
-        // 检查是否暴露了权限相关的API
-        expect(preloadContent).toContain('verifyAdminPassword');
-        expect(preloadContent).toContain('checkPermission');
-        expect(preloadContent).toContain('revokeSession');
-        expect(preloadContent).toContain('updateAdminPassword');
-    });
-
-    test('should have statistics page with auth dialog', () => {
-        const statsPath = path.join(__dirname, '../statistics.html');
-        expect(fs.existsSync(statsPath)).toBe(true);
-
-        const statsContent = fs.readFileSync(statsPath, 'utf8');
-        expect(statsContent).toContain('statistics');
-    });
-
-    test('should have permission check in config', () => {
-        const configPath = path.join(__dirname, '../config.js');
-        const configContent = fs.readFileSync(configPath, 'utf8');
-
-        // 检查是否添加了权限相关的IPC通道
-        expect(configContent).toContain('verifyAdminPassword');
-        expect(configContent).toContain('checkPermission');
-        expect(configContent).toContain('revokeSession');
-        expect(configContent).toContain('updateAdminPassword');
+        const newPasswordResult = permissionManager.verifyAdminPassword('new-password-123');
+        expect(newPasswordResult.success).toBe(true);
     });
 });
