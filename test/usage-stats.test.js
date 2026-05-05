@@ -2,13 +2,24 @@
  * 使用统计模块单元测试
  */
 
+const fs = require('fs');
+const path = require('path');
+
+const TEST_HOME_DIR = '/tmp/spedmis-usage-stats-test-home';
+const TEST_DB_DIR = path.join(
+    TEST_HOME_DIR,
+    'Library',
+    'Application Support',
+    '特殊教育多模态干预系统'
+);
+
 jest.mock('electron', () => ({
     app: {
         getPath: jest.fn((pathName) => {
             if (pathName === 'appData') {
                 return 'C:\\Users\\test\\AppData\\Roaming';
             }
-            return '/home/test';
+            return TEST_HOME_DIR;
         })
     }
 }));
@@ -23,13 +34,17 @@ jest.mock('../logger', () => ({
 }));
 
 const usageStats = require('../modules/usage-stats');
-const fs = require('fs');
-const path = require('path');
 
 describe('Usage Statistics Module', () => {
     beforeEach(() => {
-        // 清理测试数据库
+        usageStats.closeDatabase();
+        fs.rmSync(TEST_DB_DIR, { recursive: true, force: true });
         jest.clearAllMocks();
+    });
+
+    afterAll(() => {
+        usageStats.closeDatabase();
+        fs.rmSync(TEST_DB_DIR, { recursive: true, force: true });
     });
 
     describe('recordUsageStart', () => {
