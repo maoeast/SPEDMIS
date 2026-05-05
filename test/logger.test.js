@@ -3,6 +3,17 @@
  * 注意：某些测试需要 Electron app 模块，这里使用 mock
  */
 
+jest.mock('electron', () => ({
+    app: {
+        isReady: jest.fn(() => false),
+        getPath: jest.fn(() => {
+            throw new Error('Electron app is not ready');
+        }),
+    }
+}));
+
+const os = require('os');
+const { app } = require('electron');
 const { Logger, LogLevel, LogLevelName, getLogger, createLogger } = require('../logger');
 
 // Mock console methods to capture output
@@ -65,6 +76,20 @@ describe('Logger', () => {
         expect(logger.moduleName).toBe('TEST');
         expect(logger.enableConsole).toBe(true);
         expect(logger.enableFile).toBe(false);
+    });
+
+    test('should not access userData path when file logging is disabled', () => {
+        expect(() => {
+            new Logger({ moduleName: 'TEST', enableFile: false });
+        }).not.toThrow();
+
+        expect(app.getPath).not.toHaveBeenCalled();
+    });
+
+    test('should fall back to temp directory when file logging is enabled before app is ready', () => {
+        const logger = new Logger({ moduleName: 'TEST', enableFile: true });
+
+        expect(logger.logDir).toBe(`${os.tmpdir()}/SPED_MIS/logs`);
     });
 
     test('should log error messages when level allows', () => {

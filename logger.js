@@ -4,6 +4,7 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { app } = require('electron');
 const config = require('./config');
@@ -37,12 +38,13 @@ class Logger {
         this.currentLevel = options.level || LogLevel.INFO;
         this.enableConsole = options.enableConsole !== false;
         this.enableFile = options.enableFile || false;
-        this.logDir = options.logDir || this.getDefaultLogDir();
+        this.logDir = options.logDir || null;
         this.maxFileSize = options.maxFileSize || 10 * 1024 * 1024; // 10MB
         this.maxBackups = options.maxBackups || 5;
 
         // 确保日志目录存在
         if (this.enableFile) {
+            this.logDir = this.logDir || this.getDefaultLogDir();
             this.ensureLogDirExists();
         }
     }
@@ -52,8 +54,19 @@ class Logger {
      * @private
      */
     getDefaultLogDir() {
-        const appData = app ? app.getPath('userData') : './logs';
-        return path.join(appData, 'logs');
+        try {
+            if (app && typeof app.isReady === 'function' && !app.isReady()) {
+                return path.join(os.tmpdir(), 'SPED_MIS', 'logs');
+            }
+
+            if (app && typeof app.getPath === 'function') {
+                return path.join(app.getPath('userData'), 'logs');
+            }
+        } catch (error) {
+            // Electron 尚未 ready 或宿主路径不可用时，回退到临时目录。
+        }
+
+        return path.join(os.tmpdir(), 'SPED_MIS', 'logs');
     }
 
     /**
