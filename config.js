@@ -11,7 +11,7 @@ const { app } = require('electron');
  */
 const appConfig = {
     name: '特殊教育多模态干预系统',
-    version: '1.0.0',
+    version: '1.2.0',
     shortName: '特教MIS',
 };
 
@@ -27,7 +27,7 @@ const productNameConfig = {
         engName: 'Special Education Multimodal Intervention System',
         organization: '杭州炫灿科技有限公司',
         copyright: '©2013-2025',
-        version: '1.0.0',
+        version: '1.2.0',
     },
     // 配置文件名称
     configFileName: 'product-branding.json',

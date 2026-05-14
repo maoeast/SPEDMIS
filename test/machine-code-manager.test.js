@@ -1,6 +1,7 @@
 jest.mock('../hardware', () => ({
     getHardwareInfo: jest.fn(),
     generateMachineCode: jest.fn(),
+    getMachineCodeCandidates: jest.fn(),
 }));
 
 const hardware = require('../hardware');
@@ -69,5 +70,30 @@ describe('machine-code-manager', () => {
         expect(retried.machineCode).toBe('machine-code-3');
         expect(hardware.getHardwareInfo).toHaveBeenCalledTimes(2);
         expect(hardware.generateMachineCode).toHaveBeenCalledTimes(2);
+    });
+
+    test('should expose candidate machine codes for compatibility checks', async () => {
+        const hardwareInfo = { mac: 'MAC-4' };
+
+        hardware.getHardwareInfo.mockImplementation((callback) => {
+            callback(hardwareInfo);
+        });
+        hardware.generateMachineCode.mockReturnValue('machine-code-current');
+        hardware.getMachineCodeCandidates.mockReturnValue([
+            'machine-code-current',
+            'machine-code-legacy',
+        ]);
+
+        const result = await machineCodeManager.getMachineCodeData();
+
+        expect(result).toEqual({
+            hardwareInfo,
+            machineCode: 'machine-code-current',
+            machineCodeCandidates: [
+                'machine-code-current',
+                'machine-code-legacy',
+            ],
+        });
+        expect(hardware.getMachineCodeCandidates).toHaveBeenCalledWith(hardwareInfo);
     });
 });

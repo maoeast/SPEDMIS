@@ -18,6 +18,50 @@ let psyseenView = null;  // AI 心理测验 BrowserView（已废弃，保留兼�
 let psyseenWindow = null;  // AI 心理测验独立窗口
 const logger = getLogger('MAIN');
 
+function collectActivationMachineCodeCandidates(activationData = {}) {
+  const candidates = [];
+
+  if (activationData.machineCode) {
+    candidates.push(activationData.machineCode);
+  }
+
+  if (activationData.encrypted) {
+    try {
+      const decrypted = activationCrypto.decryptActivationData(activationData.encrypted);
+      if (decrypted && decrypted.machineCode) {
+        candidates.push(decrypted.machineCode);
+      }
+    } catch (error) {
+      logger.warn('Failed to read encrypted activation payload during activation check', {
+        error: error.message,
+      });
+    }
+  }
+
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+async function migrateActivationStorage(storagePath, activationData, machineCode, hardwareInfo) {
+  if (!activationData.activationCode) {
+    return;
+  }
+
+  const activatedDate = activationData.activatedDate || new Date().toISOString();
+  const encrypted = activationCrypto.encryptActivationData({
+    machineCode,
+    activationCode: activationData.activationCode,
+    activatedDate,
+    deviceLedger: hardwareInfo,
+  });
+
+  await fs.promises.writeFile(storagePath, JSON.stringify({
+    ...activationData,
+    machineCode,
+    activatedDate,
+    encrypted,
+  }));
+}
+
 function createWindow() {
   // 创建无标题栏窗口
   const windowConfig_ = config.windowConfig.main;
@@ -63,11 +107,23 @@ async function checkActivationStatus() {
 
     const activationDataString = await fs.promises.readFile(storagePath, 'utf8');
     const activationData = JSON.parse(activationDataString);
-    const { machineCode } = await machineCodeManager.getMachineCodeData();
+    const {
+      machineCode,
+      machineCodeCandidates = [machineCode],
+      hardwareInfo,
+    } = await machineCodeManager.getMachineCodeData();
 
     // 检查是否什么一次的激活存储（有可能是encrypted或machineCode）
-    const savedMachineCode = activationData.machineCode || 'saved_once';
-    const isActivated = machineCode === savedMachineCode;
+    const savedMachineCodes = collectActivationMachineCodeCandidates(activationData);
+    const isActivated = savedMachineCodes.some(savedCode => machineCodeCandidates.includes(savedCode));
+
+    if (isActivated && activationData.machineCode !== machineCode) {
+      await migrateActivationStorage(storagePath, activationData, machineCode, hardwareInfo);
+      logger.info('Activation storage migrated to stable machine code', {
+        previousMachineCode: activationData.machineCode ? `${activationData.machineCode.substring(0, 8)}...` : 'missing',
+        machineCode: `${machineCode.substring(0, 8)}...`,
+      });
+    }
 
     logger.info('Activation check completed', {
       activated: isActivated,
@@ -870,3 +926,7 @@ ipcMain.handle('psyseen-close-window', async (event) => {
     return { success: false, error: error.message };
   }
 });
+
+module.exports = {
+  checkActivationStatus,
+};

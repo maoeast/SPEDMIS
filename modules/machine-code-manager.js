@@ -7,9 +7,13 @@ function loadMachineCodeData() {
         hardware.getHardwareInfo((hardwareInfo) => {
             try {
                 const machineCode = hardware.generateMachineCode(hardwareInfo);
+                const machineCodeCandidates = typeof hardware.getMachineCodeCandidates === 'function'
+                    ? hardware.getMachineCodeCandidates(hardwareInfo)
+                    : [machineCode];
                 resolve({
                     hardwareInfo,
                     machineCode,
+                    machineCodeCandidates,
                 });
             } catch (error) {
                 reject(error);

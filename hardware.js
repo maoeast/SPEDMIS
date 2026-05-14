@@ -2,9 +2,44 @@ const os = require('os');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 
-// 获取 MAC 地址
+function normalizeHardwareValue(value, fallback) {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const normalized = value.trim();
+  return normalized || fallback;
+}
+
+function selectStableMacAddress(hardwareInfo = {}) {
+  return normalizeHardwareValue(hardwareInfo.stableMac || hardwareInfo.mac, 'UNKNOWN_MAC');
+}
+
+function selectStableHardDiskSerial(hardwareInfo = {}) {
+  return normalizeHardwareValue(hardwareInfo.stableHardDisk || hardwareInfo.hardDisk, 'UNKNOWN_HD');
+}
+
+function createMachineCodePayload(hardwareInfo = {}, options = {}) {
+  const useStableIdentifiers = options.useStableIdentifiers !== false;
+  const mac = useStableIdentifiers
+    ? selectStableMacAddress(hardwareInfo)
+    : normalizeHardwareValue(hardwareInfo.mac, 'UNKNOWN_MAC');
+  const hardDisk = useStableIdentifiers
+    ? selectStableHardDiskSerial(hardwareInfo)
+    : normalizeHardwareValue(hardwareInfo.hardDisk, 'UNKNOWN_HD');
+  const cpu = normalizeHardwareValue(hardwareInfo.cpu, 'UNKNOWN_CPU');
+  const motherboard = normalizeHardwareValue(hardwareInfo.motherboard, 'UNKNOWN_MB');
+
+  return `${mac}-${cpu}-${hardDisk}-${motherboard}`;
+}
+
+function hashMachineCode(rawCodeString, algorithm = 'sha256') {
+  return crypto.createHash(algorithm).update(rawCodeString).digest('hex');
+}
+
 function getMacAddress() {
   const interfaces = os.networkInterfaces();
+
   for (const name of Object.keys(interfaces)) {
     for (const item of interfaces[name]) {
       if (item.mac && item.mac !== '00:00:00:00:00:00') {
@@ -12,43 +47,210 @@ function getMacAddress() {
       }
     }
   }
-  return "UNKNOWN_MAC";
+
+  return 'UNKNOWN_MAC';
 }
 
-// 获取硬盘序列号
+function getStableMacAddress() {
+  const interfaces = os.networkInterfaces();
+  const candidates = [];
+
+  for (const [name, items] of Object.entries(interfaces)) {
+    for (const item of items || []) {
+      if (!item || !item.mac || item.mac === '00:00:00:00:00:00' || item.internal) {
+        continue;
+      }
+
+      const normalizedName = String(name).toLowerCase();
+      const normalizedMac = item.mac.replace(/:/g, '').toUpperCase();
+      const family = String(item.family || '');
+      const isWireless = /wi-?fi|wireless|wlan|802\.11/.test(normalizedName);
+      const isVirtual = /virtual|vmware|hyper-v|vethernet|docker|vbox|bluetooth|loopback|tap|tun/.test(normalizedName);
+      const score = isVirtual ? 2 : isWireless ? 1 : 0;
+
+      candidates.push({
+        mac: normalizedMac,
+        score,
+        name: normalizedName,
+        family,
+      });
+    }
+  }
+
+  if (candidates.length === 0) {
+    return 'UNKNOWN_MAC';
+  }
+
+  candidates.sort((left, right) => {
+    if (left.score !== right.score) {
+      return left.score - right.score;
+    }
+
+    if (left.name !== right.name) {
+      return left.name.localeCompare(right.name);
+    }
+
+    if (left.family !== right.family) {
+      return left.family.localeCompare(right.family);
+    }
+
+    return left.mac.localeCompare(right.mac);
+  });
+
+  return candidates[0].mac;
+}
+
+function parseWindowsDiskSerials(stdout) {
+  return stdout
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !/^serialnumber$/i.test(line))
+    .map(line => line.replace(/\s+/g, ''))
+    .filter(line => line.length >= 4);
+}
+
+function parseWindowsWmicValues(stdout, headerPattern) {
+  return stdout
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !(headerPattern && headerPattern.test(line)));
+}
+
+function parseWindowsDiskInventory(stdout) {
+  try {
+    const parsed = JSON.parse(stdout.trim());
+    const disks = Array.isArray(parsed) ? parsed : [parsed];
+
+    return disks
+      .map(disk => ({
+        index: Number.isFinite(Number(disk.Index)) ? Number(disk.Index) : Number.MAX_SAFE_INTEGER,
+        interfaceType: normalizeHardwareValue(disk.InterfaceType, ''),
+        mediaType: normalizeHardwareValue(disk.MediaType, ''),
+        model: normalizeHardwareValue(disk.Model, ''),
+        pnpDeviceId: normalizeHardwareValue(disk.PNPDeviceID, ''),
+        serialNumber: normalizeHardwareValue(disk.SerialNumber, '').replace(/\s+/g, ''),
+      }))
+      .filter(disk => disk.serialNumber.length >= 4);
+  } catch (error) {
+    return [];
+  }
+}
+
+function choosePreferredWindowsDisk(disks) {
+  if (!Array.isArray(disks) || disks.length === 0) {
+    return 'UNKNOWN_HD';
+  }
+
+  const ranked = disks
+    .map(disk => {
+      const externalInterface = /usb|1394|sd/i.test(disk.interfaceType);
+      const removableMedia = /removable/i.test(disk.mediaType);
+      const removablePnp = /usbstor|sdstor/i.test(disk.pnpDeviceId);
+      const removableModel = /usb|card reader|sd|flash/i.test(disk.model);
+
+      let score = 0;
+      if (externalInterface) score += 100;
+      if (removableMedia) score += 100;
+      if (removablePnp) score += 100;
+      if (removableModel) score += 50;
+      score += Number.isFinite(disk.index) ? disk.index : 25;
+
+      return {
+        ...disk,
+        score,
+      };
+    })
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return left.score - right.score;
+      }
+
+      if (left.index !== right.index) {
+        return left.index - right.index;
+      }
+
+      if (left.serialNumber.length !== right.serialNumber.length) {
+        return right.serialNumber.length - left.serialNumber.length;
+      }
+
+      return left.serialNumber.localeCompare(right.serialNumber);
+    });
+
+  return ranked[0].serialNumber;
+}
+
+function choosePreferredDiskSerial(serials) {
+  if (!Array.isArray(serials) || serials.length === 0) {
+    return 'UNKNOWN_HD';
+  }
+
+  const ranked = serials
+    .map(serial => ({
+      serial,
+      score: /usb|sd|card|reader|removable/i.test(serial) ? 1 : 0,
+    }))
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return left.score - right.score;
+      }
+
+      if (left.serial.length !== right.serial.length) {
+        return right.serial.length - left.serial.length;
+      }
+
+      return left.serial.localeCompare(right.serial);
+    });
+
+  return ranked[0].serial;
+}
+
 function getHardDiskSerial(callback) {
   if (process.platform === 'win32') {
-    exec('wmic diskdrive get SerialNumber', (error, stdout) => {
-      if (!error) {
-        const match = stdout.match(/.*[A-Z0-9]{10}/);
-        if (match) {
-          callback(match[0].trim());
+    exec('powershell -NoProfile -Command "Get-CimInstance Win32_DiskDrive | Select-Object Index,InterfaceType,MediaType,Model,PNPDeviceID,SerialNumber | ConvertTo-Json -Compress"', (error, stdout) => {
+      if (!error && stdout.trim()) {
+        const disks = parseWindowsDiskInventory(stdout);
+        const preferredDisk = choosePreferredWindowsDisk(disks);
+
+        if (preferredDisk !== 'UNKNOWN_HD') {
+          callback(preferredDisk);
           return;
         }
       }
-      callback('UNKNOWN_HD');
+
+      exec('wmic diskdrive get SerialNumber', (fallbackError, fallbackStdout) => {
+        if (!fallbackError) {
+          const serials = parseWindowsDiskSerials(fallbackStdout);
+          const preferredSerial = choosePreferredDiskSerial(serials);
+
+          if (preferredSerial !== 'UNKNOWN_HD') {
+            callback(preferredSerial);
+            return;
+          }
+        }
+
+        callback('UNKNOWN_HD');
+      });
     });
   } else if (process.platform === 'linux') {
-    // Linux 实现：尝试多种方法获取硬盘序列号
     exec('lsblk -nd -o SERIAL /dev/sda 2>/dev/null || hdparm -I /dev/sda 2>/dev/null | grep "Serial Number" || cat /sys/block/sda/serial 2>/dev/null', (error, stdout) => {
       if (!error && stdout.trim()) {
-        const serial = stdout.trim().replace(/Serial Number:\s*/i, '');
-        if (serial && serial.length > 3) {
-          callback(serial);
+        const serials = parseWindowsDiskSerials(stdout);
+        if (serials.length > 0) {
+          callback(serials[0]);
           return;
         }
       }
-      // 备选方案：使用 dmidecode
+
       exec('dmidecode -t disk 2>/dev/null | grep -A1 "Serial Number" | tail -1', (error2, stdout2) => {
         if (!error2 && stdout2.trim()) {
           callback(stdout2.trim());
           return;
         }
+
         callback('UNKNOWN_HD');
       });
     });
   } else {
-    // macOS 实现（简化版）
     exec('ioreg -l | grep IOPlatformSerialNumber', (error, stdout) => {
       if (!error) {
         const match = stdout.match(/"([^"]+)"$/m);
@@ -57,26 +259,27 @@ function getHardDiskSerial(callback) {
           return;
         }
       }
+
       callback('UNKNOWN_HD');
     });
   }
 }
 
-// 获取主板序列号
 function getMotherboardSerial(callback) {
   if (process.platform === 'win32') {
     exec('wmic baseboard get serialnumber', (error, stdout) => {
       if (!error) {
-        const serial = stdout.trim().replace(/\s+/g, '');
+        const values = parseWindowsWmicValues(stdout, /^serialnumber$/i);
+        const serial = values[0] ? values[0].replace(/\s+/g, '') : '';
         if (serial) {
           callback(serial);
           return;
         }
       }
+
       callback('UNKNOWN_MB');
     });
   } else if (process.platform === 'linux') {
-    // Linux 实现：使用 dmidecode 获取主板序列号
     exec('dmidecode -t baseboard 2>/dev/null | grep "Serial Number" | head -1', (error, stdout) => {
       if (!error && stdout.trim()) {
         const serial = stdout.trim().replace(/Serial Number:\s*/i, '').trim();
@@ -85,7 +288,7 @@ function getMotherboardSerial(callback) {
           return;
         }
       }
-      // 备选方案：使用 lshw
+
       exec('lshw -c motherboard 2>/dev/null | grep "serial:" | head -1', (error2, stdout2) => {
         if (!error2 && stdout2.trim()) {
           const serial = stdout2.trim().replace(/serial:\s*/i, '').trim();
@@ -94,11 +297,11 @@ function getMotherboardSerial(callback) {
             return;
           }
         }
+
         callback('UNKNOWN_MB');
       });
     });
   } else {
-    // macOS 实现（简化版）
     exec('system_profiler SPHardwareDataType | grep "Model Identifier"', (error, stdout) => {
       if (!error) {
         const match = stdout.match(/Model Identifier:\s*(.+)/i);
@@ -107,42 +310,42 @@ function getMotherboardSerial(callback) {
           return;
         }
       }
+
       callback('UNKNOWN_MB');
     });
   }
 }
 
-// 获取 CPU 信息
 function getCpuSerial(callback) {
   if (process.platform === 'win32') {
     exec('wmic cpu get ProcessorId', (error, stdout) => {
       if (!error) {
-        const serial = stdout.trim().replace(/\s+/g, '');
+        const values = parseWindowsWmicValues(stdout, /^processorid$/i);
+        const serial = values[0] ? values[0].replace(/\s+/g, '') : '';
         if (serial) {
           callback(serial);
           return;
         }
       }
+
       callback('UNKNOWN_CPU');
     });
   } else if (process.platform === 'linux') {
-    // Linux 实现：从/proc/cpuinfo 获取 CPU 信息
     exec('cat /proc/cpuinfo 2>/dev/null | grep "model name" | head -1', (error, stdout) => {
       if (!error && stdout.trim()) {
         const cpuModel = stdout.trim().replace(/model name\s*:\s*/i, '').trim();
         if (cpuModel) {
-          // 同时获取 CPU 核心数作为标识的一部分
           exec('cat /proc/cpuinfo 2>/dev/null | grep "cpu cores" | head -1', (error2, stdout2) => {
             let cpuCores = '';
             if (!error2 && stdout2.trim()) {
               cpuCores = stdout2.trim().replace(/cpu cores\s*:\s*/i, '').trim();
             }
-            callback(`${cpuModel}${cpuCores ? '-' + cpuCores + 'cores' : ''}`);
+            callback(`${cpuModel}${cpuCores ? `-${cpuCores}cores` : ''}`);
           });
           return;
         }
       }
-      // 备选方案：使用 dmidecode 获取 Processor ID
+
       exec('dmidecode -t processor 2>/dev/null | grep "ID" | head -1', (error3, stdout3) => {
         if (!error3 && stdout3.trim()) {
           const cpuId = stdout3.trim().replace(/ID:\s*/i, '').trim();
@@ -151,11 +354,11 @@ function getCpuSerial(callback) {
             return;
           }
         }
+
         callback('UNKNOWN_CPU');
       });
     });
   } else {
-    // macOS 实现
     exec('sysctl -n machdep.cpu.brand_string', (error, stdout) => {
       if (!error) {
         const cpuInfo = stdout.trim();
@@ -164,29 +367,26 @@ function getCpuSerial(callback) {
           return;
         }
       }
+
       callback('UNKNOWN_CPU');
     });
   }
 }
 
-// 获取完整的硬件信息（改进异步处理）
 function getHardwareInfo(callback) {
   const hardware = {};
   let completed = false;
 
-  // 最长等待时间：5 秒
   const timeout = setTimeout(() => {
     if (!completed) {
       completed = true;
-      // 超时过久，使用一个默认版本，执行会有延迟
       callback(hardware);
     }
   }, 5000);
 
-  // 先获取 MAC 地址（同步）
   hardware.mac = getMacAddress();
+  hardware.stableMac = getStableMacAddress();
 
-  // 使用 Promise 链确保异步操作顺序执行
   getCpuSerialAsync()
     .then(cpu => {
       hardware.cpu = cpu;
@@ -198,55 +398,58 @@ function getHardwareInfo(callback) {
     })
     .then(hd => {
       hardware.hardDisk = hd;
+      hardware.stableHardDisk = hd;
       if (!completed) {
         completed = true;
         clearTimeout(timeout);
         callback(hardware);
       }
     })
-    .catch(err => {
+    .catch(() => {
       if (!completed) {
         completed = true;
         clearTimeout(timeout);
-        callback(hardware); // 即使部分失败也返回已收集的信息
+        callback(hardware);
       }
     });
 }
 
-// 将异步函数包装为 Promise
 function getCpuSerialAsync() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     getCpuSerial(result => resolve(result));
   });
 }
 
 function getMotherboardSerialAsync() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     getMotherboardSerial(result => resolve(result));
   });
 }
 
 function getHardDiskSerialAsync() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     getHardDiskSerial(result => resolve(result));
   });
 }
 
-// 生成机器码（使用 SHA-256 替代 MD5）
-// 注意：更改此算法会导致旧的机器码失效
-// 迁移策略：需要重新激活所有用户的应用
 function generateMachineCode(hardwareInfo) {
-  const rawCodeString = `${hardwareInfo.mac}-${hardwareInfo.cpu}-${hardwareInfo.hardDisk}-${hardwareInfo.motherboard}`;
-  // 使用 SHA-256 而不是 MD5（更安全、更难碰撞）
-  return crypto.createHash('sha256').update(rawCodeString).digest('hex');
+  return hashMachineCode(createMachineCodePayload(hardwareInfo));
 }
 
-// 用于向后兼容的 MD5 机器码生成（用于验证旧激活码）
+function getMachineCodeCandidates(hardwareInfo) {
+  const candidates = [
+    generateMachineCode(hardwareInfo),
+    hashMachineCode(createMachineCodePayload(hardwareInfo, { useStableIdentifiers: false })),
+  ];
+
+  return [...new Set(candidates)];
+}
+
 function generateMachineCodeMD5(hardwareInfo) {
-  const rawCodeString = `${hardwareInfo.mac}-${hardwareInfo.cpu}-${hardwareInfo.hardDisk}-${hardwareInfo.motherboard}`;
-  return crypto.createHash('md5').update(rawCodeString).digest('hex');
+  return hashMachineCode(createMachineCodePayload(hardwareInfo), 'md5');
 }
 
 exports.getHardwareInfo = getHardwareInfo;
 exports.generateMachineCode = generateMachineCode;
+exports.getMachineCodeCandidates = getMachineCodeCandidates;
 exports.generateMachineCodeMD5 = generateMachineCodeMD5;
