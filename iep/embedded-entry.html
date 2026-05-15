@@ -1,0 +1,4448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>资源中心综合评价管理平台</title>
+    <link rel="stylesheet" href="src/css/tailwind.min.css">
+    <link rel="stylesheet" href="src/css/all.min.css">
+    
+    <style>
+        @font-face {
+            font-family: 'Font Awesome 6 Free';
+            font-style: normal;
+            font-weight: 900;
+            font-display: block;
+            src: url('./src/webfonts/fa-solid-900.woff2') format('woff2'), 
+                 url('./src/webfonts/fa-solid-900.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Font Awesome 6 Free';
+            font-style: normal;
+            font-weight: 400;
+            font-display: block;
+            src: url('./src/webfonts/fa-regular-400.woff2') format('woff2'), 
+                 url('./src/webfonts/fa-regular-400.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Font Awesome 6 Brands';
+            font-style: normal;
+            font-weight: 400;
+            font-display: block;
+            src: url('./src/webfonts/fa-brands-400.woff2') format('woff2'), 
+                 url('./src/webfonts/fa-brands-400.ttf') format('truetype');
+        }
+    </style>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Baloo+Bhaijaan&display=swap">
+
+    <!-- Tauri API 模块 -->
+    <script type="module" src="src/js/tauri-api.js"></script>
+
+    <style>
+        :root {
+            --color-primary: #00bcd4;
+            --color-secondary: #26c6da;
+        }
+    </style>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto { content-visibility: auto; }
+            .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .glow-breath { animation: glow-breath 3s ease-in-out infinite alternate; }
+            .text-primary { color: var(--color-primary); }
+            .border-primary { border-color: var(--color-primary); }
+            .from-primary { --tw-gradient-from: var(--color-primary); }
+            .to-secondary { --tw-gradient-to: var(--color-secondary); }
+        }
+    </style>
+    
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--color-primary);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        .circles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .circles li {
+            position: absolute;
+            display: block;
+            list-style: none;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            animation: animate 25s linear infinite;
+            bottom: -150px;
+        }
+        
+        @keyframes animate {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+                border-radius: 0;
+            }
+            100% {
+                transform: translateY(-1000px) rotate(720deg);
+                opacity: 0;
+                border-radius: 50%;
+            }
+        }
+        
+        @keyframes glow-breath {
+            0% { text-shadow: 0 0 5px rgba(255, 255, 255, 0.7), 0 0 10px rgba(255, 255, 255, 0.5), 0 0 15px rgba(0, 188, 212, 0.4); }
+            100% { text-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 20px rgba(255, 255, 255, 0.7), 0 0 30px rgba(0, 188, 212, 0.6), 0 0 40px rgba(0, 188, 212, 0.4); }
+        }
+        
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+        }
+        
+        .animation-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 30%, #162052 60%, #0d1a3d 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+            overflow: hidden;
+        }
+
+        /* 动态渐变背景层 */
+        .animation-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(0, 188, 212, 0.15) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(124, 77, 255, 0.12) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 50%, rgba(0, 150, 200, 0.08) 0%, transparent 60%);
+            animation: gradient-flow 15s ease-in-out infinite;
+        }
+
+        @keyframes gradient-flow {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(2%, 2%) rotate(120deg); }
+            66% { transform: translate(-1%, 1%) rotate(240deg); }
+        }
+
+        /* 粒子连线 Canvas */
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* 流光线条 */
+        .light-streams {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .light-stream {
+            position: absolute;
+            width: 2px;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, rgba(0, 188, 212, 0.6), rgba(124, 77, 255, 0.4), transparent);
+            opacity: 0;
+            animation: stream-fall 4s ease-in-out infinite;
+        }
+
+        .light-stream:nth-child(1) { left: 10%; animation-delay: 0s; animation-duration: 5s; }
+        .light-stream:nth-child(2) { left: 20%; animation-delay: 1s; animation-duration: 6s; height: 150px; }
+        .light-stream:nth-child(3) { left: 35%; animation-delay: 2s; animation-duration: 4.5s; }
+        .light-stream:nth-child(4) { left: 50%; animation-delay: 0.5s; animation-duration: 5.5s; height: 120px; }
+        .light-stream:nth-child(5) { left: 65%; animation-delay: 1.5s; animation-duration: 4s; }
+        .light-stream:nth-child(6) { left: 80%; animation-delay: 3s; animation-duration: 6s; height: 80px; }
+        .light-stream:nth-child(7) { left: 90%; animation-delay: 2.5s; animation-duration: 5s; }
+
+        @keyframes stream-fall {
+            0% { transform: translateY(-150px) scaleY(0.5); opacity: 0; }
+            20% { opacity: 0.8; }
+            80% { opacity: 0.6; }
+            100% { transform: translateY(calc(100vh + 150px)) scaleY(1.5); opacity: 0; }
+        }
+
+        /* 浮动光点 */
+        .floating-lights {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .floating-light {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(0, 188, 212, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 188, 212, 0.8), 0 0 20px rgba(0, 188, 212, 0.4);
+            animation: float-up 8s ease-in-out infinite;
+        }
+
+        .floating-light:nth-child(1) { left: 15%; bottom: -10px; animation-delay: 0s; }
+        .floating-light:nth-child(2) { left: 25%; bottom: -10px; animation-delay: 1.2s; background: rgba(124, 77, 255, 0.8); box-shadow: 0 0 10px rgba(124, 77, 255, 0.8); }
+        .floating-light:nth-child(3) { left: 40%; bottom: -10px; animation-delay: 2.5s; }
+        .floating-light:nth-child(4) { left: 55%; bottom: -10px; animation-delay: 0.8s; background: rgba(224, 64, 251, 0.8); box-shadow: 0 0 10px rgba(224, 64, 251, 0.8); }
+        .floating-light:nth-child(5) { left: 70%; bottom: -10px; animation-delay: 3s; }
+        .floating-light:nth-child(6) { left: 85%; bottom: -10px; animation-delay: 1.8s; background: rgba(124, 77, 255, 0.8); }
+
+        @keyframes float-up {
+            0% { transform: translateY(0) scale(0); opacity: 0; }
+            10% { transform: translateY(-50px) scale(1); opacity: 1; }
+            90% { transform: translateY(-80vh) scale(1); opacity: 0.6; }
+            100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+        }
+
+        /* 网格线效果 */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 188, 212, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 188, 212, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 1;
+            animation: grid-pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes grid-pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        .liquid-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin-bottom: 40px;
+            z-index: 10;
+        }
+        
+        .liquid-ball {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--color-primary), var(--color-secondary), #e94560, var(--color-primary));
+            background-size: 400% 400%;
+            animation: liquid-gradient 3s ease infinite, liquid-morph 4s ease-in-out infinite;
+            filter: blur(8px);
+            opacity: 0.8;
+        }
+        
+        .liquid-ball::before {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 30%;
+            height: 30%;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            filter: blur(5px);
+        }
+        
+        @keyframes liquid-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes liquid-morph {
+            0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; transform: rotate(0deg); }
+            25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+            50% { border-radius: 60% 35% 80% 40% / 55% 50% 50% 45%; }
+            75% { border-radius: 40% 60% 30% 70% / 70% 40% 60% 30%; }
+        }
+        
+        .particles {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px;
+            height: 280px;
+            pointer-events: none;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--color-primary), 0 0 20px var(--color-secondary);
+            animation: particle-orbit 2s linear infinite;
+        }
+        
+        .particle:nth-child(1) { animation-delay: 0s; }
+        .particle:nth-child(2) { animation-delay: 0.5s; }
+        .particle:nth-child(3) { animation-delay: 1s; }
+        .particle:nth-child(4) { animation-delay: 1.5s; }
+        
+        @keyframes particle-orbit {
+            0% { transform: rotate(0deg) translateX(140px) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: rotate(360deg) translateX(140px) rotate(-360deg); opacity: 0; }
+        }
+        
+        .progress-container { width: 300px; max-width: 80%; z-index: 10; position: relative; }
+        
+        .skeleton-progress {
+            position: relative;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .skeleton-progress::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-secondary), #e94560);
+            border-radius: 3px;
+            animation: progress-fill 2.5s ease-in-out infinite;
+            box-shadow: 0 0 15px rgba(0, 188, 212, 0.6);
+        }
+        
+        @keyframes progress-fill {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+        
+        .loading-text {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-align: center;
+            animation: text-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes text-pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        .loading-text::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        .game-loader {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 3;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .game-loader__planet {
+            --loader-size: min(78vmin, 560px);
+            --orbit-step: calc(var(--loader-size) * 0.06);
+            position: relative;
+            width: var(--loader-size);
+            height: var(--loader-size);
+            filter: url("#goo");
+        }
+
+        .game-loader__planet::after {
+            content: '';
+            position: absolute;
+            top: 46%;
+            left: 46%;
+            width: 8%;
+            height: 8%;
+            border-radius: 50%;
+            background: #11dbd9;
+            box-shadow: 0 0 24px 4px #11dbd9;
+            animation: game-loader-scale 16s linear infinite, game-loader-color5 8s linear infinite;
+        }
+
+        .game-loader__planet .loader-mini1,
+        .game-loader__planet .loader-mini2,
+        .game-loader__planet .loader-mini3,
+        .game-loader__planet .loader-mini4,
+        .game-loader__planet .loader-radius1,
+        .game-loader__planet .loader-radius2,
+        .game-loader__planet .loader-radius3,
+        .game-loader__planet .loader-radius4 {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .game-loader__planet .loader-mini1,
+        .game-loader__planet .loader-mini2,
+        .game-loader__planet .loader-mini3,
+        .game-loader__planet .loader-mini4 {
+            top: 48.5%;
+            left: 48.5%;
+            background: #11dbd9;
+        }
+
+        .game-loader__planet .loader-mini1 {
+            width: 3%;
+            height: 3%;
+            animation: game-loader-move1 8s linear infinite, game-loader-color1 8s linear infinite;
+        }
+
+        .game-loader__planet .loader-mini2 {
+            width: 3.6%;
+            height: 3.6%;
+            animation: game-loader-move2 9s linear infinite, game-loader-color2 9s linear infinite;
+        }
+
+        .game-loader__planet .loader-mini3 {
+            width: 4.2%;
+            height: 4.2%;
+            animation: game-loader-move3 10s linear infinite, game-loader-color3 10s linear infinite;
+        }
+
+        .game-loader__planet .loader-mini4 {
+            width: 4.8%;
+            height: 4.8%;
+            animation: game-loader-move4 11s linear infinite, game-loader-color4 11s linear infinite;
+        }
+
+        .game-loader__planet .loader-radius1,
+        .game-loader__planet .loader-radius2,
+        .game-loader__planet .loader-radius3,
+        .game-loader__planet .loader-radius4 {
+            border: 1px solid rgba(17, 219, 217, 0.25);
+            transform: scale(0);
+            animation: game-loader-orbit 8s linear infinite;
+        }
+
+        .game-loader__planet .loader-radius1 {
+            top: 44%;
+            left: 44%;
+            width: 12%;
+            height: 12%;
+        }
+
+        .game-loader__planet .loader-radius2 {
+            top: 41%;
+            left: 41%;
+            width: 18%;
+            height: 18%;
+            animation-duration: 9s;
+        }
+
+        .game-loader__planet .loader-radius3 {
+            top: 38%;
+            left: 38%;
+            width: 24%;
+            height: 24%;
+            animation-duration: 10s;
+        }
+
+        .game-loader__planet .loader-radius4 {
+            top: 35%;
+            left: 35%;
+            width: 30%;
+            height: 30%;
+            animation-duration: 11s;
+        }
+
+        .game-loader svg {
+            position: absolute;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+
+        .loading-copy {
+            position: absolute;
+            left: 50%;
+            bottom: clamp(40px, 10vh, 96px);
+            transform: translateX(-50%);
+            width: min(80vw, 320px);
+            z-index: 10;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .loading-copy .loading-text {
+            font-size: clamp(14px, 1.8vw, 18px);
+            font-weight: 500;
+            letter-spacing: 0.45em;
+            color: rgba(255, 255, 255, 0.92);
+            text-shadow: 0 0 16px rgba(17, 219, 217, 0.24);
+        }
+
+        @keyframes game-loader-move1 {
+            0% { transform: skewX(5deg) rotate(0deg) translateY(0) rotate(0deg) skewX(-5deg) rotate(0deg); }
+            10% { transform: skewX(5deg) rotate(180deg) translateY(calc(var(--orbit-step) * -1)) rotate(-180deg) skewX(-5deg) rotate(180deg); }
+            25% { transform: skewX(5deg) rotate(360deg) translateY(calc(var(--orbit-step) * -2)) rotate(-360deg) skewX(-5deg) rotate(360deg); }
+            50% { transform: skewX(5deg) rotate(720deg) translateY(calc(var(--orbit-step) * -2)) rotate(720deg) skewX(-5deg) rotate(720deg); }
+            75% { transform: skewX(5deg) rotate(1080deg) translateY(calc(var(--orbit-step) * -2)) rotate(-1080deg) skewX(-5deg) rotate(1080deg); }
+            90% { transform: skewX(5deg) rotate(1260deg) translateY(calc(var(--orbit-step) * -1)) rotate(-1260deg) skewX(-5deg) rotate(1260deg); }
+            100% { transform: skewX(5deg) rotate(1440deg) translateY(0) rotate(-1440deg) skewX(-5deg) rotate(1440deg); }
+        }
+
+        @keyframes game-loader-move2 {
+            0% { transform: skewX(5deg) rotate(0deg) translateY(0) rotate(0deg) skewX(-5deg) rotate(0deg); }
+            10% { transform: skewX(5deg) rotate(180deg) translateY(calc(var(--orbit-step) * -1.5)) rotate(-180deg) skewX(-5deg) rotate(180deg); }
+            25% { transform: skewX(5deg) rotate(360deg) translateY(calc(var(--orbit-step) * -3)) rotate(-360deg) skewX(-5deg) rotate(360deg); }
+            50% { transform: skewX(5deg) rotate(720deg) translateY(calc(var(--orbit-step) * -3)) rotate(720deg) skewX(-5deg) rotate(720deg); }
+            75% { transform: skewX(5deg) rotate(1080deg) translateY(calc(var(--orbit-step) * -3)) rotate(-1080deg) skewX(-5deg) rotate(1080deg); }
+            90% { transform: skewX(5deg) rotate(1260deg) translateY(calc(var(--orbit-step) * -1.5)) rotate(-1260deg) skewX(-5deg) rotate(1260deg); }
+            100% { transform: skewX(5deg) rotate(1440deg) translateY(0) rotate(-1440deg) skewX(-5deg) rotate(1440deg); }
+        }
+
+        @keyframes game-loader-move3 {
+            0% { transform: skewX(5deg) rotate(0deg) translateY(0) rotate(0deg) skewX(-5deg) rotate(0deg); }
+            10% { transform: skewX(5deg) rotate(180deg) translateY(calc(var(--orbit-step) * -2)) rotate(-180deg) skewX(-5deg) rotate(180deg); }
+            25% { transform: skewX(5deg) rotate(360deg) translateY(calc(var(--orbit-step) * -4)) rotate(-360deg) skewX(-5deg) rotate(360deg); }
+            50% { transform: skewX(5deg) rotate(720deg) translateY(calc(var(--orbit-step) * -4)) rotate(720deg) skewX(-5deg) rotate(720deg); }
+            75% { transform: skewX(5deg) rotate(1080deg) translateY(calc(var(--orbit-step) * -4)) rotate(-1080deg) skewX(-5deg) rotate(1080deg); }
+            90% { transform: skewX(5deg) rotate(1260deg) translateY(calc(var(--orbit-step) * -2)) rotate(-1260deg) skewX(-5deg) rotate(1260deg); }
+            100% { transform: skewX(5deg) rotate(1440deg) translateY(0) rotate(-1440deg) skewX(-5deg) rotate(1440deg); }
+        }
+
+        @keyframes game-loader-move4 {
+            0% { transform: skewX(5deg) rotate(0deg) translateY(0) rotate(0deg) skewX(-5deg) rotate(0deg); }
+            10% { transform: skewX(5deg) rotate(180deg) translateY(calc(var(--orbit-step) * -2.5)) rotate(-180deg) skewX(-5deg) rotate(180deg); }
+            25% { transform: skewX(5deg) rotate(360deg) translateY(calc(var(--orbit-step) * -5)) rotate(-360deg) skewX(-5deg) rotate(360deg); }
+            50% { transform: skewX(5deg) rotate(720deg) translateY(calc(var(--orbit-step) * -5)) rotate(720deg) skewX(-5deg) rotate(720deg); }
+            75% { transform: skewX(5deg) rotate(1080deg) translateY(calc(var(--orbit-step) * -5)) rotate(-1080deg) skewX(-5deg) rotate(1080deg); }
+            90% { transform: skewX(5deg) rotate(1260deg) translateY(calc(var(--orbit-step) * -2.5)) rotate(-1260deg) skewX(-5deg) rotate(1260deg); }
+            100% { transform: skewX(5deg) rotate(1440deg) translateY(0) rotate(-1440deg) skewX(-5deg) rotate(1440deg); }
+        }
+
+        @keyframes game-loader-scale {
+            0%, 100% { transform: scale(1.5); }
+            50% { transform: scale(1); }
+        }
+
+        @keyframes game-loader-orbit {
+            0% { transform: scale(0); }
+            10% { transform: scale(1); }
+            25% { transform: scale(2.2); }
+            35% { transform: scale(2.1); }
+            50% { transform: scale(2); }
+            65% { transform: scale(2.1); }
+            75% { transform: scale(2); }
+            90% { transform: scale(1); }
+            100% { transform: scale(0); }
+        }
+
+        @keyframes game-loader-color1 {
+            10%, 90% { background: #11dbd9; }
+            50% { background: #ff217b; }
+        }
+
+        @keyframes game-loader-color2 {
+            10%, 90% { background: #11dbd9; }
+            50% { background: #ff7878; }
+        }
+
+        @keyframes game-loader-color3 {
+            10%, 90% { background: #11dbd9; }
+            50% { background: #ffa283; }
+        }
+
+        @keyframes game-loader-color4 {
+            10%, 90% { background: #11dbd9; }
+            50% { background: #962a4e; }
+        }
+
+        @keyframes game-loader-color5 {
+            10%, 90% {
+                background: #11dbd9;
+                box-shadow: 0 0 24px 4px #11dbd9;
+            }
+            50% {
+                background: #13c2d3;
+                box-shadow: 0 0 24px 4px #13c2d3;
+            }
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+        
+        .login-wrapper {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-in, visibility 0s linear 0.5s;
+        }
+        
+        .login-wrapper.show {
+            opacity: 1;
+            visibility: visible;
+            transition-delay: 0s;
+        }
+        
+        .network-error {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-in;
+        }
+        
+        .network-error.show { opacity: 1; visibility: visible; }
+        
+        .error-icon {
+            font-size: 100px;
+            color: var(--color-primary);
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .settings-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            transition: all 0.3s ease;
+        }
+        
+        .settings-btn:hover {
+            background: var(--color-primary);
+            color: white;
+            transform: rotate(90deg);
+        }
+
+        /* 管理员热区 - 默认完全透明 */
+        .admin-hotspot {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            z-index: 999;
+            cursor: default;
+            background: transparent;
+        }
+
+        /* 密码验证弹窗 */
+        .password-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .password-box {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 360px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .password-modal.show .password-box {
+            transform: scale(1);
+        }
+
+        .password-box h3 {
+            margin: 0 0 8px 0;
+            font-size: 20px;
+            color: #333;
+        }
+
+        .password-box p {
+            margin: 0 0 20px 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            text-align: center;
+            letter-spacing: 8px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .password-input.error {
+            border-color: #f44336;
+            animation: shake 0.4s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+
+        .password-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .password-actions button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .password-confirm {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            color: white;
+            font-weight: 600;
+        }
+
+        .password-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.4);
+        }
+
+        .password-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .password-cancel:hover {
+            background: #e8e8e8;
+        }
+
+        .password-error-msg {
+            color: #f44336;
+            font-size: 13px;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-error-msg.show {
+            opacity: 1;
+        }
+        
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.52);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .settings-modal.show { opacity: 1; visibility: visible; }
+
+        /* ── 弹窗整体容器 ── */
+        .settings-content {
+            background: #fff;
+            border-radius: 16px;
+            width: 92%;
+            max-width: 720px;
+            height: 76vh;
+            max-height: 580px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: scale(0.92);
+            transition: transform 0.3s ease;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.22);
+        }
+
+        .settings-modal.show .settings-content { transform: scale(1); }
+
+        /* ── 顶部标题栏 ── */
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            flex-shrink: 0;
+        }
+
+        /* ── 主体区域：左侧导航 + 右侧内容 ── */
+        .settings-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── 左侧导航栏 ── */
+        .settings-sidebar {
+            width: 130px;
+            flex-shrink: 0;
+            background: #f7f8fa;
+            border-right: 1px solid #eeeff2;
+            display: flex;
+            flex-direction: column;
+            padding: 12px 8px;
+            gap: 4px;
+        }
+
+        .settings-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 10px 8px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            background: transparent;
+            color: #888;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.2;
+            text-align: center;
+        }
+
+        .settings-nav-item i {
+            font-size: 18px;
+            transition: transform 0.2s ease;
+        }
+
+        .settings-nav-item:hover {
+            background: rgba(0, 188, 212, 0.08);
+            color: var(--color-primary);
+        }
+
+        .settings-nav-item:hover i { transform: scale(1.15); }
+
+        .settings-nav-item.active {
+            background: linear-gradient(135deg, rgba(0,188,212,0.12), rgba(124,77,255,0.10));
+            color: var(--color-primary);
+            box-shadow: 0 2px 8px rgba(0,188,212,0.12);
+        }
+
+        .settings-nav-item.active i { color: var(--color-primary); }
+
+        /* ── 右侧内容区 ── */
+        .settings-panel-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 22px;
+        }
+
+        .settings-panel-area::-webkit-scrollbar { width: 4px; }
+        .settings-panel-area::-webkit-scrollbar-track { background: transparent; }
+        .settings-panel-area::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+        /* ── Tab 面板（默认隐藏） ── */
+        .settings-panel { display: none; }
+        .settings-panel.active { display: block; }
+
+        /* ── 底部操作栏 ── */
+        .settings-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 12px 20px;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+            background: #fafafa;
+        }
+        
+
+        
+        .settings-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .settings-close:hover { color: #333; }
+        
+        .settings-group { margin-bottom: 16px; }
+        
+        .settings-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .settings-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .settings-group input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+        }
+        
+        .file-upload-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        
+        .file-upload-input {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px dashed #ddd;
+            border-radius: 6px;
+            background: #fafafa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .file-upload-input:hover {
+            border-color: var(--color-primary);
+            background: rgba(0, 188, 212, 0.05);
+        }
+        
+        .file-upload-btn {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .file-upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.4);
+        }
+        
+        .file-name-display {
+            font-size: 12px;
+            color: #666;
+            margin-top: 6px;
+            padding: 6px 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .upload-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 12px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            padding: 4px;
+        }
+        
+        .upload-tab {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-tab.active {
+            background: white;
+            color: var(--color-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .upload-tab:hover:not(.active) { background: rgba(0, 188, 212, 0.1); }
+        
+        .upload-content { display: none; }
+        .upload-content.active { display: block; }
+        
+        .base64-textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            min-height: 80px;
+            background: #fafafa;
+        }
+        
+        .base64-textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+        }
+        
+        .preview-box {
+            margin-top: 12px;
+            padding: 12px;
+            background: linear-gradient(135deg, #f9f9f9, #f0f0f0);
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+        
+        .preview-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .preview-label::before { content: ''; }
+        
+        .preview-img {
+            max-width: 100%;
+            max-height: 100px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .clear-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        
+        .clear-btn:hover { background: #e0e0e0; }
+        
+        .settings-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .settings-save-btn {
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .settings-save-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.4);
+        }
+        
+        .settings-hint {
+            margin-top: 16px;
+            padding: 12px;
+            background: linear-gradient(135deg, #fff3cd, #ffe8a1);
+            border-radius: 8px;
+            font-size: 12px;
+            color: #856404;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            line-height: 1.6;
+        }
+        
+        .settings-hint::before { content: ''; font-size: 14px; }
+        
+        /* 新版设置面板样式 */
+        .settings-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .settings-section:last-of-type {
+            border-bottom: none;
+        }
+        
+        .settings-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .settings-section-title i {
+            font-size: 16px;
+        }
+        
+        .settings-row {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .settings-row .settings-field {
+            flex: 1;
+        }
+        
+        .settings-field {
+            margin-bottom: 10px;
+        }
+        
+        .settings-field:last-child {
+            margin-bottom: 0;
+        }
+        
+        .settings-field label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .settings-field input,
+        .settings-field select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        
+        .settings-field input:focus,
+        .settings-field select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+        }
+        
+        .settings-field input[type="range"] {
+            padding: 0;
+            height: 6px;
+            cursor: pointer;
+        }
+        
+        .field-hint {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+        
+        .card-config-group {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+        
+        .card-config-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .card-config-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .card-config-header i {
+            color: var(--color-primary);
+        }
+        
+        .card-title-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        
+        .card-title-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+        
+        .card-desc-input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .card-desc-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+        
+        .file-upload-btn-sm {
+            padding: 6px 12px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .file-upload-btn-sm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.4);
+        }
+        
+        .clear-btn-sm {
+            padding: 6px 10px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        
+        .clear-btn-sm:hover { 
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .preview-box-sm {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .preview-box-sm img {
+            max-width: 100%;
+            max-height: 60px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .shortcut-icon-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .shortcut-icon-card {
+            border: 1px solid #d9e2e8;
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .shortcut-icon-card:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(0, 188, 212, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .shortcut-icon-card.active {
+            border-color: var(--color-primary);
+            background: linear-gradient(135deg, rgba(0, 188, 212, 0.08), rgba(38, 198, 218, 0.12));
+            box-shadow: 0 6px 14px rgba(0, 188, 212, 0.18);
+        }
+
+        .shortcut-icon-thumb {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .shortcut-icon-toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .shortcut-icon-empty {
+            grid-column: 1 / -1;
+            padding: 12px;
+            border-radius: 8px;
+            background: #f5f7f9;
+            color: #999;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .shortcut-icon-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        
+        .left-panel-bg {
+            background-image: var(--left-panel-bg-image) !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+        }
+        
+        /* 科技感动态背景 - 只在没有自定义背景图时使用 */
+        .theme-tech:not(.left-panel-bg) .tech-theme-elements {
+            background: linear-gradient(135deg, #0c1445 0%, #1a237e 25%, #283593 50%, #1a237e 75%, #0c1445 100%);
+            background-size: 400% 400%;
+            animation: tech-gradient 15s ease infinite;
+        }
+        
+        @keyframes tech-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* 网格线条背景 */
+        .grid-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 188, 212, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 188, 212, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: grid-move 20s linear infinite;
+        }
+        
+        @keyframes grid-move {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        /* 光晕效果 */
+        .glow-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.4;
+            animation: float-orb 8s ease-in-out infinite;
+        }
+        
+        .glow-orb-1 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, #00bcd4, transparent);
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+        
+        .glow-orb-2 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #7c4dff, transparent);
+            bottom: 20%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+        
+        .glow-orb-3 {
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, #e040fb, transparent);
+            top: 50%;
+            left: 50%;
+            animation-delay: 4s;
+        }
+        
+        @keyframes float-orb {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(30px, -30px) scale(1.1); }
+            50% { transform: translate(-20px, 20px) scale(0.9); }
+            75% { transform: translate(20px, 10px) scale(1.05); }
+        }
+
+        /* ========================================
+           平板适配优化 (768px - 1024px)
+           ======================================== */
+        @media screen and (max-width: 1024px) and (min-width: 768px) {
+            /* 平板横屏：调整左侧内容区 */
+            #leftPanel .max-w-lg {
+                max-width: 90% !important;
+                padding: 20px !important;
+            }
+
+            /* 标题字号缩小 */
+            #leftPanel h1 {
+                font-size: 1.75rem !important;
+                line-height: 1.3;
+            }
+
+            #leftPanel .text-sm {
+                font-size: 0.75rem !important;
+            }
+
+            /* 特性卡片调整 */
+            .feature-card {
+                padding: 12px 16px;
+                margin-bottom: 12px;
+            }
+
+            .feature-card .icon-wrapper {
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+            }
+
+            .feature-card .icon-wrapper i {
+                font-size: 16px;
+            }
+
+            .feature-card .card-content h3 {
+                font-size: 13px;
+            }
+
+            .feature-card .card-content p {
+                font-size: 11px;
+            }
+
+            /* 底部图标缩小 */
+            .bottom-icons i {
+                font-size: 2rem !important;
+            }
+
+            .bottom-icons {
+                margin-top: 1.5rem !important;
+                gap: 1.5rem !important;
+            }
+
+            /* 波浪主题字号调整 */
+            .wave-feature-card h3 {
+                font-size: 14px !important;
+            }
+
+            .wave-feature-card p {
+                font-size: 12px !important;
+            }
+
+            /* 登录区域宽度调整 */
+            #loginAreaWrapper {
+                width: 45% !important;
+                padding: 2rem !important;
+            }
+
+            /* 登录表单字号调整 */
+            .login-area h2 {
+                font-size: 1.5rem;
+            }
+
+            .input-group label {
+                font-size: 13px;
+            }
+
+            .input-wrapper input {
+                font-size: 14px;
+                padding: 10px 12px 10px 36px;
+            }
+
+            /* 发光球尺寸缩小 */
+            .glow-orb-1 {
+                width: 200px;
+                height: 200px;
+            }
+
+            .glow-orb-2 {
+                width: 280px;
+                height: 280px;
+            }
+
+            .glow-orb-3 {
+                width: 180px;
+                height: 180px;
+            }
+
+            /* 设置面板宽度调整 */
+            .settings-content {
+                max-width: 480px !important;
+                width: 90% !important;
+            }
+
+            /* 网络错误页面 */
+            .network-error h2 {
+                font-size: 1.5rem;
+            }
+
+            .network-error p {
+                font-size: 0.9rem;
+            }
+
+            .error-icon {
+                font-size: 80px;
+            }
+        }
+
+        /* ========================================
+           小平板/大手机竖屏适配 (600px - 767px)
+           ======================================== */
+        @media screen and (max-width: 767px) and (min-width: 600px) {
+            /* 显示左侧面板但缩小 */
+            #leftPanel {
+                display: flex !important;
+                width: 50% !important;
+                position: relative;
+            }
+
+            #leftPanel .max-w-lg {
+                max-width: 95% !important;
+                padding: 15px !important;
+            }
+
+            /* 标题字号大幅缩小 */
+            #leftPanel h1 {
+                font-size: 1.25rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+
+            #leftPanel .text-sm {
+                font-size: 0.65rem !important;
+                margin-top: 0.25rem !important;
+            }
+
+            /* 只显示第一个特性卡片 */
+            .feature-card:nth-child(2),
+            .feature-card:nth-child(3) {
+                display: none;
+            }
+
+            .feature-card {
+                padding: 10px 12px;
+            }
+
+            .feature-card .icon-wrapper {
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+            }
+
+            .feature-card .card-content h3 {
+                font-size: 12px;
+            }
+
+            .feature-card .card-content p {
+                font-size: 10px;
+            }
+
+            /* 底部图标进一步缩小 */
+            .bottom-icons i {
+                font-size: 1.5rem !important;
+            }
+
+            /* 登录区域 */
+            #loginAreaWrapper {
+                width: 50% !important;
+                padding: 1.5rem !important;
+            }
+
+            /* 波浪主题适配 */
+            .wave-theme-elements .max-w-lg {
+                padding: 15px !important;
+            }
+
+            .wave-feature-card {
+                padding: 12px;
+                margin-bottom: 10px;
+            }
+
+            .wave-bottom-icons i {
+                font-size: 1.25rem !important;
+            }
+
+            /* 加载动画尺寸缩小 */
+            .liquid-container {
+                width: 150px;
+                height: 150px;
+            }
+
+            .particles {
+                width: 220px;
+                height: 220px;
+            }
+
+            .particle {
+                width: 6px;
+                height: 6px;
+            }
+
+            @keyframes particle-orbit {
+                0% { transform: rotate(0deg) translateX(110px) rotate(0deg); opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { transform: rotate(360deg) translateX(110px) rotate(-360deg); opacity: 0; }
+            }
+
+            .progress-container {
+                width: 250px;
+            }
+
+            .loading-text {
+                font-size: 14px;
+                letter-spacing: 2px;
+            }
+
+            /* 平板 Canvas 粒子数量减少以优化性能 */
+            #particle-canvas {
+                opacity: 0.8;
+            }
+        }
+
+        /* ========================================
+           通用触摸设备优化
+           ======================================== */
+        @media (pointer: coarse) {
+            /* 增大触摸目标 */
+            .login-btn {
+                min-height: 48px;
+            }
+
+            .input-wrapper input {
+                min-height: 48px;
+            }
+
+            #loginButton {
+                min-height: 48px;
+            }
+
+            /* 设置面板优化 */
+            .settings-content {
+                max-height: 85vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .settings-save-btn {
+                min-height: 48px;
+            }
+
+            /* 增大复选框 */
+            input[type="checkbox"] {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        /* ========================================
+           平板横屏 landscape 优化
+           ======================================== */
+        @media screen and (max-width: 1024px) and (min-width: 768px) and (orientation: landscape) {
+            #leftPanel {
+                padding: 1.5rem !important;
+            }
+
+            /* 气泡动画元素减少 */
+            .circles li:nth-child(n+7) {
+                display: none;
+            }
+        }
+
+        /* ========================================
+           折叠屏/小平板适配
+           ======================================== */
+        @media screen and (max-width: 720px) and (min-width: 600px) {
+            #leftPanel h1 {
+                font-size: 1.1rem !important;
+            }
+
+            .wave-title {
+                font-size: 1.5rem !important;
+            }
+
+            .wave-subtitle {
+                font-size: 0.7rem !important;
+            }
+        }
+
+        /* 星空粒子 */
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .star {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s ease-in-out infinite;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        /* 悬浮卡片 */
+        .feature-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(0, 188, 212, 0.5);
+            box-shadow: 0 20px 40px rgba(0, 188, 212, 0.2), 0 0 30px rgba(0, 188, 212, 0.1);
+        }
+        
+        .feature-card .icon-wrapper {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover .icon-wrapper {
+            transform: rotate(10deg) scale(1.1);
+            box-shadow: 0 10px 20px rgba(0, 188, 212, 0.4);
+        }
+        
+        .feature-card .icon-wrapper i {
+            font-size: 20px;
+            color: white;
+        }
+        
+        .feature-card .card-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .feature-card .card-content h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0 0 2px 0;
+            color: white;
+        }
+        
+        .feature-card .card-content p {
+            font-size: 12px;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        /* 图标脉冲动画 */
+        .icon-pulse {
+            animation: icon-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes icon-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* 底部图标动画 */
+        .bottom-icons i {
+            transition: all 0.3s ease;
+        }
+        
+        .bottom-icons i:hover {
+            transform: translateY(-10px) scale(1.2);
+            filter: drop-shadow(0 10px 20px rgba(0, 188, 212, 0.5));
+        }
+        
+        /* 标题描边发光效果 */
+        .gradient-title {
+            color: white;
+            text-shadow: 
+                0 0 10px rgba(0, 188, 212, 0.8),
+                0 0 20px rgba(0, 188, 212, 0.6),
+                0 0 30px rgba(0, 188, 212, 0.4),
+                0 0 40px rgba(124, 77, 255, 0.3),
+                2px 2px 4px rgba(0, 0, 0, 0.3);
+            -webkit-text-stroke: 1px rgba(0, 188, 212, 0.6);
+            animation: title-glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes title-glow {
+            0% {
+                text-shadow: 
+                    0 0 10px rgba(0, 188, 212, 0.8),
+                    0 0 20px rgba(0, 188, 212, 0.6),
+                    0 0 30px rgba(0, 188, 212, 0.4),
+                    0 0 40px rgba(124, 77, 255, 0.3),
+                    2px 2px 4px rgba(0, 0, 0, 0.3);
+            }
+            100% {
+                text-shadow: 
+                    0 0 15px rgba(0, 188, 212, 1),
+                    0 0 30px rgba(0, 188, 212, 0.8),
+                    0 0 45px rgba(0, 188, 212, 0.6),
+                    0 0 60px rgba(124, 77, 255, 0.5),
+                    2px 2px 4px rgba(0, 0, 0, 0.3);
+            }
+        }
+        
+        /* 流光边框 */
+        .glow-border {
+            position: relative;
+        }
+        
+        .glow-border::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #00bcd4, #7c4dff, #e040fb, #00bcd4);
+            background-size: 400% 400%;
+            border-radius: 18px;
+            z-index: -1;
+            animation: glow-border-anim 3s ease infinite;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .feature-card:hover .glow-border::before {
+            opacity: 1;
+        }
+        
+        @keyframes glow-border-anim {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* 数字统计动画 */
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #00bcd4, #7c4dff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 4px;
+        }
+        
+        /* ==================== 波浪主题样式 ==================== */
+        
+        /* 波浪背景 */
+        .wave-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .wave-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 200%;
+            height: 200px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='rgba(255,255,255,0.1)' d='M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E") repeat-x;
+            background-size: 50% 100%;
+            animation: wave-move 10s linear infinite;
+        }
+        
+        .wave:nth-child(2) {
+            bottom: 10px;
+            opacity: 0.5;
+            animation-delay: -5s;
+            animation-duration: 12s;
+        }
+        
+        .wave:nth-child(3) {
+            bottom: 20px;
+            opacity: 0.3;
+            animation-delay: -2s;
+            animation-duration: 15s;
+        }
+        
+        @keyframes wave-move {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        
+        /* 波浪主题卡片 */
+        .wave-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+            transition: all 0.4s ease;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .wave-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .wave-card .wave-icon {
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            animation: wave-icon-float 3s ease-in-out infinite;
+        }
+        
+        .wave-card:nth-child(1) .wave-icon { animation-delay: 0s; }
+        .wave-card:nth-child(2) .wave-icon { animation-delay: 0.5s; }
+        .wave-card:nth-child(3) .wave-icon { animation-delay: 1s; }
+        
+        @keyframes wave-icon-float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-5px) rotate(5deg); }
+        }
+        
+        .wave-card .wave-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .wave-card h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: white;
+            margin: 0 0 2px 0;
+        }
+        
+        .wave-card p {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 0;
+            line-height: 1.5;
+        }
+        
+        /* 波浪主题Logo区域 */
+        .wave-logo-area {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .wave-logo-area .logo-circle {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 48px;
+            color: white;
+            animation: logo-pulse 2s ease-in-out infinite;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        @keyframes logo-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); }
+            50% { transform: scale(1.05); box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3); }
+        }
+        
+        /* 波浪主题标题渐变 */
+        .wave-gradient-title {
+            background: linear-gradient(90deg, #fff, #a5f3fc, #fff);
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: wave-title-shine 3s ease infinite;
+        }
+        
+        @keyframes wave-title-shine {
+            0% { background-position: 200% 50%; }
+            100% { background-position: -200% 50%; }
+        }
+        
+        /* 波浪主题底部图标 */
+        .wave-bottom-icons {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .wave-bottom-icons i {
+            font-size: 40px;
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+            animation: wave-icon-bounce 2s ease-in-out infinite;
+        }
+        
+        .wave-bottom-icons i:nth-child(1) { animation-delay: 0s; }
+        .wave-bottom-icons i:nth-child(2) { animation-delay: 0.3s; }
+        .wave-bottom-icons i:nth-child(3) { animation-delay: 0.6s; }
+        
+        @keyframes wave-icon-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        .wave-bottom-icons i:hover {
+            transform: scale(1.3) translateY(-10px);
+            color: white;
+        }
+        
+        /* 隐藏/显示主题元素 */
+        .theme-tech .wave-theme-elements { display: none !important; }
+        .theme-wave .tech-theme-elements { display: none !important; }
+        
+        .theme-tech .tech-theme-elements { display: block !important; }
+        .theme-wave .wave-theme-elements { display: flex !important; }
+        
+        /* ==================== 右侧登录栏风格 ==================== */
+        
+        /* 登录区域基础样式 */
+        .login-area {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .login-area .logo-section {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+        
+        .login-area .logo-section h2 {
+            font-size: 24px;
+            color: #333;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+        
+        .login-area .logo-section p {
+            color: #999;
+            font-size: 13px;
+        }
+        
+        .login-area .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .login-area .input-group label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .login-area .input-group label .label-icon {
+            display: none;
+        }
+        
+        .login-area .login-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        .login-area .remember-row {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+        }
+        
+        .login-area .remember-row input {
+            margin-right: 8px;
+        }
+        
+        .login-area .remember-row label {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .login-area .copyright {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 15px;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        /* ========== 风格 B: 现代卡片 ========== */
+        .login-style-modern {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            border: 1px solid rgba(0, 188, 212, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-style-modern::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+        }
+        
+        .login-style-modern .login-inner {
+            padding: 40px 30px;
+        }
+        
+        .login-style-modern .logo-icon-wrapper {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(0, 188, 212, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .login-style-modern .logo-icon-wrapper:hover {
+            transform: scale(1.05) rotate(5deg);
+        }
+        
+        .login-style-modern .logo-icon-wrapper i {
+            font-size: 32px;
+            color: white;
+        }
+        
+        .login-style-modern .input-wrapper {
+            position: relative;
+        }
+        
+        .login-style-modern .input-wrapper .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-primary);
+            font-size: 16px;
+        }
+        
+        .login-style-modern .input-wrapper input {
+            width: 100%;
+            padding: 16px 16px 16px 48px;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            font-size: 14px;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+        
+        .login-style-modern .input-wrapper input:focus {
+            outline: none;
+            background: white;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 4px rgba(0, 188, 212, 0.1);
+        }
+        
+        .login-style-modern .input-wrapper input::placeholder {
+            color: #bbb;
+        }
+        
+        .login-style-modern .login-btn {
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            color: white;
+            box-shadow: 0 10px 30px rgba(0, 188, 212, 0.3);
+        }
+        
+        .login-style-modern .login-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 188, 212, 0.4);
+        }
+        
+        .login-style-modern .login-btn:active {
+            transform: translateY(-1px);
+        }
+        
+        /* ========== 风格 D: 渐变流动 ========== */
+        .login-style-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 3px;
+            border-radius: 24px;
+            position: relative;
+        }
+        
+        .login-style-gradient::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #00bcd4, #7c4dff, #e040fb, #00bcd4);
+            background-size: 400% 400%;
+            border-radius: 26px;
+            z-index: -1;
+            animation: gradient-border-flow 3s ease infinite;
+        }
+        
+        @keyframes gradient-border-flow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .login-style-gradient .login-inner {
+            background: white;
+            border-radius: 21px;
+            padding: 40px 30px;
+        }
+        
+        .login-style-gradient .logo-icon-wrapper {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            animation: gradient-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes gradient-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(102, 126, 234, 0); }
+        }
+        
+        .login-style-gradient .logo-icon-wrapper i {
+            font-size: 28px;
+            color: white;
+        }
+        
+        .login-style-gradient .input-group input,
+        .login-style-gradient .input-wrapper input {
+            width: 100%;
+            padding: 14px 16px;
+            background: #f8f9fa;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            font-size: 14px;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+        
+        .login-style-gradient .input-group input:focus,
+        .login-style-gradient .input-wrapper input:focus {
+            outline: none;
+            background: white;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .login-style-gradient .login-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .login-style-gradient .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+        }
+        
+        .login-style-gradient .input-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .login-style-gradient .input-group label .label-icon {
+            display: inline-block;
+            color: #667eea;
+            font-size: 15px;
+        }
+        
+        .login-style-gradient .input-wrapper .input-icon {
+            display: none;
+        }
+        
+        /* ========== 风格 G: 彩虹边框 ========== */
+        .login-style-rainbow {
+            background: white;
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        }
+        
+        .login-style-rainbow::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff, #5f27cd, #ff6b6b);
+            background-size: 200% 100%;
+            animation: rainbow-flow 2s linear infinite;
+        }
+        
+        @keyframes rainbow-flow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        
+        .login-style-rainbow .login-inner {
+            padding: 40px 30px;
+        }
+        
+        .login-style-rainbow .logo-icon-wrapper {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            animation: rainbow-bounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes rainbow-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        .login-style-rainbow .logo-icon-wrapper i {
+            font-size: 28px;
+            color: white;
+        }
+        
+        .login-style-rainbow .input-group input,
+        .login-style-rainbow .input-wrapper input {
+            width: 100%;
+            padding: 14px 16px;
+            background: #f8f9fa;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            font-size: 14px;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+        
+        .login-style-rainbow .input-group input:focus,
+        .login-style-rainbow .input-wrapper input:focus {
+            outline: none;
+            border-color: #48dbfb;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(72, 219, 251, 0.1);
+        }
+        
+        .login-style-rainbow .login-btn {
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
+            background-size: 200% 100%;
+            color: white;
+            animation: rainbow-flow 2s linear infinite;
+            box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+        }
+        
+        .login-style-rainbow .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(255, 107, 107, 0.4);
+        }
+        
+        .login-style-rainbow .input-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .login-style-rainbow .input-group label .label-icon {
+            display: inline-block;
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 15px;
+        }
+        
+        .login-style-rainbow .input-wrapper .input-icon {
+            display: none;
+        }
+        
+        /* 登录加载动画 */
+        .login-loading {
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .login-loading .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: login-spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes login-spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 错误提示 */
+        .login-error {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .login-error.show {
+            display: block;
+            animation: shake 0.5s ease;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        
+        /* 左上角Logo */
+        .top-left-logo {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 96px;
+            height: 96px;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .top-left-logo img {
+            width: 96px;
+            height: 96px;
+            object-fit: contain;
+            border-radius: 12px;
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+        }
+        
+        .top-left-logo.show {
+            display: flex;
+        }
+    </style>
+</head>
+<body class="font-sans">
+    <div class="top-left-logo" id="topLeftLogo">
+        <img id="topLeftLogoImg" src="" alt="Logo">
+    </div>
+    <div class="animation-container" id="animationContainer">
+        <!-- 轨道 loading -->
+        <div class="game-loader" aria-hidden="true">
+            <div class="game-loader__planet">
+                <div class="loader-radius1"></div>
+                <div class="loader-radius2"></div>
+                <div class="loader-radius3"></div>
+                <div class="loader-radius4"></div>
+                <div class="loader-mini1"></div>
+                <div class="loader-mini2"></div>
+                <div class="loader-mini3"></div>
+                <div class="loader-mini4"></div>
+                <svg xmlns="http://www.w3.org/2000/svg" version="1.1" aria-hidden="true" focusable="false">
+                    <defs>
+                        <filter id="goo">
+                            <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur"></feGaussianBlur>
+                            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 26 -7" result="goo"></feColorMatrix>
+                            <feBlend in="SourceGraphic" in2="goo"></feBlend>
+                        </filter>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+
+        <div class="loading-copy">
+            <div class="loading-text" id="loadingText">系统加载中</div>
+        </div>
+    </div>
+    
+    <div class="network-error" id="networkError">
+        <i class="fas fa-wifi-slash error-icon"></i>
+        <div class="error-message">当前网络异常，请检查网络状态,本系统平台需要使用网络连接</div>
+        <button class="retry-button" id="retryButton" style="background-color: var(--color-primary); color: white; padding: 12px 24px; border-radius: 8px; font-size: 18px; cursor: pointer;">重新检查</button>
+    </div>
+    
+    <!-- 管理员热区：连续点击3次触发密码验证 -->
+    <div class="admin-hotspot" id="adminHotspot" title=""></div>
+
+    <!-- 隐藏的设置按钮（验证通过后显示） -->
+    <button class="settings-btn" id="settingsBtn" title="设置" style="display: none;">
+        <i class="fas fa-cog" style="color: var(--color-primary);"></i>
+    </button>
+
+    <!-- 密码验证弹窗 -->
+    <div class="password-modal" id="passwordModal">
+        <div class="password-box">
+            <h3><i class="fas fa-lock" style="color: var(--color-primary); margin-right: 8px;"></i>管理员验证</h3>
+            <p>请输入管理员密码以访问页面设置</p>
+            <input type="password" class="password-input" id="passwordInput" placeholder="••••••" maxlength="6">
+            <div class="password-error-msg" id="passwordError">密码错误，请重试</div>
+            <div class="password-actions">
+                <button class="password-cancel" id="passwordCancel">取消</button>
+                <button class="password-confirm" id="passwordConfirm">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+
+            <!-- 顶部标题栏 -->
+            <div class="settings-header">
+                <h3 style="margin:0;font-size:17px;font-weight:700;color:#222;"
+                    ><i class="fas fa-sliders-h" style="color:var(--color-primary);margin-right:8px;"></i>页面设置</h3>
+                <button class="settings-close" id="settingsClose" style="font-size:22px;color:#aaa;border:none;background:none;cursor:pointer;line-height:1;">&times;</button>
+            </div>
+
+            <!-- 主体 -->
+            <div class="settings-body">
+
+                <!-- 左侧导航 -->
+                <nav class="settings-sidebar">
+                    <button class="settings-nav-item active" data-tab="tab-appearance">
+                        <i class="fas fa-palette"></i>外观风格
+                    </button>
+                    <button class="settings-nav-item" data-tab="tab-brand">
+                        <i class="fas fa-building"></i>品牌信息
+                    </button>
+                    <button class="settings-nav-item" data-tab="tab-cards">
+                        <i class="fas fa-th-large"></i>卡片内容
+                    </button>
+                    <button class="settings-nav-item" data-tab="tab-images">
+                        <i class="fas fa-image"></i>图片资源
+                    </button>
+                    <button class="settings-nav-item" data-tab="tab-shortcut">
+                        <i class="fas fa-desktop"></i>桌面快捷
+                    </button>
+                </nav>
+
+                <!-- 右侧内容区 -->
+                <div class="settings-panel-area">
+
+                    <!-- Tab: 外观风格 -->
+                    <div class="settings-panel active" id="tab-appearance">
+                        <div class="settings-section-title"><i class="fas fa-palette"></i> 外观风格</div>
+                        <div class="settings-row">
+                            <div class="settings-field">
+                                <label>左侧面板风格</label>
+                                <select id="settingTheme">
+                                    <option value="tech">科技感风格</option>
+                                    <option value="wave">波浪风格</option>
+                                </select>
+                            </div>
+                            <div class="settings-field">
+                                <label>右侧登录栏风格</label>
+                                <select id="settingLoginStyle">
+                                    <option value="modern">现代卡片</option>
+                                    <option value="gradient">渐变流动</option>
+                                    <option value="rainbow">彩虹边框</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="settings-field" style="margin-top:14px;">
+                            <label>背景透明度 <span id="opacityValue" style="color:var(--color-primary);font-weight:normal;">30%</span></label>
+                            <input type="range" id="settingBgOpacity" min="0" max="100" value="30" style="margin-top:6px;">
+                            <div class="field-hint">0 = 完全显示背景图 &nbsp;|&nbsp; 100 = 完全遮盖</div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: 品牌信息 -->
+                    <div class="settings-panel" id="tab-brand">
+                        <div class="settings-section-title"><i class="fas fa-building"></i> 品牌信息</div>
+                        <div class="settings-field">
+                            <label>预设系统名称</label>
+                            <select id="settingPresetSystem">
+                                <option value="">-- 选择预设或自定义 --</option>
+                                <option value="iep">资源教室管理系统-IEP</option>
+                                <option value="inclusive">资源中心融合教育管理平台</option>
+                                <option value="homeedu">送教上门成长智联推进系统</option>
+                                <option value="assessment">特校资源中心综合教学评估及干预平台</option>
+                                <option value="cloud">特教资源中心全栈管理云平台</option>
+                                <option value="autism">孤独症星翼发展评估干预平台</option>
+                                <option value="sensory">感觉统合评估训练系统</option>
+                                <option value="montessori">蒙特梭利教具套装</option>
+                            </select>
+                        </div>
+                        <div class="settings-row" style="margin-top:12px;">
+                            <div class="settings-field">
+                                <label>中文名称</label>
+                                <input type="text" id="settingSystemName" placeholder="系统中文名称">
+                            </div>
+                            <div class="settings-field">
+                                <label>英文名称</label>
+                                <input type="text" id="settingSystemNameEn" placeholder="System English Name">
+                            </div>
+                        </div>
+                        <div class="settings-row" style="margin-top:12px;">
+                            <div class="settings-field">
+                                <label>加载文字</label>
+                                <input type="text" id="settingLoadingText" placeholder="系统加载中">
+                            </div>
+                            <div class="settings-field">
+                                <label>版权信息</label>
+                                <input type="text" id="settingCopyright" placeholder="版权信息">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: 卡片内容 -->
+                    <div class="settings-panel" id="tab-cards">
+                        <div class="settings-section-title"><i class="fas fa-th-large"></i> 左侧卡片内容</div>
+                        <div class="card-config-group">
+                            <div class="card-config-header">卡片 1 <i class="fas fa-lightbulb"></i></div>
+                            <input type="text" id="settingCard1Title" placeholder="标题" class="card-title-input">
+                            <input type="text" id="settingCard1Desc" placeholder="描述文字" class="card-desc-input" style="margin-top:6px;">
+                        </div>
+                        <div class="card-config-group">
+                            <div class="card-config-header">卡片 2 <i class="fas fa-shield-alt"></i></div>
+                            <input type="text" id="settingCard2Title" placeholder="标题" class="card-title-input">
+                            <input type="text" id="settingCard2Desc" placeholder="描述文字" class="card-desc-input" style="margin-top:6px;">
+                        </div>
+                        <div class="card-config-group">
+                            <div class="card-config-header">卡片 3 <i class="fas fa-infinity"></i></div>
+                            <input type="text" id="settingCard3Title" placeholder="标题" class="card-title-input">
+                            <input type="text" id="settingCard3Desc" placeholder="描述文字" class="card-desc-input" style="margin-top:6px;">
+                        </div>
+                    </div>
+
+                    <!-- Tab: 图片资源 -->
+                    <div class="settings-panel" id="tab-images">
+                        <div class="settings-section-title"><i class="fas fa-image"></i> 图片资源</div>
+                        <div class="settings-field">
+                            <label>Logo 图片（左上角 96×96）</label>
+                            <div class="file-upload-wrapper">
+                                <button type="button" id="triggerLogoUpload" class="file-upload-btn-sm"><i class="fas fa-upload"></i> 选择</button>
+                                <button type="button" id="clearLogoBtn" class="clear-btn-sm"><i class="fas fa-trash"></i> 清除</button>
+                                <input type="file" id="settingLogoFile" class="file-upload-input" accept="image/*">
+                            </div>
+                            <div id="logoFileName" class="file-name-display" style="display:none;"></div>
+                            <div class="preview-box-sm" id="logoPreview" style="display:none;">
+                                <img id="logoPreviewImg" src="" alt="Logo预览">
+                            </div>
+                        </div>
+                        <div class="settings-field" style="margin-top:16px;">
+                            <label>左侧背景图片</label>
+                            <div class="file-upload-wrapper">
+                                <button type="button" id="triggerBgUpload" class="file-upload-btn-sm"><i class="fas fa-upload"></i> 选择</button>
+                                <button type="button" id="clearBgBtn" class="clear-btn-sm"><i class="fas fa-trash"></i> 清除</button>
+                                <input type="file" id="settingBgFile" class="file-upload-input" accept="image/*">
+                            </div>
+                            <div id="bgFileName" class="file-name-display" style="display:none;"></div>
+                            <div class="preview-box-sm" id="bgPreview" style="display:none;">
+                                <img id="bgPreviewImg" src="" alt="背景预览">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab: 桌面快捷方式 -->
+                    <div class="settings-panel" id="tab-shortcut">
+                        <div class="settings-section-title"><i class="fas fa-desktop"></i> 桌面快捷方式</div>
+                        <div class="settings-field">
+                            <label>快捷方式图标（.ico 格式）</label>
+                            <div class="field-hint" style="margin-bottom:10px;">默认加载安装目录 `icon` 文件夹中的 8 个内置图标，也可以额外选择自定义图标</div>
+                            <div id="shortcutBuiltinIconGrid" class="shortcut-icon-grid"></div>
+                            <div class="shortcut-icon-toolbar">
+                                <button type="button" id="triggerIconUpload" class="file-upload-btn-sm">选择自定义图标</button>
+                                <button type="button" id="clearIconBtn" class="clear-btn-sm">清除当前选择</button>
+                            </div>
+                            <div id="iconFileName" class="file-name-display" style="display:none;"></div>
+                            <div class="preview-box-sm" id="shortcutIconPreview" style="display:none;">
+                                <img id="shortcutIconPreviewImg" src="" alt="快捷方式图标预览">
+                            </div>
+                        </div>
+                        <div class="settings-field" style="margin-top:12px;">
+                            <div class="field-hint" style="margin-bottom:10px;">快捷方式名称将使用「品牌信息」中的中文名称字段</div>
+                            <button type="button" id="createDesktopShortcutBtn" class="settings-save-btn" style="width:100%;">
+                                <i class="fas fa-link"></i> 创建桌面快捷方式
+                            </button>
+                        </div>
+                    </div>
+
+                </div><!-- /.settings-panel-area -->
+            </div><!-- /.settings-body -->
+
+            <!-- 底部操作栏 -->
+            <div class="settings-footer">
+                <div class="field-hint" style="flex:1;margin:0;">保存后刷新页面生效</div>
+                <button type="button" id="resetConfigBtn" class="clear-btn">
+                    <i class="fas fa-undo"></i> 重置
+                </button>
+                <button class="settings-save-btn" id="saveSettingsBtn" style="flex:none;padding:10px 24px;">
+                    <i class="fas fa-save"></i> 保存配置
+                </button>
+            </div>
+
+        </div>
+    </div>
+    
+    <div class="login-wrapper" id="loginContainer">
+    <div class="relative min-h-screen flex">
+        <div class="flex flex-col sm:flex-row items-center md:items-start sm:justify-center md:justify-start flex-1 min-w-0 bg-white">
+            <div id="leftPanel" class="sm:w-1/2 xl:w-3/5 h-full hidden md:flex flex-1 items-center justify-center p-10 overflow-hidden text-white bg-no-repeat bg-cover relative left-panel-bg theme-tech">
+                
+                <!-- ========== 科技感主题内容 ========== -->
+                <div class="tech-theme-elements" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                    <!-- 科技感背景层 -->
+                    <div class="grid-lines"></div>
+                    <div class="glow-orb glow-orb-1"></div>
+                    <div class="glow-orb glow-orb-2"></div>
+                    <div class="glow-orb glow-orb-3"></div>
+                    
+                    <!-- 星空粒子 -->
+                    <div class="stars" id="starsContainer"></div>
+                    
+                    <!-- 渐变遮罩 - 透明度由JS控制 -->
+                    <div class="absolute inset-0 z-0" id="techOverlay" style="background: linear-gradient(to bottom, transparent, rgba(67, 56, 202, 0.3), rgba(30, 64, 175, 0.3));"></div>
+                    
+                    <div class="w-full max-w-lg z-10" style="position: relative; padding: 40px; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%;">
+                        <!-- 标题区域 -->
+                        <div class="mb-10 w-full max-w-none text-center">
+                            <h1 id="systemNameDisplayTech" class="sm:text-3xl md:text-4xl lg:text-4xl xl:text-5xl font-bold leading-tight tracking-wide gradient-title">资源教室管理系统-IEP</h1>
+                            <p id="systemNameEnTech" class="mt-4 text-sm text-cyan-200/80 tracking-widest">IEP Resource Room Management System</p>
+                        </div>
+                        
+                        <!-- 悬浮卡片区域 -->
+                        <div class="space-y-4">
+                            <div class="feature-card glow-border">
+                                <div class="icon-wrapper icon-pulse">
+                                    <i class="fas fa-lightbulb"></i>
+                                </div>
+                                <div class="card-content">
+                                    <h3 id="card1TitleTech">读懂特殊的世界</h3>
+                                    <p id="card1DescTech">搭建沟通的桥梁，让每个孩子都被理解</p>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-card glow-border">
+                                <div class="icon-wrapper icon-pulse" style="animation-delay: 0.3s;">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <div class="card-content">
+                                    <h3 id="card2TitleTech">精准评估系统</h3>
+                                    <p id="card2DescTech">为星星的孩子点亮成长之路</p>
+                                </div>
+                            </div>
+                            
+                            <div class="feature-card glow-border">
+                                <div class="icon-wrapper icon-pulse" style="animation-delay: 0.6s;">
+                                    <i class="fas fa-infinity"></i>
+                                </div>
+                                <div class="card-content">
+                                    <h3 id="card3TitleTech">无限可能</h3>
+                                    <p id="card3DescTech">连接未来，开启智慧教育新篇章</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 底部图标 -->
+                        <div class="mt-10 flex justify-center items-center space-x-10 bottom-icons">
+                            <i class="fas fa-dove text-5xl text-white/80"></i>
+                            <i class="fas fa-heart text-5xl text-pink-400/80"></i>
+                            <i class="fas fa-laptop-code text-5xl text-cyan-400/80"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- 保留原有气泡动画 -->
+                    <ul class="circles">
+                        <li style="left: 25%; width: 80px; height: 80px; animation-delay: 0s;"></li>
+                        <li style="left: 10%; width: 20px; height: 20px; animation-delay: 2s; animation-duration: 12s;"></li>
+                        <li style="left: 70%; width: 20px; height: 20px; animation-delay: 4s;"></li>
+                        <li style="left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s;"></li>
+                        <li style="left: 65%; width: 20px; height: 20px; animation-delay: 0s;"></li>
+                        <li style="left: 75%; width: 110px; height: 110px; animation-delay: 3s;"></li>
+                        <li style="left: 35%; width: 150px; height: 150px; animation-delay: 7s;"></li>
+                        <li style="left: 50%; width: 25px; height: 25px; animation-delay: 15s; animation-duration: 45s;"></li>
+                        <li style="left: 20%; width: 15px; height: 15px; animation-delay: 2s; animation-duration: 35s;"></li>
+                        <li style="left: 85%; width: 150px; height: 150px; animation-delay: 0s; animation-duration: 11s;"></li>
+                    </ul>
+                </div>
+                
+                <!-- ========== 波浪主题内容 ========== -->
+                <div class="wave-theme-elements" id="waveThemeContainer" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-size: cover; background-position: center;">
+                    <!-- 波浪背景 -->
+                    <div class="wave-container">
+                        <div class="wave"></div>
+                        <div class="wave"></div>
+                        <div class="wave"></div>
+                    </div>
+                    
+                    <!-- 透明度遮罩层 -->
+                    <div id="waveOverlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%); z-index: 1;"></div>
+                    
+                    <div class="w-full max-w-lg z-10" style="position: relative; padding: 20px; z-index: 2;">
+                        <!-- Logo区域 -->
+                        <div class="wave-logo-area">
+                            <div class="logo-circle">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <h1 id="systemNameDisplayWave" class="text-4xl md:text-5xl font-bold wave-gradient-title">资源教室管理系统-IEP</h1>
+                            <p id="systemNameEnWave" class="mt-3 text-white/70 tracking-wider">IEP Resource Room Management System</p>
+                        </div>
+                        
+                        <!-- 波浪卡片区域 -->
+                        <div class="grid grid-cols-1 gap-4">
+                            <div class="wave-card">
+                                <div class="wave-icon">
+                                    <i class="fas fa-lightbulb"></i>
+                                </div>
+                                <div class="wave-content">
+                                    <h3 id="card1TitleWave">读懂特殊的世界</h3>
+                                    <p id="card1DescWave">搭建沟通的桥梁，让每个孩子都被理解与关爱</p>
+                                </div>
+                            </div>
+                            
+                            <div class="wave-card">
+                                <div class="wave-icon">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <div class="wave-content">
+                                    <h3 id="card2TitleWave">精准评估系统</h3>
+                                    <p id="card2DescWave">为星星的孩子点亮成长之路，提供专业支持</p>
+                                </div>
+                            </div>
+                            
+                            <div class="wave-card">
+                                <div class="wave-icon">
+                                    <i class="fas fa-infinity"></i>
+                                </div>
+                                <div class="wave-content">
+                                    <h3 id="card3TitleWave">无限可能</h3>
+                                    <p id="card3DescWave">连接未来，开启智慧教育新篇章</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 底部图标 -->
+                        <div class="wave-bottom-icons">
+                            <i class="fas fa-dove"></i>
+                            <i class="fas fa-heart"></i>
+                            <i class="fas fa-laptop-code"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="loginAreaWrapper" class="md:flex md:items-center md:justify-center w-full sm:w-auto md:h-full w-2/5 xl:w-2/5 p-8 md:p-10 lg:p-14 sm:rounded-lg md:rounded-none">
+                <div class="login-area login-style-modern" id="loginArea">
+                    <div class="login-inner">
+                    <div class="logo-section">
+                        <div class="logo-icon-wrapper" id="loginLogoIcon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <h2>欢迎登录</h2>
+                        <p id="loginSubtitle">资源教室管理系统-IEP</p>
+                    </div>
+                    
+                    <form id="loginForm" method="post" action="https://xcpm.hzxckj308.com:8008/users.html?action=login">
+                        <input type="hidden" name="remember" value="true">
+                        <input type="hidden" name="pwd" id="md5_pwd" value="">
+                        
+                        <div class="input-group">
+                            <label><i class="label-icon fas fa-user"></i> 用户名</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user input-icon"></i>
+                                <input id="username" name="txtusername" type="text" required placeholder="请输入用户名">
+                            </div>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label><i class="label-icon fas fa-lock"></i> 密码</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input id="password" name="txtpassword" type="password" required placeholder="请输入密码">
+                            </div>
+                        </div>
+                        
+                        <div class="remember-row">
+                            <input type="checkbox" id="remember_me" name="remember_me">
+                            <label for="remember_me">记住我</label>
+                        </div>
+                        
+                        <button type="submit" id="loginButton" class="login-btn">
+                            <span id="loginText">登 录</span>
+                            <span id="loginLoading" class="login-loading" style="display: none;">
+                                <span class="spinner"></span>正在登录...
+                            </span>
+                        </button>
+                        
+                        <div id="errorMessage" class="login-error"></div>
+                        
+                        <div class="copyright">
+                            <span id="copyrightText">杭州炫灿科技有限公司</span>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+    <script>
+        // 生成星空粒子
+        function createStars() {
+            const container = document.getElementById('starsContainer');
+            if (!container) return;
+
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 2 + 's';
+                star.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+                container.appendChild(star);
+            }
+        }
+
+        // 粒子连线 Canvas 动画
+        function initParticleCanvas() {
+            const canvas = document.getElementById('particle-canvas');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            let animationId = null;
+            let particles = [];
+
+            // 设置 Canvas 尺寸
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            resizeCanvas();
+
+            // 粒子类
+            class Particle {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.vx = (Math.random() - 0.5) * 0.5;
+                    this.vy = (Math.random() - 0.5) * 0.5;
+                    this.radius = Math.random() * 2 + 1;
+                    this.color = this.getRandomColor();
+                }
+
+                getRandomColor() {
+                    const colors = [
+                        'rgba(0, 188, 212, 0.6)',
+                        'rgba(124, 77, 255, 0.5)',
+                        'rgba(224, 64, 251, 0.4)',
+                        'rgba(0, 150, 200, 0.5)'
+                    ];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                }
+
+                update() {
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // 边界反弹
+                    if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                    if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+                }
+
+                draw() {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.color;
+                    ctx.fill();
+
+                    // 发光效果
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = this.color;
+                }
+            }
+
+            // 初始化粒子
+            function initParticles() {
+                particles = [];
+                const particleCount = Math.min(80, Math.floor((canvas.width * canvas.height) / 15000));
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push(new Particle());
+                }
+            }
+
+            // 绘制连线
+            function drawConnections() {
+                const maxDistance = 120;
+                const maxConnections = 3;
+
+                for (let i = 0; i < particles.length; i++) {
+                    let connections = 0;
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const dx = particles[i].x - particles[j].x;
+                        const dy = particles[i].y - particles[j].y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < maxDistance && connections < maxConnections) {
+                            const opacity = (1 - distance / maxDistance) * 0.3;
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.strokeStyle = `rgba(0, 188, 212, ${opacity})`;
+                            ctx.lineWidth = 0.5;
+                            ctx.stroke();
+                            connections++;
+                        }
+                    }
+                }
+            }
+
+            // 动画循环
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 重置阴影
+                ctx.shadowBlur = 0;
+
+                // 更新和绘制粒子
+                particles.forEach(particle => {
+                    particle.update();
+                    particle.draw();
+                });
+
+                // 绘制连线
+                drawConnections();
+
+                animationId = requestAnimationFrame(animate);
+            }
+
+            // 启动动画
+            initParticles();
+            animate();
+
+            // 窗口大小改变时重新初始化
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                initParticles();
+            });
+
+            // 当加载动画消失时停止 Canvas 动画以节省资源
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.target.id === 'animationContainer') {
+                        if (mutation.target.style.display === 'none') {
+                            if (animationId) {
+                                cancelAnimationFrame(animationId);
+                                animationId = null;
+                            }
+                        }
+                    }
+                });
+            });
+
+            const animationContainer = document.getElementById('animationContainer');
+            if (animationContainer) {
+                observer.observe(animationContainer, { attributes: true, attributeFilter: ['style'] });
+            }
+        }
+
+        // 数字滚动动画
+        function animateNumbers() {
+            const numbers = document.querySelectorAll('.stat-number');
+            numbers.forEach(num => {
+                const target = parseInt(num.getAttribute('data-target'));
+                const duration = 2000;
+                const step = target / (duration / 16);
+                let current = 0;
+                
+                const timer = setInterval(() => {
+                    current += step;
+                    if (current >= target) {
+                        current = target;
+                        clearInterval(timer);
+                    }
+                    num.textContent = Math.floor(current) + '+';
+                }, 16);
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化星空和数字动画
+            createStars();
+            setTimeout(animateNumbers, 500);
+
+            // 初始化粒子连线 Canvas
+            initParticleCanvas();
+            
+            const animationContainer = document.getElementById("animationContainer");
+            const loginContainer = document.getElementById("loginContainer");
+            const networkError = document.getElementById("networkError");
+            const retryButton = document.getElementById("retryButton");
+            
+            setTimeout(function() {
+                animationContainer.style.opacity = '0';
+                
+                setTimeout(function() {
+                    animationContainer.style.display = 'none';
+                    
+                    checkNetworkStatus().then(isOnline => {
+                        if (isOnline) {
+                            loginContainer.classList.add('show');
+                        } else {
+                            networkError.classList.add('show');
+                        }
+                    });
+                }, 500);
+                
+                retryButton.addEventListener('click', function() {
+                    networkError.classList.remove('show');
+                    animationContainer.style.display = 'flex';
+                    animationContainer.style.opacity = '1';
+                    
+                    setTimeout(function() {
+                        animationContainer.style.opacity = '0';
+                        
+                        setTimeout(function() {
+                            animationContainer.style.display = 'none';
+                            
+                            checkNetworkStatus().then(isOnline => {
+                                if (isOnline) {
+                                    networkError.classList.remove('show');
+                                    loginContainer.classList.add('show');
+                                } else {
+                                    networkError.classList.add('show');
+                                }
+                            });
+                        }, 500);
+                    }, 2000);
+                });
+            }, 3000);
+            
+            const loginForm = document.getElementById('loginForm');
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    if (!checkpassForm()) {
+                        e.preventDefault();
+                    } else {
+                        showLoading(true);
+                        // 设置隐藏字段 pwd 为密码的 hex 编码
+                        var pwdField = document.getElementById('md5_pwd');
+                        if (pwdField) {
+                            pwdField.value = stringToHex(document.getElementById('password').value).join(',');
+                        }
+                    }
+                });
+            }
+
+            [usernameInput, passwordInput].forEach(input => {
+                if (input) {
+                    input.addEventListener('focus', function() {
+                        if (errorMessage) {
+                            errorMessage.classList.remove('show');
+                        }
+                    });
+                }
+            });
+
+            if (passwordInput) {
+                passwordInput.addEventListener('keyup', function(e) {
+                    if (e.key === 'Enter') {
+                        if (checkpassForm()) {
+                            showLoading(true);
+                            var pwdField = document.getElementById('md5_pwd');
+                            if (pwdField) {
+                                pwdField.value = stringToHex(document.getElementById('password').value).join(',');
+                            }
+                            loginForm.submit();
+                        }
+                    }
+                });
+            }
+            
+            setTimeout(loadConfig, 100);
+        });
+        
+        function checkNetworkStatus() {
+            return new Promise((resolve) => {
+                if (!navigator.onLine) {
+                    resolve(false);
+                    return;
+                }
+
+                let resolved = false;
+
+                // 超时处理
+                setTimeout(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(true);
+                    }
+                }, 3000);
+
+                // 尝试访问目标 API 服务器检查网络
+                fetch('https://xcpm.hzxckj308.com:8008/', {
+                    method: 'HEAD',
+                    mode: 'no-cors',
+                    cache: 'no-store'
+                })
+                .then(() => {
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(true);
+                    }
+                })
+                .catch((err) => {
+                    console.error('[Network] Target server failed:', err);
+                    // 即使失败也认为是 online（可能是 CORS 问题）
+                    if (!resolved) {
+                        resolved = true;
+                        resolve(true);
+                    }
+                });
+            });
+        }
+        
+        function stringToHex(str) {
+            var bytesT = [];
+            for(var i = 0; i < str.length; i++){
+                bytesT.push(str.charCodeAt(i).toString(16));
+            }
+            return bytesT;
+        }
+
+        function checkpassForm() {
+            var input_username = document.getElementById('username');
+            var input_pwd = document.getElementById('password');
+            var errorMessage = document.getElementById('errorMessage');
+
+            errorMessage.classList.remove('show');
+
+            if (input_username.value.trim() === "") {
+                errorMessage.textContent = "用户名不能为空！";
+                errorMessage.classList.add('show');
+                input_username.focus();
+                return false;
+            }
+
+            if (input_pwd.value === "") {
+                errorMessage.textContent = "密码不能为空！";
+                errorMessage.classList.add('show');
+                input_pwd.focus();
+                return false;
+            }
+
+            return true;
+        }
+
+        function showLoading(show) {
+            var loginText = document.getElementById('loginText');
+            var loginLoading = document.getElementById('loginLoading');
+            var loginButton = document.getElementById('loginButton');
+            
+            if (show) {
+                loginText.style.display = 'none';
+                loginLoading.style.display = 'inline-flex';
+                loginButton.disabled = true;
+            } else {
+                loginText.style.display = 'inline';
+                loginLoading.style.display = 'none';
+                loginButton.disabled = false;
+            }
+        }
+        
+        function applyLoginStyle(styleName) {
+            const loginArea = document.getElementById('loginArea');
+            if (!loginArea) return;
+            
+            // 移除所有风格类
+            loginArea.classList.remove('login-style-modern', 'login-style-gradient', 'login-style-rainbow');
+            
+            // 添加新风格类
+            loginArea.classList.add('login-style-' + styleName);
+            
+            // 根据风格调整图标
+            const logoIcon = document.getElementById('loginLogoIcon');
+            if (logoIcon) {
+                if (styleName === 'gradient') {
+                    logoIcon.innerHTML = '<i class="fas fa-graduation-cap"></i>';
+                } else if (styleName === 'rainbow') {
+                    logoIcon.innerHTML = '<i class="fas fa-graduation-cap"></i>';
+                } else {
+                    logoIcon.innerHTML = '<i class="fas fa-graduation-cap"></i>';
+            }
+        }
+    }
+
+    // 预设系统名称配置
+    const systemPresets = {
+        iep: {
+            name: "资源教室管理系统-IEP",
+            nameEn: "IEP Resource Room Management System"
+        },
+        inclusive: {
+            name: "资源中心融合教育管理平台",
+            nameEn: "Inclusive Education Resource Platform"
+        },
+        homeedu: {
+            name: "送教上门成长智联推进系统",
+            nameEn: "Home-Based Education Growth System"
+        },
+        assessment: {
+            name: "特校资源中心综合教学评估及干预平台",
+            nameEn: "Special School Assessment & Intervention Platform"
+        },
+        cloud: {
+            name: "特教资源中心全栈管理云平台",
+            nameEn: "Special Education Cloud Management Platform"
+        },
+        autism: {
+            name: "孤独症星翼发展评估干预平台",
+            nameEn: "Autism Star-Wing Development Platform"
+        },
+        sensory: {
+            name: "感觉统合评估训练系统",
+            nameEn: "Sensory Integration Training System"
+        },
+        montessori: {
+            name: "蒙特梭利教具套装",
+            nameEn: "Montessori Teaching Tools Suite"
+        }
+    };
+
+    const defaultConfig = {
+        systemName: "资源教室管理系统-IEP",
+        systemNameEn: "IEP Resource Room Management System",
+        loadingText: "系统加载中",
+        logoUrl: "",
+        copyright: "杭州炫灿科技有限公司",
+        backgroundUrl: "",
+        theme: "tech",
+        bgOpacity: 30,
+        loginStyle: "modern",
+        card1Title: "读懂特殊的世界",
+        card1Desc: "搭建沟通的桥梁，让每个孩子都被理解",
+        card2Title: "精准评估系统",
+        card2Desc: "为星星的孩子点亮成长之路",
+        card3Title: "无限可能",
+        card3Desc: "连接未来，开启智慧教育新篇章",
+        shortcutIconPath: "",
+        shortcutIconMode: ""
+    };
+
+        const builtinShortcutIconNames = [
+            "AI.ico",
+            "app.ico",
+            "app2.ico",
+            "app4.ico",
+            "book.ico",
+            "icon.ico",
+            "math.ico",
+            "xqkf.ico"
+        ];
+
+        let builtinShortcutIcons = [];
+        let currentConfig = { ...defaultConfig };
+        
+        async function loadConfig() {
+            // Tauri 环境：通过 Rust 后端读写 exe 同目录下的 config.json
+            if (window.__TAURI__) {
+                try {
+                    const config = await window.__TAURI__.core.invoke('read_config');
+                    if (config && typeof config === 'object' && !Array.isArray(config)) {
+                        currentConfig = { ...defaultConfig, ...config };
+                        applyConfig();
+                        return;
+                    }
+                } catch (e) {
+                    console.error('配置文件读取失败，使用默认配置:', e);
+                }
+            } else {
+                // 非 Tauri 环境（浏览器直接打开）：用 localStorage
+                const savedConfig = localStorage.getItem('siteConfig');
+                if (savedConfig) {
+                    try {
+                        const parsed = JSON.parse(savedConfig);
+                        currentConfig = { ...defaultConfig, ...parsed };
+                        applyConfig();
+                        return;
+                    } catch (e) {
+                        console.error('localStorage 配置解析失败');
+                    }
+                }
+
+                // 尝试 fetch config.json
+                try {
+                    const response = await fetch('config.json?t=' + Date.now());
+                    if (response.ok) {
+                        const config = await response.json();
+                        currentConfig = { ...defaultConfig, ...config };
+                        applyConfig();
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            currentConfig = { ...defaultConfig };
+            applyConfig();
+        }
+        
+        function applyTheme(themeName) {
+            const leftPanel = document.getElementById('leftPanel');
+            if (!leftPanel) return;
+            
+            // 移除所有主题类
+            leftPanel.classList.remove('theme-tech', 'theme-wave');
+            
+            // 显示/隐藏对应主题内容
+            const techElements = leftPanel.querySelector('.tech-theme-elements');
+            const waveElements = leftPanel.querySelector('.wave-theme-elements');
+            
+            if (themeName === 'tech') {
+                if (techElements) techElements.style.display = 'block';
+                if (waveElements) waveElements.style.display = 'none';
+                // 应用透明度到科技感背景
+                applyBgOpacity();
+            } else if (themeName === 'wave') {
+                if (techElements) techElements.style.display = 'none';
+                if (waveElements) waveElements.style.display = 'flex';
+                // 应用透明度到波浪背景
+                applyBgOpacity();
+            }
+            
+            // 添加新主题类
+            leftPanel.classList.add('theme-' + themeName);
+        }
+        
+        function applyBgOpacity() {
+            const opacity = currentConfig.bgOpacity !== undefined ? currentConfig.bgOpacity : 30;
+            const opacityDecimal = opacity / 100;
+            
+            // 科技感主题的遮罩层透明度
+            const techOverlay = document.getElementById('techOverlay');
+            if (techOverlay) {
+                techOverlay.style.background = `linear-gradient(to bottom, transparent, rgba(67, 56, 202, ${opacityDecimal}), rgba(30, 64, 175, ${opacityDecimal}))`;
+            }
+            
+            // 波浪主题的遮罩层透明度
+            const waveOverlay = document.getElementById('waveOverlay');
+            if (waveOverlay) {
+                waveOverlay.style.background = `linear-gradient(135deg, rgba(102, 126, 234, ${opacityDecimal}) 0%, rgba(118, 75, 162, ${opacityDecimal}) 100%)`;
+            }
+        }
+        
+        function applyConfig() {
+            // 应用主题
+            applyTheme(currentConfig.theme || 'tech');
+            
+            // 应用背景透明度
+            applyBgOpacity();
+            
+            // 应用登录栏风格
+            applyLoginStyle(currentConfig.loginStyle || 'modern');
+            
+            // 更新科技感主题标题
+            const systemNameDisplayTech = document.getElementById('systemNameDisplayTech');
+            if (systemNameDisplayTech) {
+                systemNameDisplayTech.textContent = currentConfig.systemName;
+            }
+            
+            // 更新波浪主题标题
+            const systemNameDisplayWave = document.getElementById('systemNameDisplayWave');
+            if (systemNameDisplayWave) {
+                systemNameDisplayWave.textContent = currentConfig.systemName;
+            }
+            
+            document.title = currentConfig.systemName;
+            
+            // 更新登录页副标题
+            const loginSubtitle = document.getElementById('loginSubtitle');
+            if (loginSubtitle) {
+                loginSubtitle.textContent = currentConfig.systemName;
+            }
+            
+            const subtitleEl = document.getElementById('subtitleSystemName');
+            if (subtitleEl) {
+                subtitleEl.textContent = currentConfig.systemName;
+            }
+            
+            const loadingTextEl = document.getElementById('loadingText');
+            if (loadingTextEl) {
+                loadingTextEl.textContent = currentConfig.loadingText || '系统加载中';
+            }
+            
+            // 更新登录页版权信息
+            const copyrightTextEl = document.getElementById('copyrightText');
+            if (copyrightTextEl) {
+                copyrightTextEl.textContent = currentConfig.copyright;
+            }
+            
+            if (currentConfig.backgroundUrl) {
+                const leftPanel = document.getElementById('leftPanel');
+                if (leftPanel) {
+                    leftPanel.style.setProperty('--left-panel-bg-image', `url('${currentConfig.backgroundUrl}')`);
+                    leftPanel.classList.add('left-panel-bg');
+                }
+                // 科技感主题背景图
+                const techElements = document.querySelector('.tech-theme-elements');
+                if (techElements) {
+                    techElements.style.backgroundImage = `url('${currentConfig.backgroundUrl}')`;
+                    techElements.style.backgroundSize = 'cover';
+                    techElements.style.backgroundPosition = 'center';
+                }
+                // 波浪主题背景图
+                const waveContainer = document.getElementById('waveThemeContainer');
+                if (waveContainer) {
+                    waveContainer.style.backgroundImage = `url('${currentConfig.backgroundUrl}')`;
+                    waveContainer.style.backgroundSize = 'cover';
+                    waveContainer.style.backgroundPosition = 'center';
+                }
+            } else {
+                // 没有背景图时，移除背景类
+                const leftPanel = document.getElementById('leftPanel');
+                if (leftPanel) {
+                    leftPanel.classList.remove('left-panel-bg');
+                }
+                // 清除科技感主题背景
+                const techElements = document.querySelector('.tech-theme-elements');
+                if (techElements) {
+                    techElements.style.backgroundImage = '';
+                }
+            }
+            
+            const copyrightEl = document.getElementById('copyrightText');
+            if (copyrightEl) {
+                copyrightEl.textContent = currentConfig.copyright;
+            }
+            
+            // 更新英文名称
+            const systemNameEnTech = document.getElementById('systemNameEnTech');
+            if (systemNameEnTech) {
+                systemNameEnTech.textContent = currentConfig.systemNameEn || 'IEP Resource Room Management System';
+            }
+            const systemNameEnWave = document.getElementById('systemNameEnWave');
+            if (systemNameEnWave) {
+                systemNameEnWave.textContent = currentConfig.systemNameEn || 'IEP Resource Room Management System';
+            }
+            
+            // 更新科技感主题卡片内容
+            const card1TitleTech = document.getElementById('card1TitleTech');
+            const card1DescTech = document.getElementById('card1DescTech');
+            const card2TitleTech = document.getElementById('card2TitleTech');
+            const card2DescTech = document.getElementById('card2DescTech');
+            const card3TitleTech = document.getElementById('card3TitleTech');
+            const card3DescTech = document.getElementById('card3DescTech');
+            
+            if (card1TitleTech) card1TitleTech.textContent = currentConfig.card1Title || '读懂特殊的世界';
+            if (card1DescTech) card1DescTech.textContent = currentConfig.card1Desc || '搭建沟通的桥梁，让每个孩子都被理解';
+            if (card2TitleTech) card2TitleTech.textContent = currentConfig.card2Title || '精准评估系统';
+            if (card2DescTech) card2DescTech.textContent = currentConfig.card2Desc || '为星星的孩子点亮成长之路';
+            if (card3TitleTech) card3TitleTech.textContent = currentConfig.card3Title || '无限可能';
+            if (card3DescTech) card3DescTech.textContent = currentConfig.card3Desc || '连接未来，开启智慧教育新篇章';
+            
+            // 更新波浪主题卡片内容
+            const card1TitleWave = document.getElementById('card1TitleWave');
+            const card1DescWave = document.getElementById('card1DescWave');
+            const card2TitleWave = document.getElementById('card2TitleWave');
+            const card2DescWave = document.getElementById('card2DescWave');
+            const card3TitleWave = document.getElementById('card3TitleWave');
+            const card3DescWave = document.getElementById('card3DescWave');
+            
+            if (card1TitleWave) card1TitleWave.textContent = currentConfig.card1Title || '读懂特殊的世界';
+            if (card1DescWave) card1DescWave.textContent = currentConfig.card1Desc || '搭建沟通的桥梁，让每个孩子都被理解与关爱';
+            if (card2TitleWave) card2TitleWave.textContent = currentConfig.card2Title || '精准评估系统';
+            if (card2DescWave) card2DescWave.textContent = currentConfig.card2Desc || '为星星的孩子点亮成长之路，提供专业支持';
+            if (card3TitleWave) card3TitleWave.textContent = currentConfig.card3Title || '无限可能';
+            if (card3DescWave) card3DescWave.textContent = currentConfig.card3Desc || '连接未来，开启智慧教育新篇章';
+            
+            // 更新左上角Logo
+            const topLeftLogo = document.getElementById('topLeftLogo');
+            const topLeftLogoImg = document.getElementById('topLeftLogoImg');
+            if (topLeftLogo && topLeftLogoImg) {
+                if (currentConfig.logoUrl) {
+                    topLeftLogoImg.src = currentConfig.logoUrl;
+                    topLeftLogo.classList.add('show');
+                } else {
+                    topLeftLogo.classList.remove('show');
+                }
+            }
+        }
+        
+        function closeSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.remove('show');
+        }
+        
+        function resetTabs() {
+            // 重置侧边栏导航到第一项
+            document.querySelectorAll('.settings-nav-item').forEach((item, idx) => {
+                item.classList.toggle('active', idx === 0);
+            });
+            document.querySelectorAll('.settings-panel').forEach((panel, idx) => {
+                panel.classList.toggle('active', idx === 0);
+            });
+        }
+        
+        async function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            
+            // 填充基本设置
+            document.getElementById('settingTheme').value = currentConfig.theme || 'tech';
+            document.getElementById('settingLoginStyle').value = currentConfig.loginStyle || 'modern';
+            document.getElementById('settingBgOpacity').value = currentConfig.bgOpacity !== undefined ? currentConfig.bgOpacity : 30;
+            document.getElementById('opacityValue').textContent = (currentConfig.bgOpacity !== undefined ? currentConfig.bgOpacity : 30) + '%';
+            
+            // 填充品牌信息
+            document.getElementById('settingPresetSystem').value = '';
+            document.getElementById('settingSystemName').value = currentConfig.systemName || '';
+            document.getElementById('settingSystemNameEn').value = currentConfig.systemNameEn || '';
+            document.getElementById('settingLoadingText').value = currentConfig.loadingText || '';
+            document.getElementById('settingCopyright').value = currentConfig.copyright || '';
+            
+            // 填充卡片内容
+            document.getElementById('settingCard1Title').value = currentConfig.card1Title || '';
+            document.getElementById('settingCard1Desc').value = currentConfig.card1Desc || '';
+            document.getElementById('settingCard2Title').value = currentConfig.card2Title || '';
+            document.getElementById('settingCard2Desc').value = currentConfig.card2Desc || '';
+            document.getElementById('settingCard3Title').value = currentConfig.card3Title || '';
+            document.getElementById('settingCard3Desc').value = currentConfig.card3Desc || '';
+            
+            // 清空文件选择
+            document.getElementById('settingLogoFile').value = '';
+            document.getElementById('settingBgFile').value = '';
+            
+            // 清空文件名显示
+            document.getElementById('logoFileName').style.display = 'none';
+            document.getElementById('bgFileName').style.display = 'none';
+            
+            // 显示图片预览
+            const logoPreview = document.getElementById('logoPreview');
+            const bgPreview = document.getElementById('bgPreview');
+            const logoPreviewImg = document.getElementById('logoPreviewImg');
+            const bgPreviewImg = document.getElementById('bgPreviewImg');
+            
+            if (currentConfig.logoUrl && logoPreview && logoPreviewImg) {
+                logoPreviewImg.src = currentConfig.logoUrl;
+                logoPreview.style.display = 'block';
+            } else if (logoPreview) {
+                logoPreview.style.display = 'none';
+            }
+            
+            if (currentConfig.backgroundUrl && bgPreview && bgPreviewImg) {
+                bgPreviewImg.src = currentConfig.backgroundUrl;
+                bgPreview.style.display = 'block';
+            } else if (bgPreview) {
+                bgPreview.style.display = 'none';
+            }
+
+            modal.classList.add('show');
+            // 重置侧边栏 Tab 到第一项
+            resetTabs();
+
+            await loadBuiltinShortcutIcons();
+            await updateShortcutIconDisplay();
+        }
+        
+        // 预设系统名称选择处理
+        document.addEventListener('DOMContentLoaded', function() {
+            const presetSelect = document.getElementById('settingPresetSystem');
+            if (presetSelect) {
+                presetSelect.addEventListener('change', function() {
+                    const presetKey = this.value;
+                    if (presetKey && systemPresets[presetKey]) {
+                        document.getElementById('settingSystemName').value = systemPresets[presetKey].name;
+                        document.getElementById('settingSystemNameEn').value = systemPresets[presetKey].nameEn;
+                    }
+                });
+            }
+        });
+        
+        function resetConfig() {
+            if (confirm('确定要重置所有配置为默认值吗？\n\n此操作将清除所有自定义设置。')) {
+                localStorage.removeItem('siteConfig');
+                currentConfig = { ...defaultConfig };
+                applyConfig();
+                closeSettings();
+                alert('配置已重置为默认值！');
+            }
+        }
+        
+        async function saveSettings() {
+            const newConfig = {
+                // 外观
+                theme: document.getElementById('settingTheme').value || defaultConfig.theme,
+                loginStyle: document.getElementById('settingLoginStyle').value || defaultConfig.loginStyle,
+                bgOpacity: parseInt(document.getElementById('settingBgOpacity').value) || defaultConfig.bgOpacity,
+
+                // 品牌
+                systemName: document.getElementById('settingSystemName').value || defaultConfig.systemName,
+                systemNameEn: document.getElementById('settingSystemNameEn').value || defaultConfig.systemNameEn,
+                loadingText: document.getElementById('settingLoadingText').value || defaultConfig.loadingText,
+                copyright: document.getElementById('settingCopyright').value || defaultConfig.copyright,
+
+                // 卡片内容
+                card1Title: document.getElementById('settingCard1Title').value || defaultConfig.card1Title,
+                card1Desc: document.getElementById('settingCard1Desc').value || defaultConfig.card1Desc,
+                card2Title: document.getElementById('settingCard2Title').value || defaultConfig.card2Title,
+                card2Desc: document.getElementById('settingCard2Desc').value || defaultConfig.card2Desc,
+                card3Title: document.getElementById('settingCard3Title').value || defaultConfig.card3Title,
+                card3Desc: document.getElementById('settingCard3Desc').value || defaultConfig.card3Desc,
+
+                // 图片
+                logoUrl: currentConfig.logoUrl || '',
+                backgroundUrl: currentConfig.backgroundUrl || '',
+
+                // 快捷方式
+                shortcutIconPath: currentConfig.shortcutIconPath || '',
+                shortcutIconMode: currentConfig.shortcutIconMode || ''
+            };
+
+            currentConfig = newConfig;
+            applyConfig();
+
+            if (window.__TAURI__) {
+                try {
+                    await window.__TAURI__.core.invoke('write_config', { config: newConfig });
+                } catch (e) {
+                    console.error('写入配置文件失败:', e);
+                }
+            } else {
+                localStorage.setItem('siteConfig', JSON.stringify(newConfig));
+            }
+
+            closeSettings();
+            alert('配置已保存！\n\n刷新页面后新的配置将生效。');
+        }
+        
+        function previewLogo() {
+            const url = currentConfig.logoUrl || '';
+            const preview = document.getElementById('logoPreview');
+            const img = document.getElementById('logoPreviewImg');
+            if (url) {
+                img.src = url;
+                img.onerror = () => { preview.style.display = 'none'; };
+                img.onload = () => { preview.style.display = 'block'; };
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+        
+        function previewBackground() {
+            const url = currentConfig.backgroundUrl || '';
+            const preview = document.getElementById('bgPreview');
+            const img = document.getElementById('bgPreviewImg');
+            if (url) {
+                img.src = url;
+                img.onerror = () => { preview.style.display = 'none'; };
+                img.onload = () => { preview.style.display = 'block'; };
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+        
+        function fileToBase64(file, callback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                callback(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function updateFileName(inputId, displayId) {
+            const input = document.getElementById(inputId);
+            const display = document.getElementById(displayId);
+            if (input.files && input.files[0]) {
+                display.textContent = '已选择：' + input.files[0].name;
+                display.style.display = 'block';
+            } else {
+                display.style.display = 'none';
+            }
+        }
+
+        // 管理员验证相关变量
+        function getPathFileName(path) {
+            return (path || '').split(/[/\\]/).pop() || '';
+        }
+
+        function normalizePath(path) {
+            return (path || '').replace(/\\/g, '/').toLowerCase();
+        }
+
+        function toFilePreviewSrc(path) {
+            if (!path) return '';
+
+            const normalized = path.replace(/\\/g, '/');
+            if (/^[a-zA-Z]:\//.test(normalized)) {
+                return 'file:///' + normalized;
+            }
+            if (normalized.startsWith('//')) {
+                return 'file:' + normalized;
+            }
+            if (normalized.startsWith('/')) {
+                return 'file://' + normalized;
+            }
+            return normalized;
+        }
+
+        function fileUrlToDataUrl(fileUrl) {
+            return fetch(fileUrl)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load local file preview');
+                    }
+                    return response.blob();
+                })
+                .then((blob) => new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        resolve(e.target.result);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                }));
+        }
+
+        async function loadBuiltinShortcutIcons() {
+            let appDir = '';
+
+            if (window.__TAURI__ && window.__TAURI__.core) {
+                try {
+                    appDir = await window.__TAURI__.core.invoke('get_app_dir');
+                } catch (error) {
+                    console.error('获取安装目录失败:', error);
+                }
+            }
+
+            builtinShortcutIcons = builtinShortcutIconNames.map((fileName) => {
+                const isTauriPath = !!appDir;
+                const iconPath = isTauriPath
+                    ? appDir + '\\icon\\' + fileName
+                    : 'src/icon/' + fileName;
+
+                return {
+                    fileName,
+                    label: fileName.replace(/\.ico$/i, ''),
+                    path: iconPath,
+                    previewSrc: 'src/icon/' + fileName
+                };
+            });
+
+            const currentFileName = getPathFileName(currentConfig.shortcutIconPath);
+            if (currentFileName && builtinShortcutIconNames.includes(currentFileName) && currentConfig.shortcutIconMode !== 'custom') {
+                const matchedIcon = builtinShortcutIcons.find((icon) => icon.fileName === currentFileName);
+                if (matchedIcon) {
+                    currentConfig.shortcutIconPath = matchedIcon.path;
+                    currentConfig.shortcutIconMode = 'builtin';
+                }
+            }
+        }
+
+        function renderBuiltinShortcutIcons() {
+            const container = document.getElementById('shortcutBuiltinIconGrid');
+            if (!container) return;
+
+            if (!builtinShortcutIcons.length) {
+                container.innerHTML = '<div class="shortcut-icon-empty">未找到内置图标</div>';
+                return;
+            }
+
+            const selectedPath = normalizePath(currentConfig.shortcutIconPath);
+            const selectedFileName = getPathFileName(currentConfig.shortcutIconPath);
+            const selectedMode = currentConfig.shortcutIconMode || '';
+
+            container.innerHTML = builtinShortcutIcons.map((icon) => {
+                const isSelected = selectedMode === 'builtin'
+                    ? normalizePath(icon.path) === selectedPath
+                    : (!selectedMode && icon.fileName === selectedFileName);
+
+                return `
+                    <button
+                        type="button"
+                        class="shortcut-icon-card ${isSelected ? 'active' : ''}"
+                        data-icon-name="${icon.fileName}"
+                        title="${icon.label}"
+                        aria-label="${icon.label}"
+                    >
+                        <img class="shortcut-icon-thumb" src="${icon.previewSrc}" alt="${icon.fileName}">
+                    </button>
+                `;
+            }).join('');
+        }
+
+        async function updateShortcutIconDisplay() {
+            renderBuiltinShortcutIcons();
+
+            const fileNameDisplay = document.getElementById('iconFileName');
+            const previewBox = document.getElementById('shortcutIconPreview');
+            const previewImg = document.getElementById('shortcutIconPreviewImg');
+
+            if (!fileNameDisplay || !previewBox || !previewImg) return;
+
+            if (!currentConfig.shortcutIconPath) {
+                fileNameDisplay.style.display = 'none';
+                previewBox.style.display = 'none';
+                previewImg.removeAttribute('src');
+                return;
+            }
+
+            const selectedFileName = getPathFileName(currentConfig.shortcutIconPath);
+            const selectedBuiltinIcon = builtinShortcutIcons.find((icon) => icon.fileName === selectedFileName);
+            const isBuiltin = currentConfig.shortcutIconMode === 'builtin';
+
+            fileNameDisplay.textContent = (isBuiltin ? '已选择内置图标: ' : '已选择自定义图标: ') + selectedFileName;
+            fileNameDisplay.style.display = 'block';
+
+            try {
+                const previewSrc = isBuiltin && selectedBuiltinIcon
+                    ? selectedBuiltinIcon.previewSrc
+                    : await fileUrlToDataUrl(toFilePreviewSrc(currentConfig.shortcutIconPath));
+
+                previewImg.src = previewSrc;
+                previewBox.style.display = 'block';
+            } catch (error) {
+                console.error('快捷方式图标预览加载失败:', error);
+                previewBox.style.display = 'none';
+                previewImg.removeAttribute('src');
+            }
+        }
+
+        async function selectBuiltinShortcutIcon(fileName) {
+            const selectedIcon = builtinShortcutIcons.find((icon) => icon.fileName === fileName);
+            if (!selectedIcon) return;
+
+            currentConfig.shortcutIconPath = selectedIcon.path;
+            currentConfig.shortcutIconMode = 'builtin';
+            await updateShortcutIconDisplay();
+        }
+
+        const ADMIN_PASSWORD = '299451';
+        let adminClickCount = 0;
+        let adminClickTimer = null;
+        let isAdminVerified = false;
+
+        // 管理员热区点击处理
+        function initAdminHotspot() {
+            const hotspot = document.getElementById('adminHotspot');
+            const passwordModal = document.getElementById('passwordModal');
+            const passwordInput = document.getElementById('passwordInput');
+            const passwordConfirm = document.getElementById('passwordConfirm');
+            const passwordCancel = document.getElementById('passwordCancel');
+            const passwordError = document.getElementById('passwordError');
+
+            if (!hotspot) return;
+
+            // 连续点击3次触发密码验证
+            hotspot.addEventListener('click', function() {
+                adminClickCount++;
+
+                // 重置计时器
+                if (adminClickTimer) {
+                    clearTimeout(adminClickTimer);
+                }
+
+                // 1秒内完成3次点击
+                adminClickTimer = setTimeout(() => {
+                    adminClickCount = 0;
+                }, 1000);
+
+                if (adminClickCount >= 3) {
+                    adminClickCount = 0;
+                    if (adminClickTimer) {
+                        clearTimeout(adminClickTimer);
+                        adminClickTimer = null;
+                    }
+                    showPasswordModal();
+                }
+            });
+
+            // 显示密码弹窗
+            function showPasswordModal() {
+                passwordModal.classList.add('show');
+                passwordInput.value = '';
+                passwordInput.classList.remove('error');
+                passwordError.classList.remove('show');
+                passwordInput.focus();
+            }
+
+            // 隐藏密码弹窗
+            function hidePasswordModal() {
+                passwordModal.classList.remove('show');
+                passwordInput.value = '';
+                passwordInput.classList.remove('error');
+                passwordError.classList.remove('show');
+            }
+
+            // 验证密码
+            function verifyPassword() {
+                const input = passwordInput.value.trim();
+                if (input === ADMIN_PASSWORD) {
+                    // 密码正确，直接打开设置面板（不显示设置按钮）
+                    isAdminVerified = true;
+                    hidePasswordModal();
+                    openSettings();
+                } else {
+                    // 密码错误
+                    passwordInput.classList.add('error');
+                    passwordError.classList.add('show');
+                    passwordInput.value = '';
+                    passwordInput.focus();
+
+                    // 清除错误状态
+                    setTimeout(() => {
+                        passwordInput.classList.remove('error');
+                        passwordError.classList.remove('show');
+                    }, 2000);
+                }
+            }
+
+            // 事件监听
+            passwordConfirm.addEventListener('click', verifyPassword);
+
+            passwordCancel.addEventListener('click', hidePasswordModal);
+
+            passwordInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    verifyPassword();
+                }
+            });
+
+            passwordInput.addEventListener('input', function() {
+                // 只允许输入数字
+                this.value = this.value.replace(/[^0-9]/g, '');
+            });
+
+            // 点击遮罩关闭
+            passwordModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    hidePasswordModal();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化管理员热区
+            initAdminHotspot();
+
+            document.getElementById('settingsBtn').addEventListener('click', openSettings);
+            document.getElementById('settingsClose').addEventListener('click', closeSettings);
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+            document.getElementById('resetConfigBtn').addEventListener('click', resetConfig);
+
+            // 侧边栏导航 Tab 切换
+            document.querySelectorAll('.settings-nav-item').forEach(navItem => {
+                navItem.addEventListener('click', function() {
+                    const targetId = this.dataset.tab;
+                    document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'));
+                    document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+                    this.classList.add('active');
+                    const panel = document.getElementById(targetId);
+                    if (panel) panel.classList.add('active');
+                });
+            });
+
+            // Logo 上传按钮 - 优先使用 Tauri 原生对话框
+
+            document.getElementById('triggerLogoUpload').addEventListener('click', async function() {
+                if (isTauri()) {
+                    try {
+                        const { Dialog, Image } = window.TauriAPI;
+                        const filePath = await Dialog.selectFile({
+                            title: '选择 Logo 图片',
+                            filters: [
+                                ['图片文件', ['png', 'jpg', 'jpeg', 'gif', 'ico']]
+                            ]
+                        });
+
+                        if (filePath) {
+                            // 读取文件并转换为 base64
+                            const response = await fetch('file://' + filePath);
+                            const blob = await response.blob();
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                currentConfig.logoUrl = e.target.result;
+                                previewLogo();
+                                document.getElementById('logoFileName').textContent = '已选择: ' + filePath.split('/').pop();
+                                document.getElementById('logoFileName').style.display = 'block';
+                            };
+                            reader.readAsDataURL(blob);
+                        }
+                    } catch (error) {
+                        console.error('Tauri 对话框失败，回退到浏览器方式:', error);
+                        document.getElementById('settingLogoFile').click();
+                    }
+                } else {
+                    document.getElementById('settingLogoFile').click();
+                }
+            });
+
+            // 背景图片上传按钮 - 优先使用 Tauri 原生对话框
+            document.getElementById('triggerBgUpload').addEventListener('click', async function() {
+                if (isTauri()) {
+                    try {
+                        const { Dialog } = window.TauriAPI;
+                        const filePath = await Dialog.selectFile({
+                            title: '选择背景图片',
+                            filters: [
+                                ['图片文件', ['png', 'jpg', 'jpeg', 'gif']]
+                            ]
+                        });
+
+                        if (filePath) {
+                            // 读取文件并转换为 base64
+                            const response = await fetch('file://' + filePath);
+                            const blob = await response.blob();
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                currentConfig.backgroundUrl = e.target.result;
+                                previewBackground();
+                                document.getElementById('bgFileName').textContent = '已选择: ' + filePath.split('/').pop();
+                                document.getElementById('bgFileName').style.display = 'block';
+                            };
+                            reader.readAsDataURL(blob);
+                        }
+                    } catch (error) {
+                        console.error('Tauri 对话框失败，回退到浏览器方式:', error);
+                        document.getElementById('settingBgFile').click();
+                    }
+                } else {
+                    document.getElementById('settingBgFile').click();
+                }
+            });
+            
+            document.getElementById('settingLogoFile').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    updateFileName('settingLogoFile', 'logoFileName');
+                    fileToBase64(file, function(base64) {
+                        currentConfig.logoUrl = base64;
+                        previewLogo();
+                    });
+                }
+            });
+            
+            document.getElementById('settingBgFile').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    updateFileName('settingBgFile', 'bgFileName');
+                    fileToBase64(file, function(base64) {
+                        currentConfig.backgroundUrl = base64;
+                        previewBackground();
+                    });
+                }
+            });
+            
+            document.getElementById('clearLogoBtn').addEventListener('click', function() {
+                currentConfig.logoUrl = '';
+                document.getElementById('settingLogoFile').value = '';
+                document.getElementById('logoFileName').style.display = 'none';
+                previewLogo();
+            });
+            
+            document.getElementById('clearBgBtn').addEventListener('click', function() {
+                currentConfig.backgroundUrl = '';
+                document.getElementById('settingBgFile').value = '';
+                document.getElementById('bgFileName').style.display = 'none';
+                previewBackground();
+            });
+            
+            document.getElementById('settingsModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeSettings();
+                }
+            });
+            
+            // 主题实时预览
+            document.getElementById('settingTheme').addEventListener('change', function() {
+                applyTheme(this.value);
+            });
+            
+            // 透明度滑块实时更新
+            document.getElementById('settingBgOpacity').addEventListener('input', function() {
+                document.getElementById('opacityValue').textContent = this.value + '%';
+                currentConfig.bgOpacity = parseInt(this.value);
+                applyBgOpacity();
+            });
+            
+            // 登录栏风格实时预览
+            document.getElementById('settingLoginStyle').addEventListener('change', function() {
+                applyLoginStyle(this.value);
+            });
+
+            // ========== 桌面快捷方式 ==========
+            // 选择图标
+            document.getElementById('shortcutBuiltinIconGrid').addEventListener('click', async function(e) {
+                const iconCard = e.target.closest('[data-icon-name]');
+                if (!iconCard) return;
+
+                await selectBuiltinShortcutIcon(iconCard.dataset.iconName);
+            });
+
+            document.getElementById('triggerIconUpload').addEventListener('click', async function() {
+                if (window.__TAURI__ && window.__TAURI__.core) {
+                    try {
+                        const filePath = await window.__TAURI__.core.invoke('select_file_dialog', {
+                            title: '选择快捷方式图标',
+                            filters: [['ICO 图标', ['ico']]]
+                        });
+                        if (filePath) {
+                            currentConfig.shortcutIconPath = filePath;
+                            currentConfig.shortcutIconMode = 'custom';
+                            await updateShortcutIconDisplay();
+                        }
+                    } catch (error) {
+                        console.error('选择图标失败:', error);
+                    }
+                } else {
+                    alert('此功能仅在桌面应用中可用');
+                }
+            });
+
+            // 清除图标
+            document.getElementById('clearIconBtn').addEventListener('click', async function() {
+                currentConfig.shortcutIconPath = '';
+                currentConfig.shortcutIconMode = '';
+                await updateShortcutIconDisplay();
+            });
+
+            // 创建桌面快捷方式
+            document.getElementById('createDesktopShortcutBtn').addEventListener('click', async function() {
+                if (!window.__TAURI__) {
+                    alert('此功能仅在桌面应用中可用');
+                    return;
+                }
+
+                const systemName = document.getElementById('settingSystemName').value || defaultConfig.systemName;
+                if (!systemName) {
+                    alert('请先设置系统名称');
+                    return;
+                }
+
+                try {
+                    this.disabled = true;
+                    this.textContent = '创建中...';
+
+                    // 获取 exe 路径
+                    const exePath = await window.__TAURI__.core.invoke('get_exe_path');
+
+                    // 获取桌面路径
+                    const desktopPath = await window.__TAURI__.core.invoke('get_desktop_path');
+
+                    // 创建快捷方式
+                    const result = await window.__TAURI__.core.invoke('create_shortcut', {
+                        name: systemName,
+                        target: exePath,
+                        iconPath: currentConfig.shortcutIconPath || null,
+                        outputDir: desktopPath
+                    });
+
+                    alert('桌面快捷方式已创建！');
+                } catch (error) {
+                    alert('创建快捷方式失败：' + error);
+                } finally {
+                    this.disabled = false;
+                    this.textContent = '创建桌面快捷方式';
+                }
+            });
+
+            // ========== Tauri 桌面应用导航栏 ==========
+        });
+
+    </script>
+</body>
+</html>

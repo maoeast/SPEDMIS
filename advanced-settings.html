@@ -371,12 +371,12 @@
                 return;
             }
 
-            document.getElementById('entryModulePsy').checked = true;
+            document.getElementById('entryModuleIep').checked = true;
         }
 
         function getSelectedEntryModule() {
             const selectedRadio = document.querySelector('input[name="entryModuleSelection"]:checked');
-            return selectedRadio ? selectedRadio.value : 'psy';
+            return selectedRadio ? selectedRadio.value : 'iep';
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -412,14 +412,14 @@
             try {
                 const result = await window.electronAPI.getEntryModuleConfig();
                 if (result.success && result.data) {
-                    setSelectedEntryModule(result.data.selectedModule || 'psy');
+                    setSelectedEntryModule(result.data.selectedModule || 'iep');
                     return;
                 }
             } catch (error) {
                 console.error('加载入口模块配置失败:', error);
             }
 
-            setSelectedEntryModule('psy');
+            setSelectedEntryModule('iep');
         }
 
         async function uploadLogo() {

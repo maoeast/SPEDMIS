@@ -40,11 +40,11 @@ describe('Entry Module Manager', () => {
         fs.rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
     });
 
-    test('should return psy as the default entry module', () => {
+    test('should return iep as the default entry module', () => {
         const result = entryModuleManager.getEntryModuleConfig();
 
         expect(result).toEqual({
-            selectedModule: 'psy',
+            selectedModule: 'iep',
         });
     });
 
@@ -69,6 +69,18 @@ describe('Entry Module Manager', () => {
 
         expect(result).toEqual({
             selectedModule: 'iep',
+        });
+    });
+
+    test('should preserve a persisted psy selection', () => {
+        entryModuleManager.setEntryModuleConfig({
+            selectedModule: 'psy',
+        });
+
+        const result = entryModuleManager.getEntryModuleConfig();
+
+        expect(result).toEqual({
+            selectedModule: 'psy',
         });
     });
 });

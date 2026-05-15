@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>综合测评领域</title>
+    <link rel="stylesheet" href="../fontawesome/css/all.min.css">
+    <style>
+        :root {
+            color-scheme: light;
+            --shell-bg: #f3f6fb;
+            --toolbar-text: rgba(31, 58, 95, 0.88);
+            --button-bg: rgba(255, 255, 255, 0.32);
+            --button-border: rgba(255, 255, 255, 0.48);
+            --button-hover: rgba(255, 255, 255, 0.72);
+            --button-disabled: rgba(89, 112, 143, 0.28);
+            --button-shadow: 0 14px 30px rgba(31, 58, 95, 0.16);
+            --button-glow: 0 18px 36px rgba(0, 162, 255, 0.22);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--shell-bg);
+            color: #1d2b3a;
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+        }
+
+        .shell-actions {
+            position: fixed;
+            right: 16px;
+            bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            pointer-events: auto;
+            z-index: 20;
+        }
+
+        .shell-button {
+            width: 46px;
+            height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--button-border);
+            border-radius: 14px;
+            background: var(--button-bg);
+            color: var(--toolbar-text);
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: var(--button-shadow);
+            transition: background-color 0.22s ease, color 0.22s ease, transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+            pointer-events: auto;
+        }
+
+        .shell-button:hover:not(:disabled) {
+            background: var(--button-hover);
+            border-color: rgba(72, 149, 239, 0.4);
+            box-shadow: var(--button-glow);
+            transform: translateY(-2px) scale(1.04);
+        }
+
+        .shell-button:disabled {
+            cursor: not-allowed;
+            color: var(--button-disabled);
+            background: rgba(255, 255, 255, 0.14);
+            border-color: rgba(255, 255, 255, 0.22);
+            box-shadow: none;
+        }
+
+        .shell-content {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #iepWebview {
+            flex: 1;
+            width: 100%;
+            border: 0;
+            background: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="shell-actions">
+        <button id="backButton" class="shell-button fa-solid fa-arrow-left" type="button" title="返回" aria-label="返回"></button>
+        <button id="refreshButton" class="shell-button fa-solid fa-rotate-right" type="button" title="刷新" aria-label="刷新"></button>
+        <button id="forwardButton" class="shell-button fa-solid fa-arrow-right" type="button" title="前进" aria-label="前进"></button>
+    </div>
+
+    <div class="shell-content">
+        <webview
+            id="iepWebview"
+            src="./embedded-entry.html"
+            allowpopups
+        ></webview>
+    </div>
+
+    <script>
+        const webview = document.getElementById('iepWebview');
+        const backButton = document.getElementById('backButton');
+        const refreshButton = document.getElementById('refreshButton');
+        const forwardButton = document.getElementById('forwardButton');
+
+        function updateNavigationState() {
+            backButton.disabled = !webview.canGoBack();
+            forwardButton.disabled = !webview.canGoForward();
+        }
+
+        function updateStatus() {
+            const pageTitle = typeof webview.getTitle === 'function' ? webview.getTitle() : '';
+            if (pageTitle) {
+                document.title = `${pageTitle} - 综合测评领域`;
+                return;
+            }
+
+            document.title = '综合测评领域';
+        }
+
+        backButton.addEventListener('click', () => {
+            if (webview.canGoBack()) {
+                webview.goBack();
+            }
+        });
+
+        refreshButton.addEventListener('click', () => {
+            webview.reload();
+        });
+
+        forwardButton.addEventListener('click', () => {
+            if (webview.canGoForward()) {
+                webview.goForward();
+            }
+        });
+
+        webview.addEventListener('dom-ready', () => {
+            updateNavigationState();
+            updateStatus();
+        });
+
+        ['did-navigate', 'did-navigate-in-page', 'did-finish-load', 'page-title-updated'].forEach((eventName) => {
+            webview.addEventListener(eventName, () => {
+                updateNavigationState();
+                updateStatus();
+            });
+        });
+
+        webview.addEventListener('did-start-loading', () => {
+            refreshButton.classList.add('fa-spin');
+        });
+
+        webview.addEventListener('did-stop-loading', () => {
+            refreshButton.classList.remove('fa-spin');
+            updateNavigationState();
+            updateStatus();
+        });
+
+        webview.addEventListener('did-fail-load', (event) => {
+            if (event.errorCode === -3) {
+                return;
+            }
+
+            refreshButton.classList.remove('fa-spin');
+            document.title = `加载失败 - 综合测评领域`;
+        });
+
+        updateNavigationState();
+    </script>
+</body>
+</html>

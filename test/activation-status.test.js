@@ -200,4 +200,26 @@ describe('activation status compatibility', () => {
             expect.any(Function)
         );
     });
+
+    test('should enable webview support for the iep shell window', async () => {
+        const { BrowserWindow } = require('electron');
+        require('../main');
+
+        const iepOpenHandler = mockIpcHandle.mock.calls.find(
+            ([channel]) => channel === 'iep-open-window'
+        )?.[1];
+
+        expect(iepOpenHandler).toEqual(expect.any(Function));
+
+        await iepOpenHandler();
+
+        expect(BrowserWindow).toHaveBeenCalledWith(
+            expect.objectContaining({
+                webPreferences: expect.objectContaining({
+                    webviewTag: true,
+                }),
+            })
+        );
+        expect(mockLoadFile).toHaveBeenCalledWith(path.join('iep', 'index.html'));
+    });
 });

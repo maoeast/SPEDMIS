@@ -41,7 +41,7 @@ const productNameConfig = {
  */
 const entryModuleConfig = {
     defaults: {
-        selectedModule: 'psy',
+        selectedModule: 'iep',
     },
     supportedModules: ['psy', 'iep', 'none'],
     configFileName: 'entry-module.json',

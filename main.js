@@ -954,6 +954,7 @@ ipcMain.handle('iep-open-window', async () => {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        webviewTag: true,
         preload: path.join(__dirname, 'preload.js')
       }
     });
