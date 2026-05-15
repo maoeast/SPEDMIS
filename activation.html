@@ -69,7 +69,8 @@
         .machine-code {
             background: #f5f5f5;
             padding: 15px;
-            padding-right: 40px;
+            padding-right: 160px;
+            min-height: 56px;
             border-radius: 8px;
             font-family: monospace;
             font-size: 16px;
@@ -86,17 +87,21 @@
             right: 10px;
             background: rgba(255, 255, 255, 0.8);
             border: none;
-            border-radius: 4px;
-            width: 30px;
-            height: 30px;
+            border-radius: 999px;
+            min-width: 120px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 8px;
             cursor: pointer;
             color: #3498db;
             transition: all 0.2s ease;
-            padding: 0;
+            padding: 0 14px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
         }
         
         .copy-btn:hover {
@@ -108,6 +113,7 @@
         .copy-btn svg {
             width: 16px;
             height: 16px;
+            flex-shrink: 0;
         }
         
         .copy-success {
@@ -150,6 +156,18 @@
             box-sizing: border-box;
             transition: all 0.3s ease;
         }
+
+        .activation-code-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+            margin: 15px 0;
+        }
+
+        .activation-code-row input[type="text"] {
+            flex: 1;
+            margin: 0;
+        }
         
         input[type="text"]:focus {
             border-color: #3498db;
@@ -174,6 +192,16 @@
             background: linear-gradient(135deg, #2980b9, #3498db);
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .secondary-btn {
+            margin-top: 0;
+            white-space: nowrap;
+            background: linear-gradient(135deg, #6c7a89, #4f6272);
+        }
+
+        .secondary-btn:hover {
+            background: linear-gradient(135deg, #4f6272, #6c7a89);
         }
         
         .error {
@@ -205,6 +233,27 @@
             font-weight: bold;
             color: #2c3e50;
         }
+
+        @media (max-width: 560px) {
+            .activation-code-row {
+                flex-direction: column;
+            }
+
+            .secondary-btn {
+                width: 100%;
+            }
+
+            .machine-code {
+                padding-right: 15px;
+                padding-top: 60px;
+            }
+
+            .copy-btn {
+                left: 10px;
+                right: auto;
+                min-width: 0;
+            }
+        }
     </style>
 </head>
 <body>
@@ -218,10 +267,21 @@
                     <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
                     <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
                 </svg>
+                <span>复制机器码</span>
             </button>
             <div class="copy-success" id="copySuccess">已复制!</div>
         </div>
-        <input type="text" id="activationCode" placeholder="请输入64位激活码">
+        <div class="activation-code-row">
+            <input type="text" id="activationCode" placeholder="请输入64位激活码">
+            <button
+                type="button"
+                id="pasteActivationCodeButton"
+                class="secondary-btn"
+                onclick="pasteActivationCode()"
+            >
+                粘贴激活码
+            </button>
+        </div>
         <button onclick="activate()">提交激活</button>
         <div class="error" id="errorMessage"></div>
         <div class="contact-info">
@@ -263,6 +323,27 @@
             } else {
                 showError('机器码尚未生成，无法复制');
             }
+        }
+
+        function pasteActivationCode() {
+            if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+                showError('当前环境不支持直接粘贴，请手动输入激活码');
+                return;
+            }
+
+            navigator.clipboard.readText()
+                .then(pastedText => {
+                    if (!pastedText || !pastedText.trim()) {
+                        showError('剪贴板为空，请先复制激活码');
+                        return;
+                    }
+
+                    document.getElementById('activationCode').value = pastedText.trim();
+                })
+                .catch(error => {
+                    showError('粘贴失败，请手动输入激活码');
+                    console.error('粘贴失败:', error);
+                });
         }
 
         function activate() {
