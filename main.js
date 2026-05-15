@@ -20,18 +20,40 @@ let psyseenWindow = null;  // AI 心理测验独立窗口
 let iepWindow = null;  // 综合测评领域独立窗口
 const logger = getLogger('MAIN');
 
-function collectActivationMachineCodeCandidates(activationData = {}) {
-  const candidates = [];
+function normalizeComparableHardwareValue(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const normalized = value.trim();
+  if (!normalized || /^UNKNOWN_/i.test(normalized)) {
+    return '';
+  }
+
+  return normalized;
+}
+
+function collectComparableHardwareValues(hardwareInfo = {}, keys = []) {
+  return [...new Set(
+    keys
+      .map((key) => normalizeComparableHardwareValue(hardwareInfo[key]))
+      .filter(Boolean)
+  )];
+}
+
+function extractSavedActivationSnapshot(activationData = {}) {
+  const machineCodeCandidates = [];
+  let decryptedActivation = null;
 
   if (activationData.machineCode) {
-    candidates.push(activationData.machineCode);
+    machineCodeCandidates.push(activationData.machineCode);
   }
 
   if (activationData.encrypted) {
     try {
-      const decrypted = activationCrypto.decryptActivationData(activationData.encrypted);
-      if (decrypted && decrypted.machineCode) {
-        candidates.push(decrypted.machineCode);
+      decryptedActivation = activationCrypto.decryptActivationData(activationData.encrypted);
+      if (decryptedActivation && decryptedActivation.machineCode) {
+        machineCodeCandidates.push(decryptedActivation.machineCode);
       }
     } catch (error) {
       logger.warn('Failed to read encrypted activation payload during activation check', {
@@ -40,7 +62,61 @@ function collectActivationMachineCodeCandidates(activationData = {}) {
     }
   }
 
-  return [...new Set(candidates.filter(Boolean))];
+  return {
+    machineCodeCandidates: [...new Set(machineCodeCandidates.filter(Boolean))],
+    savedDeviceLedger: decryptedActivation?.deviceLedger || activationData.deviceLedger || null,
+  };
+}
+
+function matchesSavedDeviceLedger(currentHardwareInfo = {}, savedDeviceLedger = {}) {
+  if (!savedDeviceLedger || typeof savedDeviceLedger !== 'object') {
+    return false;
+  }
+
+  const comparisons = [
+    {
+      name: 'mac',
+      currentKeys: ['stableMac', 'mac'],
+      savedKeys: ['stableMac', 'mac'],
+    },
+    {
+      name: 'cpu',
+      currentKeys: ['cpu'],
+      savedKeys: ['cpu'],
+    },
+    {
+      name: 'motherboard',
+      currentKeys: ['motherboard'],
+      savedKeys: ['motherboard'],
+    },
+    {
+      name: 'hardDisk',
+      currentKeys: ['stableHardDisk', 'hardDisk'],
+      savedKeys: ['stableHardDisk', 'hardDisk'],
+    },
+  ];
+
+  let comparableFieldCount = 0;
+
+  for (const comparison of comparisons) {
+    const currentValues = collectComparableHardwareValues(currentHardwareInfo, comparison.currentKeys);
+    const savedValues = collectComparableHardwareValues(savedDeviceLedger, comparison.savedKeys);
+
+    if (currentValues.length === 0 || savedValues.length === 0) {
+      continue;
+    }
+
+    comparableFieldCount += 1;
+
+    if (!currentValues.some((value) => savedValues.includes(value))) {
+      logger.warn('Saved activation device ledger mismatch', {
+        field: comparison.name,
+      });
+      return false;
+    }
+  }
+
+  return comparableFieldCount > 0;
 }
 
 async function migrateActivationStorage(storagePath, activationData, machineCode, hardwareInfo) {
@@ -116,8 +192,14 @@ async function checkActivationStatus() {
     } = await machineCodeManager.getMachineCodeData();
 
     // 检查是否什么一次的激活存储（有可能是encrypted或machineCode）
-    const savedMachineCodes = collectActivationMachineCodeCandidates(activationData);
-    const isActivated = savedMachineCodes.some(savedCode => machineCodeCandidates.includes(savedCode));
+    const {
+      machineCodeCandidates: savedMachineCodes,
+      savedDeviceLedger,
+    } = extractSavedActivationSnapshot(activationData);
+    const matchesStoredMachineCode = savedMachineCodes.some(savedCode => machineCodeCandidates.includes(savedCode));
+    const matchesStoredDeviceLedger = !matchesStoredMachineCode
+      && matchesSavedDeviceLedger(hardwareInfo, savedDeviceLedger);
+    const isActivated = matchesStoredMachineCode || matchesStoredDeviceLedger;
 
     if (isActivated && activationData.machineCode !== machineCode) {
       await migrateActivationStorage(storagePath, activationData, machineCode, hardwareInfo);
@@ -129,7 +211,8 @@ async function checkActivationStatus() {
 
     logger.info('Activation check completed', {
       activated: isActivated,
-      machineCode: machineCode.substring(0, 8) + '...'
+      machineCode: machineCode.substring(0, 8) + '...',
+      matchStrategy: matchesStoredMachineCode ? 'machine-code' : matchesStoredDeviceLedger ? 'device-ledger' : 'none',
     });
 
     return isActivated;

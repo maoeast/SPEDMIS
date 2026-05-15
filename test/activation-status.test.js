@@ -201,6 +201,58 @@ describe('activation status compatibility', () => {
         );
     });
 
+    test('should accept degraded current hardware when the saved device ledger still matches', async () => {
+        const config = require('../config');
+        const machineCodeManager = require('../modules/machine-code-manager');
+        const activationCrypto = require('../modules/activation-crypto');
+
+        const storagePath = config.getActivationStoragePath();
+        mockReadFile.mockResolvedValue(JSON.stringify({
+            machineCode: 'activation-time-machine-code',
+            activationCode: 'existing-activation-code',
+            activatedDate: '2026-05-01T00:00:00.000Z',
+            encrypted: 'encrypted-payload',
+        }));
+        activationCrypto.decryptActivationData.mockReturnValue({
+            machineCode: 'activation-time-machine-code',
+            activationCode: 'existing-activation-code',
+            deviceLedger: {
+                mac: 'LAN-MAC',
+                stableMac: 'LAN-MAC',
+                cpu: 'CPU-1',
+                motherboard: 'MB-1',
+                hardDisk: 'DISK-1',
+                stableHardDisk: 'DISK-1',
+            },
+        });
+        machineCodeManager.getMachineCodeData.mockResolvedValue({
+            machineCode: 'degraded-machine-code',
+            machineCodeCandidates: ['degraded-machine-code'],
+            hardwareInfo: {
+                mac: 'LAN-MAC',
+                stableMac: 'LAN-MAC',
+                cpu: 'UNKNOWN_CPU',
+                motherboard: 'UNKNOWN_MB',
+                hardDisk: 'UNKNOWN_HD',
+                stableHardDisk: 'UNKNOWN_HD',
+            },
+        });
+
+        const mainModule = require('../main');
+
+        const isActivated = await mainModule.checkActivationStatus();
+
+        expect(isActivated).toBe(true);
+        expect(mockWriteFile).toHaveBeenCalledWith(
+            storagePath,
+            expect.stringContaining('"machineCode":"degraded-machine-code"')
+        );
+        expect(mockWriteFile).toHaveBeenCalledWith(
+            storagePath,
+            expect.stringContaining('"encrypted":"migrated-encrypted-payload"')
+        );
+    });
+
     test('should enable webview support for the iep shell window', async () => {
         const { BrowserWindow } = require('electron');
         require('../main');
