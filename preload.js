@@ -220,6 +220,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
       });
   },
   // Logo 相关 API
+  getEntryModuleConfig: () => {
+    return ipcRenderer
+      .invoke('get-entry-module-config')
+      .catch((error) => {
+        handleIpcError('getEntryModuleConfig', error, null);
+        throw error;
+      });
+  },
+  setEntryModuleConfig: (newConfig) => {
+    return ipcRenderer
+      .invoke('set-entry-module-config', newConfig)
+      .catch((error) => {
+        handleIpcError('setEntryModuleConfig', error, null);
+        throw error;
+      });
+  },
   uploadLogo: (filePath) => {
     return ipcRenderer
       .invoke('upload-logo', filePath)
@@ -348,6 +364,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       .invoke('psyseen-open-window')
       .catch((error) => {
         handleIpcError('openPsyseenWindow', error, null);
+        throw error;
+      });
+  },
+  openIepWindow: () => {
+    return ipcRenderer
+      .invoke('iep-open-window')
+      .catch((error) => {
+        handleIpcError('openIepWindow', error, null);
         throw error;
       });
   },

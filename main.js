@@ -5,6 +5,7 @@ const config = require('./config');
 const { getGlobalCacheManager } = require('./cache');
 const { getLogger } = require('./logger');
 const productNameManager = require('./modules/product-name-manager');
+const entryModuleManager = require('./modules/entry-module-manager');
 const logoHandler = require('./modules/logo-handler');
 const usageStats = require('./modules/usage-stats');
 const permissionManager = require('./modules/permission-manager');
@@ -16,6 +17,7 @@ const vmDetector = require('./modules/vm-detector');
 let mainWindow;
 let psyseenView = null;  // AI 心理测验 BrowserView（已废弃，保留兼容）
 let psyseenWindow = null;  // AI 心理测验独立窗口
+let iepWindow = null;  // 综合测评领域独立窗口
 const logger = getLogger('MAIN');
 
 function collectActivationMachineCodeCandidates(activationData = {}) {
@@ -380,6 +382,30 @@ ipcMain.handle(config.ipcChannels.getProductConfig, async (event) => {
     return { success: true, data: productConfig };
   } catch (error) {
     logger.error('Failed to get product config', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(config.ipcChannels.getEntryModuleConfig, async () => {
+  try {
+    logger.debug('Entry module config request received');
+    const entryModuleConfig = entryModuleManager.getEntryModuleConfig();
+    return { success: true, data: entryModuleConfig };
+  } catch (error) {
+    logger.error('Failed to get entry module config', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(config.ipcChannels.setEntryModuleConfig, async (event, newConfig) => {
+  try {
+    logger.info('Entry module config update request received', {
+      selectedModule: newConfig?.selectedModule
+    });
+    const updatedConfig = entryModuleManager.setEntryModuleConfig(newConfig);
+    return { success: true, data: updatedConfig };
+  } catch (error) {
+    logger.error('Failed to set entry module config', { error: error.message });
     return { success: false, error: error.message };
   }
 });
@@ -910,6 +936,44 @@ ipcMain.handle('psyseen-open-window', async (event) => {
 });
 
 // 关闭 psyseen 独立窗口
+ipcMain.handle('iep-open-window', async () => {
+  try {
+    logger.info('IEP open window request received');
+
+    if (iepWindow) {
+      iepWindow.focus();
+      return { success: true };
+    }
+
+    iepWindow = new BrowserWindow({
+      width: 1280,
+      height: 800,
+      show: true,
+      frame: true,
+      hasShadow: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+      }
+    });
+
+    iepWindow.maximize();
+    iepWindow.loadFile(path.join('iep', 'index.html'));
+
+    iepWindow.on('closed', () => {
+      logger.info('IEP window closed');
+      iepWindow = null;
+    });
+
+    logger.info('IEP window created and maximized');
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to open IEP window', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('psyseen-close-window', async (event) => {
   try {
     logger.info('Psyseen close window request received');

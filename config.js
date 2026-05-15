@@ -39,6 +39,14 @@ const productNameConfig = {
  * Logo 配置
  * 支持上传和自定义应用 Logo
  */
+const entryModuleConfig = {
+    defaults: {
+        selectedModule: 'psy',
+    },
+    supportedModules: ['psy', 'iep', 'none'],
+    configFileName: 'entry-module.json',
+};
+
 const logoConfig = {
     // 支持的图片格式
     supportedFormats: ['.png', '.jpg', '.jpeg', '.gif', '.ico'],
@@ -69,6 +77,30 @@ function getProductNameConfigPath() {
             activationConfig.appDataDirName,
             productNameConfig.configDirName,
             productNameConfig.configFileName
+        );
+    }
+
+    return storagePath;
+}
+
+function getEntryModuleConfigPath() {
+    let storagePath;
+
+    if (process.platform === 'win32') {
+        storagePath = path.join(
+            app.getPath('appData'),
+            activationConfig.appDataDirName,
+            productNameConfig.configDirName,
+            entryModuleConfig.configFileName
+        );
+    } else {
+        storagePath = path.join(
+            app.getPath('home'),
+            'Library',
+            'Application Support',
+            activationConfig.appDataDirName,
+            productNameConfig.configDirName,
+            entryModuleConfig.configFileName
         );
     }
 
@@ -263,6 +295,8 @@ const ipcChannels = {
     getProductName: 'get-product-name',
     setProductName: 'set-product-name',
     getProductConfig: 'get-product-config',
+    getEntryModuleConfig: 'get-entry-module-config',
+    setEntryModuleConfig: 'set-entry-module-config',
 
     // Logo 相关
     uploadLogo: 'upload-logo',
@@ -427,6 +461,8 @@ module.exports = {
     getActivationStoragePath,
     productNameConfig,
     getProductNameConfigPath,
+    entryModuleConfig,
+    getEntryModuleConfigPath,
     logoConfig,
     loggingConfig,
     logMessages,

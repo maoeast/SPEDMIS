@@ -87,6 +87,11 @@ jest.mock('../modules/product-name-manager', () => ({
     setProductNameConfig: jest.fn(),
 }));
 
+jest.mock('../modules/entry-module-manager', () => ({
+    getEntryModuleConfig: jest.fn(() => ({ selectedModule: 'psy' })),
+    setEntryModuleConfig: jest.fn((config) => config),
+}));
+
 jest.mock('../modules/logo-handler', () => ({
     initialize: jest.fn(),
     saveLogo: jest.fn(),
@@ -176,6 +181,23 @@ describe('activation status compatibility', () => {
         expect(mockWriteFile).toHaveBeenCalledWith(
             storagePath,
             expect.stringContaining('"encrypted":"migrated-encrypted-payload"')
+        );
+    });
+
+    test('should register entry module IPC handlers', () => {
+        require('../main');
+
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'get-entry-module-config',
+            expect.any(Function)
+        );
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'set-entry-module-config',
+            expect.any(Function)
+        );
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'iep-open-window',
+            expect.any(Function)
         );
     });
 });

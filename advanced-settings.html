@@ -102,6 +102,45 @@
             font-size: 13px;
         }
 
+        .radio-group {
+            display: grid;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+            border: 1px solid #d7d7d7;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .radio-option:hover {
+            border-color: #0078d4;
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.08);
+        }
+
+        .radio-option input {
+            margin-top: 3px;
+        }
+
+        .radio-option strong {
+            display: block;
+            color: #222;
+            margin-bottom: 4px;
+        }
+
+        .radio-option span {
+            display: block;
+            color: #666;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
         .button-group {
             display: flex;
             gap: 10px;
@@ -185,20 +224,17 @@
     </style>
 </head>
 <body class="advanced-settings-page">
-    <!-- 返回按鐐 -->
     <button class="back-button fixed-back-button" onclick="goBack()">
         <i class="fas fa-arrow-left"></i>
         <span>返回首页</span>
     </button>
 
-    <!-- 退出按钮 -->
     <div class="exit-button" onclick="closeApplication()">
         <i class="fas fa-sign-out-alt"></i>
         <span>退出</span>
     </div>
 
     <div class="advanced-settings-container">
-        <!-- 页面头部 -->
         <div class="settings-header">
             <h2>
                 <i class="fas fa-cog"></i>
@@ -206,11 +242,9 @@
             </h2>
         </div>
 
-        <!-- 设置内容 -->
         <div class="settings-form">
             <div id="settingsMessage" class="message"></div>
 
-            <!-- Logo 设置部分 -->
             <div class="form-section">
                 <div class="section-title">
                     <i class="fas fa-image"></i>
@@ -220,7 +254,7 @@
                     支持 PNG、JPG、JPEG、GIF、ICO 格式，最大 2MB
                 </div>
                 <div class="form-group">
-                    <label for="logoFile">选择Logo文件</label>
+                    <label for="logoFile">选择 Logo 文件</label>
                     <input type="file" id="logoFile" accept="image/*" />
                 </div>
                 <div class="button-group">
@@ -230,7 +264,6 @@
                 </div>
             </div>
 
-            <!-- 产品名称部分 -->
             <div class="form-section">
                 <div class="section-title">
                     <i class="fas fa-signature"></i>
@@ -242,11 +275,11 @@
                 </div>
                 <div class="form-group">
                     <label for="productEngName">英文产品名</label>
-                    <input type="text" id="productEngName" placeholder="输入英文产品名，如Special Education Multimodal Intervention System" />
+                    <input type="text" id="productEngName" placeholder="输入英文产品名，如 Special Education Multimodal Intervention System" />
                 </div>
                 <div class="form-group">
                     <label for="productShortName">产品简称</label>
-                    <input type="text" id="productShortName" placeholder="输入产品简称（建议10个字符以内）" maxlength="10" />
+                    <input type="text" id="productShortName" placeholder="输入产品简称（建议 10 个字符以内）" maxlength="10" />
                 </div>
                 <div class="form-group">
                     <label for="productOrganization">组织名称</label>
@@ -254,14 +287,55 @@
                 </div>
                 <div class="form-group">
                     <label for="productCopyright">版权信息</label>
-                    <input type="text" id="productCopyright" placeholder="输入版权信息，如©2013-2025" />
+                    <input type="text" id="productCopyright" placeholder="输入版权信息，如 漏2013-2025" />
                 </div>
                 <div class="button-group">
                     <button class="btn btn-primary" onclick="saveProductInfo()">
-                        <i class="fas fa-save"></i> 保存更改
+                        <i class="fas fa-save"></i> 保存修改
                     </button>
                     <button class="btn btn-secondary" onclick="reloadProductInfo()">
-                        <i class="fas fa-redo"></i> 重置
+                        <i class="fas fa-redo"></i> 重新加载
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-th-large"></i>
+                    主界面入口模块
+                </div>
+                <div class="info-box">
+                    “AI心理测验”和“综合测评领域”不会同时显示在主界面。请在以下三种状态中选择一种。
+                </div>
+                <div class="radio-group">
+                    <label class="radio-option" for="entryModulePsy">
+                        <input type="radio" id="entryModulePsy" name="entryModuleSelection" value="psy">
+                        <div>
+                            <strong>显示 AI心理测验</strong>
+                            <span>主界面显示 “AI心理测验”，点击后打开 `psy-login.html`。</span>
+                        </div>
+                    </label>
+                    <label class="radio-option" for="entryModuleIep">
+                        <input type="radio" id="entryModuleIep" name="entryModuleSelection" value="iep">
+                        <div>
+                            <strong>显示 综合测评领域</strong>
+                            <span>主界面显示 “综合测评领域”，点击后打开 `iep/index.html`。</span>
+                        </div>
+                    </label>
+                    <label class="radio-option" for="entryModuleNone">
+                        <input type="radio" id="entryModuleNone" name="entryModuleSelection" value="none">
+                        <div>
+                            <strong>两者都不显示</strong>
+                            <span>主界面仅保留原有五个固定领域模块。</span>
+                        </div>
+                    </label>
+                </div>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="saveEntryModuleSetting()">
+                        <i class="fas fa-save"></i> 保存入口设置
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadEntryModuleConfig()">
+                        <i class="fas fa-redo"></i> 重新加载
                     </button>
                 </div>
             </div>
@@ -281,36 +355,52 @@
             }
         }
 
-        function showMessage(msg, type) {
-            const msgEl = document.getElementById('settingsMessage');
-            msgEl.className = 'message ' + type;
-            msgEl.textContent = msg;
+        function showMessage(message, type) {
+            const messageElement = document.getElementById('settingsMessage');
+            messageElement.className = 'message ' + type;
+            messageElement.textContent = message;
             setTimeout(() => {
-                msgEl.className = 'message';
+                messageElement.className = 'message';
             }, 3000);
         }
 
-        // 页面初始化
+        function setSelectedEntryModule(selectedModule) {
+            const radio = document.querySelector(`input[name="entryModuleSelection"][value="${selectedModule}"]`);
+            if (radio) {
+                radio.checked = true;
+                return;
+            }
+
+            document.getElementById('entryModulePsy').checked = true;
+        }
+
+        function getSelectedEntryModule() {
+            const selectedRadio = document.querySelector('input[name="entryModuleSelection"]:checked');
+            return selectedRadio ? selectedRadio.value : 'psy';
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                await loadProductInfo();
+                await Promise.all([
+                    loadProductInfo(),
+                    loadEntryModuleConfig(),
+                ]);
             } catch (error) {
-                showMessage('加载产品信息失败: ' + error.message, 'error');
-                console.error('加载产品信息失败:', error);
+                showMessage('加载高级设置失败: ' + error.message, 'error');
+                console.error('加载高级设置失败:', error);
             }
         });
 
-        // 加载产品信息
         async function loadProductInfo() {
             try {
                 const result = await window.electronAPI.getProductConfig();
                 if (result.success && result.data) {
-                    const config = result.data;
-                    document.getElementById('productFullName').value = config.fullName || '';
-                    document.getElementById('productEngName').value = config.engName || '';
-                    document.getElementById('productShortName').value = config.shortName || '';
-                    document.getElementById('productOrganization').value = config.organization || '';
-                    document.getElementById('productCopyright').value = config.copyright || '';
+                    const productConfig = result.data;
+                    document.getElementById('productFullName').value = productConfig.fullName || '';
+                    document.getElementById('productEngName').value = productConfig.engName || '';
+                    document.getElementById('productShortName').value = productConfig.shortName || '';
+                    document.getElementById('productOrganization').value = productConfig.organization || '';
+                    document.getElementById('productCopyright').value = productConfig.copyright || '';
                 }
             } catch (error) {
                 console.error('加载产品配置失败:', error);
@@ -318,25 +408,36 @@
             }
         }
 
-        // 上传Logo
+        async function loadEntryModuleConfig() {
+            try {
+                const result = await window.electronAPI.getEntryModuleConfig();
+                if (result.success && result.data) {
+                    setSelectedEntryModule(result.data.selectedModule || 'psy');
+                    return;
+                }
+            } catch (error) {
+                console.error('加载入口模块配置失败:', error);
+            }
+
+            setSelectedEntryModule('psy');
+        }
+
         async function uploadLogo() {
             const fileInput = document.getElementById('logoFile');
             if (!fileInput.files.length) {
-                showMessage('请选择Logo文件', 'error');
+                showMessage('请选择 Logo 文件', 'error');
                 return;
             }
 
             try {
                 showMessage('上传中...', 'info');
-                // 这里可以集成实际的文件上传逻辑
-                showMessage('上传成功！', 'success');
+                showMessage('上传成功', 'success');
                 fileInput.value = '';
             } catch (error) {
                 showMessage('上传失败: ' + error.message, 'error');
             }
         }
 
-        // 保存产品信息
         async function saveProductInfo() {
             const fullName = document.getElementById('productFullName').value.trim();
             const engName = document.getElementById('productEngName').value.trim();
@@ -383,7 +484,7 @@
                     showMessage('产品信息已保存，页面将刷新', 'success');
                     setTimeout(() => {
                         location.reload();
-                    }, 2000);
+                    }, 1200);
                 } else {
                     showMessage('保存失败: ' + result.error, 'error');
                 }
@@ -392,16 +493,33 @@
             }
         }
 
-        // 重置产品信息
         async function reloadProductInfo() {
-            if (confirm('确定要重置为默认配置吗？')) {
-                try {
-                    showMessage('重置中...', 'info');
-                    await loadProductInfo();
-                    showMessage('已重置为保存的配置', 'success');
-                } catch (error) {
-                    showMessage('重置失败: ' + error.message, 'error');
+            try {
+                showMessage('重新加载中...', 'info');
+                await loadProductInfo();
+                showMessage('已重新加载当前保存的产品信息', 'success');
+            } catch (error) {
+                showMessage('重新加载失败: ' + error.message, 'error');
+            }
+        }
+
+        async function saveEntryModuleSetting() {
+            const selectedModule = getSelectedEntryModule();
+
+            try {
+                showMessage('保存入口设置中...', 'info');
+                const result = await window.electronAPI.setEntryModuleConfig({
+                    selectedModule,
+                });
+
+                if (result.success) {
+                    setSelectedEntryModule(result.data.selectedModule || selectedModule);
+                    showMessage('主界面入口模块设置已保存', 'success');
+                } else {
+                    showMessage('保存入口设置失败: ' + result.error, 'error');
                 }
+            } catch (error) {
+                showMessage('保存入口设置失败: ' + error.message, 'error');
             }
         }
     </script>

@@ -1,3 +1,5 @@
+const path = require('path');
+
 jest.mock('electron', () => ({
     app: {
         getPath: jest.fn((pathName) => {
@@ -42,7 +44,9 @@ describe('config module', () => {
 
         const storagePath = config.getActivationStoragePath();
 
-        expect(storagePath).toBe('/tmp/spedmis-appdata/特殊教育多模态干预系统/activation.json');
+        expect(storagePath).toBe(
+            path.join('/tmp/spedmis-appdata', '特殊教育多模态干预系统', 'activation.json')
+        );
         expect(app.getPath).toHaveBeenCalledWith('appData');
     });
 
@@ -55,9 +59,35 @@ describe('config module', () => {
         const productConfigPath = config.getProductNameConfigPath();
 
         expect(productConfigPath).toBe(
-            '/tmp/spedmis-home/Library/Application Support/特殊教育多模态干预系统/config/product-branding.json'
+            path.join(
+                '/tmp/spedmis-home',
+                'Library',
+                'Application Support',
+                '特殊教育多模态干预系统',
+                'config',
+                'product-branding.json'
+            )
         );
         expect(app.getPath).toHaveBeenCalledWith('home');
+    });
+
+    test('should build entry module config path from appData on Windows', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'win32',
+            configurable: true,
+        });
+
+        const entryModuleConfigPath = config.getEntryModuleConfigPath();
+
+        expect(entryModuleConfigPath).toBe(
+            path.join(
+                '/tmp/spedmis-appdata',
+                '特殊教育多模态干预系统',
+                'config',
+                'entry-module.json'
+            )
+        );
+        expect(app.getPath).toHaveBeenCalledWith('appData');
     });
 
     test('should return environment specific log levels', () => {
@@ -74,6 +104,8 @@ describe('config module', () => {
         expect(config.ipcChannels.activate).toBe('activate');
         expect(config.ipcChannels.verifyAdminPassword).toBe('verify-admin-password');
         expect(config.ipcChannels.updateAdminPassword).toBe('update-admin-password');
+        expect(config.ipcChannels.getEntryModuleConfig).toBe('get-entry-module-config');
+        expect(config.ipcChannels.setEntryModuleConfig).toBe('set-entry-module-config');
         expect(config.logoConfig.maxFileSize).toBe(2 * 1024 * 1024);
         expect(config.logoConfig.supportedFormats).toContain('.ico');
     });

@@ -13,6 +13,7 @@ jest.mock('electron', () => ({
 }));
 
 const os = require('os');
+const path = require('path');
 const { app } = require('electron');
 const { Logger, LogLevel, LogLevelName, getLogger, createLogger } = require('../logger');
 
@@ -89,7 +90,7 @@ describe('Logger', () => {
     test('should fall back to temp directory when file logging is enabled before app is ready', () => {
         const logger = new Logger({ moduleName: 'TEST', enableFile: true });
 
-        expect(logger.logDir).toBe(`${os.tmpdir()}/SPED_MIS/logs`);
+        expect(logger.logDir).toBe(path.join(os.tmpdir(), 'SPED_MIS', 'logs'));
     });
 
     test('should log error messages when level allows', () => {
