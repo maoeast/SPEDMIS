@@ -115,6 +115,19 @@
         const backButton = document.getElementById('backButton');
         const refreshButton = document.getElementById('refreshButton');
         const forwardButton = document.getElementById('forwardButton');
+        let iepDisplayName = '综合测评领域';
+
+        async function loadModuleDisplayNames() {
+            try {
+                const result = await window.electronAPI.getModuleNameConfig();
+                if (result.success && result.data?.moduleNames?.iep) {
+                    iepDisplayName = result.data.moduleNames.iep;
+                    document.title = iepDisplayName;
+                }
+            } catch (error) {
+                console.error('加载 IEP 模块名称失败:', error);
+            }
+        }
 
         function updateNavigationState() {
             backButton.disabled = !webview.canGoBack();
@@ -124,11 +137,11 @@
         function updateStatus() {
             const pageTitle = typeof webview.getTitle === 'function' ? webview.getTitle() : '';
             if (pageTitle) {
-                document.title = `${pageTitle} - 综合测评领域`;
+                document.title = `${pageTitle} - ${iepDisplayName}`;
                 return;
             }
 
-            document.title = '综合测评领域';
+            document.title = iepDisplayName;
         }
 
         backButton.addEventListener('click', () => {
@@ -175,10 +188,13 @@
             }
 
             refreshButton.classList.remove('fa-spin');
-            document.title = `加载失败 - 综合测评领域`;
+            document.title = `加载失败 - ${iepDisplayName}`;
         });
 
-        updateNavigationState();
+        loadModuleDisplayNames().finally(() => {
+            updateNavigationState();
+            updateStatus();
+        });
     </script>
 </body>
 </html>

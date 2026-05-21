@@ -236,6 +236,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
         throw error;
       });
   },
+  getModuleNameConfig: () => {
+    return ipcRenderer
+      .invoke('get-module-name-config')
+      .catch((error) => {
+        handleIpcError('getModuleNameConfig', error, null);
+        throw error;
+      });
+  },
+  setModuleNameConfig: (newConfig) => {
+    return ipcRenderer
+      .invoke('set-module-name-config', newConfig)
+      .catch((error) => {
+        handleIpcError('setModuleNameConfig', error, null);
+        throw error;
+      });
+  },
   uploadLogo: (filePath) => {
     return ipcRenderer
       .invoke('upload-logo', filePath)

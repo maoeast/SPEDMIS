@@ -47,6 +47,21 @@ const entryModuleConfig = {
     configFileName: 'entry-module.json',
 };
 
+const moduleNameConfig = {
+    defaults: {
+        moduleNames: {
+            sensoryIntegration: '感知觉统合领域',
+            executiveFunction: '执行功能领域',
+            socialCommunication: '社交沟通领域',
+            adaptiveLiving: '生活适应领域',
+            emotionalBehavior: '情绪行为领域',
+            iep: '综合测评领域',
+            psy: 'AI 心理测评',
+        },
+    },
+    configFileName: 'module-names.json',
+};
+
 const logoConfig = {
     // 支持的图片格式
     supportedFormats: ['.png', '.jpg', '.jpeg', '.gif', '.ico'],
@@ -101,6 +116,30 @@ function getEntryModuleConfigPath() {
             activationConfig.appDataDirName,
             productNameConfig.configDirName,
             entryModuleConfig.configFileName
+        );
+    }
+
+    return storagePath;
+}
+
+function getModuleNameConfigPath() {
+    let storagePath;
+
+    if (process.platform === 'win32') {
+        storagePath = path.join(
+            app.getPath('appData'),
+            activationConfig.appDataDirName,
+            productNameConfig.configDirName,
+            moduleNameConfig.configFileName
+        );
+    } else {
+        storagePath = path.join(
+            app.getPath('home'),
+            'Library',
+            'Application Support',
+            activationConfig.appDataDirName,
+            productNameConfig.configDirName,
+            moduleNameConfig.configFileName
         );
     }
 
@@ -297,6 +336,8 @@ const ipcChannels = {
     getProductConfig: 'get-product-config',
     getEntryModuleConfig: 'get-entry-module-config',
     setEntryModuleConfig: 'set-entry-module-config',
+    getModuleNameConfig: 'get-module-name-config',
+    setModuleNameConfig: 'set-module-name-config',
 
     // Logo 相关
     uploadLogo: 'upload-logo',
@@ -463,6 +504,8 @@ module.exports = {
     getProductNameConfigPath,
     entryModuleConfig,
     getEntryModuleConfigPath,
+    moduleNameConfig,
+    getModuleNameConfigPath,
     logoConfig,
     loggingConfig,
     logMessages,

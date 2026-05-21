@@ -7,219 +7,323 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="./fontawesome/css/all.min.css">
     <style>
-        body.advanced-settings-page {
-            background-image: url('images/appback.png');
+        :root {
+            --page-bg: #edf3fb;
+            --panel: rgba(255, 255, 255, 0.94);
+            --line: rgba(31, 79, 126, 0.14);
+            --ink: #17324d;
+            --muted: #60758d;
+            --accent: #1274d9;
+            --danger: #d84d61;
+            --success: #149a73;
+            --warning: #cb8614;
+            --shadow: 0 28px 70px rgba(22, 54, 92, 0.16);
         }
 
-        .advanced-settings-container {
-            max-width: 800px;
-            margin: 80px auto 80px;
-            padding: 20px;
-        }
-
-        .settings-header {
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 30px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .settings-header h2 {
-            margin: 0;
-            font-size: 24px;
-        }
-
-        .settings-form {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .form-section {
-            margin-bottom: 30px;
-            padding-bottom: 30px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .form-section:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #0078d4;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #333;
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="file"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
+        * {
             box-sizing: border-box;
         }
 
-        .form-group input[type="text"]:focus {
-            outline: none;
-            border-color: #0078d4;
-            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.1);
+        body.advanced-settings-page {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(18, 116, 217, 0.14), transparent 24%),
+                linear-gradient(180deg, #f6f9fd 0%, var(--page-bg) 100%);
         }
 
-        .form-group small {
-            display: block;
-            color: #999;
+        .advanced-shell {
+            max-width: 1520px;
+            margin: 0 auto;
+            padding: 86px 28px 40px;
+        }
+
+        .workspace,
+        .message {
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 230px minmax(0, 1fr);
+            overflow: hidden;
+        }
+
+        .sidebar {
+            padding: 18px 14px;
+            background: linear-gradient(180deg, #f7fbff 0%, #edf5fd 100%);
+            border-right: 1px solid var(--line);
+        }
+
+        .sidebar-title,
+        .section-label,
+        .field-label,
+        .stat-label {
             font-size: 12px;
-            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b8199;
         }
 
-        .info-box {
-            background: #f5f5f5;
-            padding: 12px;
-            border-radius: 4px;
+        .nav-item {
+            width: 100%;
+            margin-top: 8px;
+            padding: 12px 12px;
+            border-radius: 14px;
+            border: 1px solid transparent;
+            background: transparent;
+            text-align: left;
+            color: #47617b;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .nav-item.active {
+            background: rgba(18, 116, 217, 0.1);
+            border-color: rgba(18, 116, 217, 0.16);
+            color: #1274d9;
+            font-weight: 700;
+        }
+
+        .content {
+            padding: 20px;
+            background: linear-gradient(180deg, #ffffff 0%, #f9fbfe 100%);
+        }
+
+        .message {
+            display: none;
             margin-bottom: 16px;
-            color: #666;
-            font-size: 13px;
+            padding: 14px 16px;
+            border-radius: 18px;
         }
 
-        .radio-group {
+        .message.show {
+            display: block;
+        }
+
+        .message.success {
+            border-color: rgba(20, 154, 115, 0.18);
+            background: rgba(20, 154, 115, 0.1);
+            color: var(--success);
+        }
+
+        .message.error {
+            border-color: rgba(216, 77, 97, 0.18);
+            background: rgba(216, 77, 97, 0.1);
+            color: var(--danger);
+        }
+
+        .message.info {
+            border-color: rgba(18, 116, 217, 0.18);
+            background: rgba(18, 116, 217, 0.08);
+            color: #1274d9;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .section-head h2 {
+            margin: 0 0 8px;
+            font-size: 28px;
+        }
+
+        .section-head p,
+        .field-hint,
+        .field-error,
+        .entry-option span,
+        .helper-text {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .panel-note,
+        .field-card,
+        .entry-option,
+        .stat-box {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+        }
+
+        .panel-note {
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--warning);
+            background: rgba(203, 134, 20, 0.14);
+            border-color: rgba(203, 134, 20, 0.16);
+            white-space: nowrap;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .field-card {
+            padding: 16px;
+        }
+
+        .field-card.wide {
+            grid-column: 1 / -1;
+        }
+
+        .field-card input[type="text"],
+        .field-card input[type="file"] {
+            width: 100%;
+            margin-top: 10px;
+            padding: 13px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(18, 116, 217, 0.16);
+            background: #f7fbff;
+            font-size: 14px;
+            color: var(--ink);
+        }
+
+        .field-card input[type="text"].invalid {
+            border-color: rgba(216, 77, 97, 0.28);
+            background: #fff7f8;
+        }
+
+        .field-card input[type="text"]:focus {
+            outline: none;
+            border-color: rgba(18, 116, 217, 0.4);
+            box-shadow: 0 0 0 3px rgba(18, 116, 217, 0.12);
+        }
+
+        .field-hint,
+        .field-error {
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .field-error {
+            color: var(--danger);
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            padding: 14px;
+        }
+
+        .stat-value {
+            display: block;
+            margin-top: 6px;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .entry-options {
             display: grid;
             gap: 12px;
-            margin-top: 12px;
+            margin-top: 16px;
         }
 
-        .radio-option {
+        .entry-option {
             display: flex;
             align-items: flex-start;
             gap: 12px;
             padding: 14px 16px;
-            border: 1px solid #d7d7d7;
-            border-radius: 8px;
             cursor: pointer;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .radio-option:hover {
-            border-color: #0078d4;
-            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.08);
+        .entry-option:hover {
+            border-color: rgba(18, 116, 217, 0.22);
+            box-shadow: 0 0 0 3px rgba(18, 116, 217, 0.08);
         }
 
-        .radio-option input {
-            margin-top: 3px;
-        }
-
-        .radio-option strong {
+        .entry-option strong {
             display: block;
-            color: #222;
             margin-bottom: 4px;
+            color: var(--ink);
         }
 
-        .radio-option span {
-            display: block;
-            color: #666;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
+        .action-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 18px;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 12px 14px;
             border: none;
-            border-radius: 6px;
-            cursor: pointer;
+            border-radius: 14px;
             font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            flex: 1;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, opacity 0.18s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            transform: none;
         }
 
         .btn-primary {
-            background: #0078d4;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #005a9e;
-        }
-
-        .btn-primary:disabled {
-            background: #ccc;
-            cursor: not-allowed;
+            background: linear-gradient(90deg, #1274d9 0%, #2892ee 100%);
+            color: #fff;
         }
 
         .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-            border: 1px solid #ccc;
+            background: #f2f7fc;
+            border: 1px solid rgba(18, 116, 217, 0.14);
+            color: #45617e;
         }
 
-        .btn-secondary:hover {
-            background: #e0e0e0;
+        .btn-danger {
+            background: #fff7f8;
+            border: 1px solid rgba(216, 77, 97, 0.18);
+            color: var(--danger);
         }
 
-        .message {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            display: none;
-            animation: slideDown 0.3s ease;
+        .helper-text {
+            font-size: 13px;
         }
 
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
+        .placeholder-panel {
+            padding: 18px;
+            border-radius: 16px;
+            border: 1px dashed rgba(18, 116, 217, 0.24);
+            background: rgba(18, 116, 217, 0.04);
+        }
+
+        @media (max-width: 1320px) {
+            .workspace {
+                grid-template-columns: 210px 1fr;
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.success {
-            background: #efe;
-            border: 1px solid #cfc;
-            color: #3c3;
-            display: block;
-        }
-
-        .message.error {
-            background: #fee;
-            border: 1px solid #fcc;
-            color: #c33;
-            display: block;
-        }
-
-        .message.info {
-            background: #eef;
-            border: 1px solid #ccf;
-            color: #33c;
-            display: block;
         }
     </style>
 </head>
@@ -234,115 +338,166 @@
         <span>退出</span>
     </div>
 
-    <div class="advanced-settings-container">
-        <div class="settings-header">
-            <h2>
-                <i class="fas fa-cog"></i>
-                高级设置
-            </h2>
-        </div>
+    <div class="advanced-shell">
+        <div class="workspace">
+            <aside class="sidebar">
+                <div class="sidebar-title">设置分组</div>
+                <button class="nav-item active" data-section-target="brandingSection" type="button">品牌信息</button>
+                <button class="nav-item" data-section-target="entrySection" type="button">首页模块</button>
+                <button class="nav-item" data-section-target="moduleNamesSection" type="button">7 大模块命名</button>
+                <button class="nav-item" data-section-target="maintenanceSection" type="button">系统维护</button>
+            </aside>
 
-        <div class="settings-form">
-            <div id="settingsMessage" class="message"></div>
+            <main class="content">
+                <div id="settingsMessage" class="message"></div>
 
-            <div class="form-section">
-                <div class="section-title">
-                    <i class="fas fa-image"></i>
-                    Logo 设置
-                </div>
-                <div class="info-box">
-                    支持 PNG、JPG、JPEG、GIF、ICO 格式，最大 2MB
-                </div>
-                <div class="form-group">
-                    <label for="logoFile">选择 Logo 文件</label>
-                    <input type="file" id="logoFile" accept="image/*" />
-                </div>
-                <div class="button-group">
-                    <button class="btn btn-primary" onclick="uploadLogo()">
-                        <i class="fas fa-upload"></i> 上传 Logo
-                    </button>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="section-title">
-                    <i class="fas fa-signature"></i>
-                    产品信息
-                </div>
-                <div class="form-group">
-                    <label for="productFullName">产品全名</label>
-                    <input type="text" id="productFullName" placeholder="输入产品全名" />
-                </div>
-                <div class="form-group">
-                    <label for="productEngName">英文产品名</label>
-                    <input type="text" id="productEngName" placeholder="输入英文产品名，如 Special Education Multimodal Intervention System" />
-                </div>
-                <div class="form-group">
-                    <label for="productShortName">产品简称</label>
-                    <input type="text" id="productShortName" placeholder="输入产品简称（建议 10 个字符以内）" maxlength="10" />
-                </div>
-                <div class="form-group">
-                    <label for="productOrganization">组织名称</label>
-                    <input type="text" id="productOrganization" placeholder="输入组织名称" />
-                </div>
-                <div class="form-group">
-                    <label for="productCopyright">版权信息</label>
-                    <input type="text" id="productCopyright" placeholder="输入版权信息，如 漏2013-2025" />
-                </div>
-                <div class="button-group">
-                    <button class="btn btn-primary" onclick="saveProductInfo()">
-                        <i class="fas fa-save"></i> 保存修改
-                    </button>
-                    <button class="btn btn-secondary" onclick="reloadProductInfo()">
-                        <i class="fas fa-redo"></i> 重新加载
-                    </button>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <div class="section-title">
-                    <i class="fas fa-th-large"></i>
-                    主界面入口模块
-                </div>
-                <div class="info-box">
-                    “AI心理测验”和“综合测评领域”不会同时显示在主界面。请在以下三种状态中选择一种。
-                </div>
-                <div class="radio-group">
-                    <label class="radio-option" for="entryModulePsy">
-                        <input type="radio" id="entryModulePsy" name="entryModuleSelection" value="psy">
+                <section class="section active" id="brandingSection">
+                    <div class="section-head">
                         <div>
-                            <strong>显示 AI心理测验</strong>
-                            <span>主界面显示 “AI心理测验”，点击后打开 `psy-login.html`。</span>
+                            <h2>品牌信息</h2>
+                            <p>维护系统名称、简称、英文名、机构名称和版权信息。</p>
                         </div>
-                    </label>
-                    <label class="radio-option" for="entryModuleIep">
-                        <input type="radio" id="entryModuleIep" name="entryModuleSelection" value="iep">
+                        <div class="panel-note">保存后当前页会刷新以应用最新文案</div>
+                    </div>
+
+                    <div class="field-grid">
+                        <div class="field-card">
+                            <div class="field-label">产品全名</div>
+                            <input type="text" id="productFullName" placeholder="请输入产品全名" />
+                        </div>
+                        <div class="field-card">
+                            <div class="field-label">产品简称</div>
+                            <input type="text" id="productShortName" placeholder="建议 10 个字以内" maxlength="10" />
+                        </div>
+                        <div class="field-card">
+                            <div class="field-label">英文名称</div>
+                            <input type="text" id="productEngName" placeholder="请输入英文名称" />
+                        </div>
+                        <div class="field-card">
+                            <div class="field-label">机构名称</div>
+                            <input type="text" id="productOrganization" placeholder="请输入机构名称" />
+                        </div>
+                        <div class="field-card wide">
+                            <div class="field-label">版权信息</div>
+                            <input type="text" id="productCopyright" placeholder="请输入版权信息，如 ©2013-2025" />
+                        </div>
+                        <div class="field-card wide">
+                            <div class="field-label">Logo 设置</div>
+                            <input type="file" id="logoFile" accept="image/*" />
+                            <div class="field-hint">支持 PNG、JPG、JPEG、GIF、ICO，建议控制在 2MB 以内。</div>
+                        </div>
+                    </div>
+
+                    <div class="action-row">
+                        <button class="btn btn-primary" type="button" onclick="saveProductInfo()">保存品牌信息</button>
+                        <button class="btn btn-secondary" type="button" onclick="reloadProductInfo()">重新加载</button>
+                        <button class="btn btn-secondary" type="button" onclick="uploadLogo()">上传 Logo</button>
+                    </div>
+                </section>
+
+                <section class="section" id="entrySection">
+                    <div class="section-head">
                         <div>
-                            <strong>显示 综合测评领域</strong>
-                            <span>主界面显示 “综合测评领域”，点击后打开 `iep/index.html`。</span>
+                            <h2>首页模块</h2>
+                            <p>控制首页可选入口模块的显示方式。这里的模块名称会读取当前“7 大模块命名”配置。</p>
                         </div>
-                    </label>
-                    <label class="radio-option" for="entryModuleNone">
-                        <input type="radio" id="entryModuleNone" name="entryModuleSelection" value="none">
+                        <div class="panel-note">AI 心理测评与综合测评领域不会同时显示</div>
+                    </div>
+
+                    <div class="entry-options">
+                        <label class="entry-option" for="entryModulePsy">
+                            <input type="radio" id="entryModulePsy" name="entryModuleSelection" value="psy">
+                            <div>
+                                <strong id="entryModulePsyLabel">显示 AI 心理测评</strong>
+                                <span>首页显示当前 psy 模块名称，点击后打开 `psy-login.html`。</span>
+                            </div>
+                        </label>
+                        <label class="entry-option" for="entryModuleIep">
+                            <input type="radio" id="entryModuleIep" name="entryModuleSelection" value="iep">
+                            <div>
+                                <strong id="entryModuleIepLabel">显示 综合测评领域</strong>
+                                <span>首页显示当前 iep 模块名称，点击后打开 `iep/index.html`。</span>
+                            </div>
+                        </label>
+                        <label class="entry-option" for="entryModuleNone">
+                            <input type="radio" id="entryModuleNone" name="entryModuleSelection" value="none">
+                            <div>
+                                <strong>两者都不显示</strong>
+                                <span>首页仅保留 5 个固定领域模块。</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="action-row">
+                        <button class="btn btn-primary" type="button" onclick="saveEntryModuleSetting()">保存入口设置</button>
+                        <button class="btn btn-secondary" type="button" onclick="loadEntryModuleConfig()">重新加载</button>
+                        <div></div>
+                    </div>
+                </section>
+
+                <section class="section" id="moduleNamesSection">
+                    <div class="section-head">
                         <div>
-                            <strong>两者都不显示</strong>
-                            <span>主界面仅保留原有五个固定领域模块。</span>
+                            <h2>7 大模块命名</h2>
+                            <p>修改后会同步影响首页模块卡片、模块详情页标题、IEP 标题以及高级设置内相关模块名称展示。</p>
                         </div>
-                    </label>
-                </div>
-                <div class="button-group">
-                    <button class="btn btn-primary" onclick="saveEntryModuleSetting()">
-                        <i class="fas fa-save"></i> 保存入口设置
-                    </button>
-                    <button class="btn btn-secondary" onclick="loadEntryModuleConfig()">
-                        <i class="fas fa-redo"></i> 重新加载
-                    </button>
-                </div>
-            </div>
+                        <div class="panel-note">不能为空，且去除前后空格后不能重复</div>
+                    </div>
+
+                    <div class="stats-row">
+                        <div class="stat-box">
+                            <div class="stat-label">模块总数</div>
+                            <span class="stat-value">7</span>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">当前有效项</div>
+                            <span class="stat-value" id="moduleNamesValidCount">7</span>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">当前错误数</div>
+                            <span class="stat-value" id="moduleNamesErrorCount">0</span>
+                        </div>
+                    </div>
+
+                    <div class="field-grid" id="moduleNamesFields"></div>
+
+                    <div class="action-row">
+                        <button class="btn btn-danger" type="button" onclick="resetModuleNamesToDefaults()">恢复默认命名</button>
+                        <button class="btn btn-secondary" type="button" onclick="reloadModuleNameConfig()">撤销未保存修改</button>
+                        <button class="btn btn-primary" id="saveModuleNamesButton" type="button" onclick="saveModuleNameConfig()">保存并全系统生效</button>
+                    </div>
+                </section>
+
+                <section class="section" id="maintenanceSection">
+                    <div class="section-head">
+                        <div>
+                            <h2>系统维护</h2>
+                            <p>本次改版先预留位置，避免后续新设置再次挤回长页面结构。</p>
+                        </div>
+                    </div>
+
+                    <div class="placeholder-panel">
+                        <div class="helper-text">后续如需加入缓存清理、统计入口、管理员维护项，可直接放入此分组。</div>
+                    </div>
+                </section>
+            </main>
         </div>
     </div>
 
     <script>
+        const MODULE_NAME_META = [
+            { key: 'sensoryIntegration', label: '模块 01', defaultName: '感知觉统合领域' },
+            { key: 'executiveFunction', label: '模块 02', defaultName: '执行功能领域' },
+            { key: 'socialCommunication', label: '模块 03', defaultName: '社交沟通领域' },
+            { key: 'adaptiveLiving', label: '模块 04', defaultName: '生活适应领域' },
+            { key: 'emotionalBehavior', label: '模块 05', defaultName: '情绪行为领域' },
+            { key: 'iep', label: '模块 06', defaultName: '综合测评领域' },
+            { key: 'psy', label: '模块 07', defaultName: 'AI 心理测评' },
+        ];
+
+        let currentModuleNames = {};
+        let persistedModuleNames = {};
+
         function goBack() {
             window.location.href = 'index.html';
         }
@@ -357,11 +512,12 @@
 
         function showMessage(message, type) {
             const messageElement = document.getElementById('settingsMessage');
-            messageElement.className = 'message ' + type;
+            messageElement.className = `message show ${type}`;
             messageElement.textContent = message;
             setTimeout(() => {
                 messageElement.className = 'message';
-            }, 3000);
+                messageElement.textContent = '';
+            }, 3200);
         }
 
         function setSelectedEntryModule(selectedModule) {
@@ -379,17 +535,108 @@
             return selectedRadio ? selectedRadio.value : 'iep';
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                await Promise.all([
-                    loadProductInfo(),
-                    loadEntryModuleConfig(),
-                ]);
-            } catch (error) {
-                showMessage('加载高级设置失败: ' + error.message, 'error');
-                console.error('加载高级设置失败:', error);
-            }
-        });
+        function updateEntryModuleLabels() {
+            document.getElementById('entryModulePsyLabel').textContent = `显示 ${currentModuleNames.psy || 'AI 心理测评'}`;
+            document.getElementById('entryModuleIepLabel').textContent = `显示 ${currentModuleNames.iep || '综合测评领域'}`;
+        }
+
+        function activateSection(sectionId) {
+            document.querySelectorAll('.nav-item').forEach((item) => {
+                item.classList.toggle('active', item.dataset.sectionTarget === sectionId);
+            });
+
+            document.querySelectorAll('.section').forEach((section) => {
+                section.classList.toggle('active', section.id === sectionId);
+            });
+        }
+
+        function buildModuleNameField(meta) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'field-card';
+            wrapper.innerHTML = `
+                <div class="field-label">${meta.label}</div>
+                <div class="helper-text">${meta.key}</div>
+                <input type="text" id="moduleName_${meta.key}" data-module-key="${meta.key}" placeholder="${meta.defaultName}" />
+                <div class="field-hint">默认名称：${meta.defaultName}</div>
+                <div class="field-error" id="moduleNameError_${meta.key}"></div>
+            `;
+            return wrapper;
+        }
+
+        function renderModuleNameFields() {
+            const container = document.getElementById('moduleNamesFields');
+            container.innerHTML = '';
+
+            MODULE_NAME_META.forEach((meta) => {
+                const field = buildModuleNameField(meta);
+                container.appendChild(field);
+            });
+
+            MODULE_NAME_META.forEach((meta) => {
+                const input = document.getElementById(`moduleName_${meta.key}`);
+                input.value = currentModuleNames[meta.key] || meta.defaultName;
+                input.addEventListener('input', () => {
+                    currentModuleNames[meta.key] = input.value;
+                    validateModuleNameForm();
+                    updateEntryModuleLabels();
+                });
+            });
+
+            validateModuleNameForm();
+        }
+
+        function getModuleNameFormValues() {
+            const values = {};
+            MODULE_NAME_META.forEach((meta) => {
+                values[meta.key] = document.getElementById(`moduleName_${meta.key}`).value.trim();
+            });
+            return values;
+        }
+
+        function validateModuleNameForm() {
+            const values = getModuleNameFormValues();
+            const normalizedEntries = Object.entries(values);
+            const errors = {};
+            const duplicateMap = new Map();
+
+            normalizedEntries.forEach(([key, value]) => {
+                if (!value) {
+                    errors[key] = '模块名称不能为空。';
+                    return;
+                }
+
+                duplicateMap.set(value, [...(duplicateMap.get(value) || []), key]);
+            });
+
+            duplicateMap.forEach((keys, value) => {
+                if (keys.length > 1) {
+                    keys.forEach((key) => {
+                        errors[key] = `与“${value}”重复，请修改为唯一名称。`;
+                    });
+                }
+            });
+
+            MODULE_NAME_META.forEach((meta) => {
+                const input = document.getElementById(`moduleName_${meta.key}`);
+                const error = document.getElementById(`moduleNameError_${meta.key}`);
+                const message = errors[meta.key] || '';
+
+                input.classList.toggle('invalid', Boolean(message));
+                error.textContent = message;
+            });
+
+            const errorCount = Object.keys(errors).length;
+            const validCount = MODULE_NAME_META.length - errorCount;
+            document.getElementById('moduleNamesValidCount').textContent = String(validCount);
+            document.getElementById('moduleNamesErrorCount').textContent = String(errorCount);
+            document.getElementById('saveModuleNamesButton').disabled = errorCount > 0;
+
+            return {
+                isValid: errorCount === 0,
+                values,
+                errors,
+            };
+        }
 
         async function loadProductInfo() {
             try {
@@ -422,6 +669,26 @@
             setSelectedEntryModule('iep');
         }
 
+        async function loadModuleNameConfig() {
+            try {
+                const result = await window.electronAPI.getModuleNameConfig();
+                if (result.success && result.data?.moduleNames) {
+                    currentModuleNames = { ...result.data.moduleNames };
+                    persistedModuleNames = { ...result.data.moduleNames };
+                } else {
+                    currentModuleNames = Object.fromEntries(MODULE_NAME_META.map((meta) => [meta.key, meta.defaultName]));
+                    persistedModuleNames = { ...currentModuleNames };
+                }
+            } catch (error) {
+                console.error('加载模块名称配置失败:', error);
+                currentModuleNames = Object.fromEntries(MODULE_NAME_META.map((meta) => [meta.key, meta.defaultName]));
+                persistedModuleNames = { ...currentModuleNames };
+            }
+
+            renderModuleNameFields();
+            updateEntryModuleLabels();
+        }
+
         async function uploadLogo() {
             const fileInput = document.getElementById('logoFile');
             if (!fileInput.files.length) {
@@ -429,13 +696,7 @@
                 return;
             }
 
-            try {
-                showMessage('上传中...', 'info');
-                showMessage('上传成功', 'success');
-                fileInput.value = '';
-            } catch (error) {
-                showMessage('上传失败: ' + error.message, 'error');
-            }
+            showMessage('当前版本仅保留 Logo 上传入口，后续将接入文件路径上传流程。', 'info');
         }
 
         async function saveProductInfo() {
@@ -445,83 +706,116 @@
             const organization = document.getElementById('productOrganization').value.trim();
             const copyright = document.getElementById('productCopyright').value.trim();
 
-            if (!fullName) {
-                showMessage('请输入产品全名', 'error');
-                return;
-            }
-
-            if (!engName) {
-                showMessage('请输入英文产品名', 'error');
-                return;
-            }
-
-            if (!shortName) {
-                showMessage('请输入产品简称', 'error');
-                return;
-            }
-
-            if (!organization) {
-                showMessage('请输入组织名称', 'error');
-                return;
-            }
-
-            if (!copyright) {
-                showMessage('请输入版权信息', 'error');
+            if (!fullName || !engName || !shortName || !organization || !copyright) {
+                showMessage('品牌信息中的所有字段都需要填写。', 'error');
                 return;
             }
 
             try {
-                showMessage('保存中...', 'info');
+                showMessage('正在保存品牌信息...', 'info');
                 const result = await window.electronAPI.setProductName({
                     fullName,
                     engName,
                     shortName,
                     organization,
-                    copyright
+                    copyright,
                 });
 
                 if (result.success) {
-                    showMessage('产品信息已保存，页面将刷新', 'success');
+                    showMessage('品牌信息已保存，页面即将刷新。', 'success');
                     setTimeout(() => {
                         location.reload();
-                    }, 1200);
+                    }, 1000);
                 } else {
-                    showMessage('保存失败: ' + result.error, 'error');
+                    showMessage('保存品牌信息失败: ' + result.error, 'error');
                 }
             } catch (error) {
-                showMessage('保存失败: ' + error.message, 'error');
+                showMessage('保存品牌信息失败: ' + error.message, 'error');
             }
         }
 
         async function reloadProductInfo() {
-            try {
-                showMessage('重新加载中...', 'info');
-                await loadProductInfo();
-                showMessage('已重新加载当前保存的产品信息', 'success');
-            } catch (error) {
-                showMessage('重新加载失败: ' + error.message, 'error');
-            }
+            await loadProductInfo();
+            showMessage('已重新加载当前保存的品牌信息。', 'success');
         }
 
         async function saveEntryModuleSetting() {
             const selectedModule = getSelectedEntryModule();
 
             try {
-                showMessage('保存入口设置中...', 'info');
-                const result = await window.electronAPI.setEntryModuleConfig({
-                    selectedModule,
-                });
+                showMessage('正在保存入口设置...', 'info');
+                const result = await window.electronAPI.setEntryModuleConfig({ selectedModule });
 
                 if (result.success) {
                     setSelectedEntryModule(result.data.selectedModule || selectedModule);
-                    showMessage('主界面入口模块设置已保存', 'success');
+                    showMessage('首页入口模块设置已保存。', 'success');
                 } else {
-                    showMessage('保存入口设置失败: ' + result.error, 'error');
+                    showMessage('保存入口模块设置失败: ' + result.error, 'error');
                 }
             } catch (error) {
-                showMessage('保存入口设置失败: ' + error.message, 'error');
+                showMessage('保存入口模块设置失败: ' + error.message, 'error');
             }
         }
+
+        async function saveModuleNameConfig() {
+            const validation = validateModuleNameForm();
+            if (!validation.isValid) {
+                showMessage('请先修正模块名称中的空值或重名问题。', 'error');
+                return;
+            }
+
+            try {
+                showMessage('正在保存模块名称...', 'info');
+                const result = await window.electronAPI.setModuleNameConfig({
+                    moduleNames: validation.values,
+                });
+
+                if (result.success && result.data?.moduleNames) {
+                    currentModuleNames = { ...result.data.moduleNames };
+                    persistedModuleNames = { ...result.data.moduleNames };
+                    renderModuleNameFields();
+                    updateEntryModuleLabels();
+                    showMessage('模块名称已保存，并会在首页、模块页和 IEP 标题中生效。', 'success');
+                } else {
+                    showMessage('保存模块名称失败: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('保存模块名称失败: ' + error.message, 'error');
+            }
+        }
+
+        function resetModuleNamesToDefaults() {
+            currentModuleNames = Object.fromEntries(MODULE_NAME_META.map((meta) => [meta.key, meta.defaultName]));
+            renderModuleNameFields();
+            updateEntryModuleLabels();
+            showMessage('已恢复为默认模块命名，尚未保存。', 'info');
+        }
+
+        function reloadModuleNameConfig() {
+            currentModuleNames = { ...persistedModuleNames };
+            renderModuleNameFields();
+            updateEntryModuleLabels();
+            showMessage('已撤销未保存的模块名称修改。', 'success');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.querySelectorAll('.nav-item').forEach((button) => {
+                button.addEventListener('click', () => {
+                    activateSection(button.dataset.sectionTarget);
+                });
+            });
+
+            try {
+                await Promise.all([
+                    loadProductInfo(),
+                    loadEntryModuleConfig(),
+                    loadModuleNameConfig(),
+                ]);
+            } catch (error) {
+                showMessage('加载高级设置失败: ' + error.message, 'error');
+                console.error('加载高级设置失败:', error);
+            }
+        });
     </script>
 </body>
 </html>

@@ -7,6 +7,7 @@
     <title>模块详情 - 特殊教育多模态干预系统</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="./fontawesome/css/all.min.css">
+    <script src="modules/home-modules.js"></script>
 </head>
 
 <body class="module-page">
@@ -207,6 +208,18 @@ alert('此功能仅在桌面应用中可用');
                 this.init();
             }
 
+            async loadModuleNames() {
+                try {
+                    const result = await window.electronAPI.getModuleNameConfig();
+                    return result.success && result.data?.moduleNames
+                        ? result.data.moduleNames
+                        : {};
+                } catch (error) {
+                    console.warn('加载模块名称配置失败，将回退为默认模块名称:', error);
+                    return {};
+                }
+            }
+
             async init() {
                 this.showLoading(true);
                 try {
@@ -228,36 +241,28 @@ alert('此功能仅在桌面应用中可用');
                     
                     // 获取URL参数
                     const urlParams = new URLSearchParams(window.location.search);
-                    this.domain = decodeURIComponent(urlParams.get('domain'));
-                    window.currentDomain = this.domain; // 保存到全局变量供后续使用
+                    const legacyDomain = decodeURIComponent(urlParams.get('domain') || '');
+                    this.moduleNames = await this.loadModuleNames();
+
+                    this.moduleKey = window.homeModules.resolveModuleKey(
+                        urlParams.get('moduleKey'),
+                        legacyDomain,
+                        this.moduleNames
+                    );
+
+                    const moduleMeta = window.homeModules.getModuleMeta(this.moduleKey, this.moduleNames);
+                    if (!moduleMeta) {
+                        throw new Error('未找到对应的模块配置');
+                    }
+
+                    this.domain = moduleMeta.canonicalDomain;
+                    this.displayName = moduleMeta.displayName;
+                    window.currentDomain = this.displayName;
 
                     // 设置模块标题和图标
                     const moduleTitleElement = document.getElementById('moduleTitle');
-                    let iconClass = 'fas fa-cube'; // 默认图标
-
-                    // 根据模块名称设置不同的图标
-                    switch (this.domain) {
-                        case '感知觉统合领域':
-                            iconClass = 'fas fa-brain';
-                            break;
-                        case '执行功能领域':
-                            iconClass = 'fas fa-tasks';
-                            break;
-                        case '社交沟通领域':
-                            iconClass = 'fas fa-users';
-                            break;
-                        case '生活适应领域':
-                            iconClass = 'fas fa-lightbulb';
-                            break;
-                        case '情绪行为领域':
-                            iconClass = 'fas fa-grin-beam';
-                            break;
-                        case 'AI 心理测验':
-                            iconClass = 'fas fa-heart';
-                            break;
-                    }
-
-                    moduleTitleElement.innerHTML = `<i class="${iconClass}" style="margin-right: 10px;"></i>${this.domain}`;
+                    const iconClass = window.homeModules.getModuleIconClass(this.moduleKey);
+                    moduleTitleElement.innerHTML = `<i class="${iconClass}" style="margin-right: 10px;"></i>${this.displayName}`;
 
                     // 获取模块分类数据
                     this.categories = await window.electronAPI.getModuleCategories(this.domain);

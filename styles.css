@@ -161,6 +161,41 @@ body.module-page {
     transform: scale(1.1);
 }
 
+.module-card[data-module="sensoryIntegration"]::before {
+    background-image: linear-gradient(45deg, rgba(250, 130, 120, 0.9), rgba(200, 80, 70, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="executiveFunction"]::before {
+    background-image: linear-gradient(45deg, rgba(8, 196, 235, 0.9), rgba(0, 150, 200, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="socialCommunication"]::before {
+    background-image: linear-gradient(45deg, rgba(204, 223, 94, 0.9), rgba(170, 190, 70, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="adaptiveLiving"]::before {
+    background-image: linear-gradient(45deg, rgba(15, 212, 194, 0.9), rgba(10, 170, 155, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="emotionalBehavior"]::before {
+    background-image: linear-gradient(45deg, rgba(255, 203, 58, 0.9), rgba(220, 170, 40, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="psy"]::before {
+    background-image: linear-gradient(45deg, rgba(223, 153, 240, 0.9), rgba(190, 120, 210, 0.9));
+    opacity: 0.8;
+}
+
+.module-card[data-module="iep"]::before {
+    background-image: linear-gradient(45deg, rgba(126, 167, 255, 0.9), rgba(76, 123, 221, 0.9));
+    opacity: 0.8;
+}
+
 .module-icon {
     width: 80px;
     height: 80px;

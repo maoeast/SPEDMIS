@@ -6,6 +6,7 @@ const { getGlobalCacheManager } = require('./cache');
 const { getLogger } = require('./logger');
 const productNameManager = require('./modules/product-name-manager');
 const entryModuleManager = require('./modules/entry-module-manager');
+const moduleNameManager = require('./modules/module-name-manager');
 const logoHandler = require('./modules/logo-handler');
 const usageStats = require('./modules/usage-stats');
 const permissionManager = require('./modules/permission-manager');
@@ -15,9 +16,9 @@ const machineCodeManager = require('./modules/machine-code-manager');
 const vmDetector = require('./modules/vm-detector');
 
 let mainWindow;
+let iepWindow = null;
 let psyseenView = null;  // AI 心理测验 BrowserView（已废弃，保留兼容）
 let psyseenWindow = null;  // AI 心理测验独立窗口
-let iepWindow = null;  // 综合测评领域独立窗口
 const logger = getLogger('MAIN');
 
 function normalizeComparableHardwareValue(value) {
@@ -483,12 +484,34 @@ ipcMain.handle(config.ipcChannels.getEntryModuleConfig, async () => {
 ipcMain.handle(config.ipcChannels.setEntryModuleConfig, async (event, newConfig) => {
   try {
     logger.info('Entry module config update request received', {
-      selectedModule: newConfig?.selectedModule
+      selectedModule: newConfig?.selectedModule,
     });
     const updatedConfig = entryModuleManager.setEntryModuleConfig(newConfig);
     return { success: true, data: updatedConfig };
   } catch (error) {
     logger.error('Failed to set entry module config', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(config.ipcChannels.getModuleNameConfig, async () => {
+  try {
+    logger.debug('Module name config request received');
+    const moduleNameConfig = moduleNameManager.getModuleNameConfig();
+    return { success: true, data: moduleNameConfig };
+  } catch (error) {
+    logger.error('Failed to get module name config', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(config.ipcChannels.setModuleNameConfig, async (event, newConfig) => {
+  try {
+    logger.info('Module name config update request received');
+    const updatedConfig = moduleNameManager.setModuleNameConfig(newConfig);
+    return { success: true, data: updatedConfig };
+  } catch (error) {
+    logger.error('Failed to set module name config', { error: error.message });
     return { success: false, error: error.message };
   }
 });

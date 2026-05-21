@@ -54,5 +54,20 @@ tmp/
 flash/
 *.exe
 
+# Superpowers / AI config
+.superpowers/
+
+# Documentation drafts
+docs/
+
+# Tools
+tools/
+
+# Test files
+test/
+
+# Temp
+.tmp/
+
 # Windows reserved
 nul

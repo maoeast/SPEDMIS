@@ -573,6 +573,23 @@
     </div>
     
     <script>
+        async function applyConfiguredPsyTitle() {
+            try {
+                const result = await window.electronAPI.getModuleNameConfig();
+                const psyDisplayName = result.success && result.data?.moduleNames?.psy
+                    ? result.data.moduleNames.psy
+                    : 'AI 心理测评';
+
+                document.title = `${psyDisplayName}登录`;
+                const bannerTitle = document.querySelector('.banner-title');
+                if (bannerTitle) {
+                    bannerTitle.textContent = psyDisplayName;
+                }
+            } catch (error) {
+                console.error('加载 psy 模块名称失败:', error);
+            }
+        }
+
         function closeWindow() {
             window.electronAPI.closePsyseenWindow().catch(() => {
                 window.close();
@@ -628,6 +645,8 @@
                 loginBtn.disabled = false;
             }
         });
+
+        applyConfiguredPsyTitle();
     </script>
 </body>
 </html>

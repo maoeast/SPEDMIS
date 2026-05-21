@@ -19,7 +19,7 @@
     </div>
 
     <div class="logo-container" id="logoContainer">
-        <img src="images/logo.png" alt="公司 logo" class="logo" id="logoImage" title="点击进入高级设置">
+        <img src="images/logo.png" alt="公司 logo" class="logo" id="logoImage" title="公司 logo">
     </div>
 
     <div class="index-header" id="indexHeader">
@@ -32,7 +32,7 @@
     </div>
 
     <div class="footer" id="footerText">
-        漏2013-2025 杭州炫焺科技有限公司
+        ©2013-2025 杭州炬星科技有限公司
     </div>
 
     <div class="auth-overlay" id="advancedAuthOverlay" style="display: none;"></div>
@@ -47,10 +47,24 @@
     </div>
 
     <script src="modules/home-modules.js"></script>
+    <script src="modules/advanced-settings-entry.js"></script>
     <script>
         const modulesContainer = document.getElementById('modules');
+        const ADVANCED_SETTINGS_CLICK_THRESHOLD = 3;
+        const ADVANCED_SETTINGS_CLICK_WINDOW_MS = 5000;
+        let currentModuleNames = {};
+        const advancedSettingsEntryGate = window.createAdvancedSettingsEntryGate({
+            threshold: ADVANCED_SETTINGS_CLICK_THRESHOLD,
+            windowMs: ADVANCED_SETTINGS_CLICK_WINDOW_MS,
+            onTrigger: showAdvancedAuthDialog,
+        });
+
+        function resetAdvancedSettingsClickState() {
+            advancedSettingsEntryGate.reset();
+        }
 
         function showAdvancedAuthDialog() {
+            resetAdvancedSettingsClickState();
             document.getElementById('advancedAuthOverlay').style.display = 'block';
             document.getElementById('advancedAuthDialog').style.display = 'block';
             document.getElementById('advancedAuthPassword').value = '';
@@ -58,34 +72,21 @@
         }
 
         function closeAdvancedAuthDialog() {
+            resetAdvancedSettingsClickState();
             document.getElementById('advancedAuthOverlay').style.display = 'none';
             document.getElementById('advancedAuthDialog').style.display = 'none';
             document.getElementById('advancedAuthPassword').value = '';
         }
 
+        function registerAdvancedSettingsEntry() {
+            document.getElementById('logoContainer').addEventListener('click', () => {
+                advancedSettingsEntryGate.registerClick();
+            });
+        }
+
         function getModuleIconHtml(module) {
-            if (module.entryType === 'psy') {
-                return '<i class="fas fa-heart" style="font-size: 64px;"></i>';
-            }
-
-            if (module.entryType === 'iep') {
-                return '<i class="fas fa-clipboard-check" style="font-size: 64px;"></i>';
-            }
-
-            switch (module.name) {
-                case '感知觉统合领域':
-                    return '<i class="fas fa-brain" style="font-size: 64px;"></i>';
-                case '执行功能领域':
-                    return '<i class="fas fa-tasks" style="font-size: 64px;"></i>';
-                case '社交沟通领域':
-                    return '<i class="fas fa-users" style="font-size: 64px;"></i>';
-                case '生活适应领域':
-                    return '<i class="fas fa-lightbulb" style="font-size: 64px;"></i>';
-                case '情绪行为领域':
-                    return '<i class="fas fa-grin-beam" style="font-size: 64px;"></i>';
-                default:
-                    return '<i class="fas fa-compass" style="font-size: 64px;"></i>';
-            }
+            const iconClass = window.homeModules.getModuleIconClass(module.key);
+            return `<i class="${iconClass}" style="font-size: 64px;"></i>`;
         }
 
         function bindModuleClick(card, module) {
@@ -104,7 +105,7 @@
             }
 
             card.addEventListener('click', () => {
-                window.location.href = `module.html?domain=${encodeURIComponent(module.name)}`;
+                window.location.href = `module.html?moduleKey=${encodeURIComponent(module.key)}`;
             });
         }
 
@@ -120,14 +121,14 @@
                 console.error('加载首页入口模块配置失败:', error);
             }
 
-            const moduleList = window.homeModules.buildModulesData(selectedModule);
+            const moduleList = window.homeModules.buildModulesData(selectedModule, currentModuleNames);
             modulesContainer.innerHTML = '';
 
             moduleList.forEach((module) => {
                 const card = document.createElement('div');
                 card.className = 'module-card';
                 card.style.backgroundColor = module.color;
-                card.setAttribute('data-module', module.name);
+                card.setAttribute('data-module', module.key);
 
                 const iconElement = document.createElement('div');
                 iconElement.className = 'module-icon';
@@ -156,7 +157,12 @@
                         <div class="subtitle">${productConfig.engName || 'Special Education Multimodal Intervention System'}</div>
                     `;
                     document.getElementById('footerText').textContent =
-                        `${productConfig.copyright || '漏2013-2025'}  ${productConfig.organization}`;
+                        `${productConfig.copyright || '©2013-2025'}  ${productConfig.organization}`;
+                }
+
+                const moduleNameResult = await window.electronAPI.getModuleNameConfig();
+                if (moduleNameResult.success && moduleNameResult.data?.moduleNames) {
+                    currentModuleNames = moduleNameResult.data.moduleNames;
                 }
 
                 const psyResult = await window.electronAPI.checkPsyseenView();
@@ -229,9 +235,7 @@
             window.location.href = 'user-center.html';
         });
 
-        document.getElementById('logoImage').addEventListener('click', () => {
-            showAdvancedAuthDialog();
-        });
+        registerAdvancedSettingsEntry();
 
         document.getElementById('advancedAuthPassword').addEventListener('keypress', (event) => {
             if (event.key === 'Enter') {
