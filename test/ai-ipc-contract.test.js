@@ -21,6 +21,17 @@ describe('AI IPC contract', () => {
         };
         service = {
             bootstrap: jest.fn(() => ({ agents: [] })),
+            listKnowledge: jest.fn(() => ({ skills: [], summary: {} })),
+            listAgentsForGovernance: jest.fn(() => []),
+            createCustomAgent: jest.fn(),
+            updateCustomAgent: jest.fn(),
+            deleteCustomAgent: jest.fn(),
+            setAgentEnabled: jest.fn(),
+            listAgentSkills: jest.fn(),
+            updateAgentSkillBinding: jest.fn(),
+            setAgentSkillEnabled: jest.fn(),
+            deleteAgentSkillBinding: jest.fn(),
+            resetBuiltinAgentBindings: jest.fn(),
             saveProvider: jest.fn(),
             testProvider: jest.fn(),
             clearProvider: jest.fn(),
@@ -43,9 +54,10 @@ describe('AI IPC contract', () => {
         });
     });
 
-    test('registers only the explicit Phase 1 request channels', () => {
+    test('registers only the explicit AI request channels', () => {
         expect([...handlers.keys()]).toEqual([
             AI_CHANNELS.bootstrap,
+            AI_CHANNELS.knowledgeList,
             AI_CHANNELS.providerSave,
             AI_CHANNELS.providerTest,
             AI_CHANNELS.providerClear,
@@ -59,6 +71,16 @@ describe('AI IPC contract', () => {
             AI_CHANNELS.privacyAccept,
             AI_CHANNELS.budgetUpdate,
             AI_CHANNELS.externalOpen,
+            AI_CHANNELS.agentList,
+            AI_CHANNELS.agentCreate,
+            AI_CHANNELS.agentUpdate,
+            AI_CHANNELS.agentDelete,
+            AI_CHANNELS.agentSetEnabled,
+            AI_CHANNELS.agentSkillList,
+            AI_CHANNELS.agentSkillUpdate,
+            AI_CHANNELS.agentSkillSetEnabled,
+            AI_CHANNELS.agentSkillDelete,
+            AI_CHANNELS.agentSkillReset,
         ]);
     });
 
@@ -77,6 +99,13 @@ describe('AI IPC contract', () => {
 
         expect(result).toEqual({ success: true, data: { agents: [] } });
         expect(service.bootstrap).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns the knowledge catalog for an authorized AI window request', async () => {
+        const result = await handlers.get(AI_CHANNELS.knowledgeList)({ sender: webContents });
+
+        expect(result).toEqual({ success: true, data: { skills: [], summary: {} } });
+        expect(service.listKnowledge).toHaveBeenCalledTimes(1);
     });
 
     test('passes sender identity into chat start and cancel isolation', async () => {

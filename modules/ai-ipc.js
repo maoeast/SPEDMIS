@@ -2,6 +2,7 @@ const { toPublicAIError, AIServiceError } = require('./ai-service');
 
 const AI_CHANNELS = Object.freeze({
     bootstrap: 'ai:bootstrap',
+    knowledgeList: 'ai:knowledge:list',
     providerSave: 'ai:provider:save',
     providerTest: 'ai:provider:test',
     providerClear: 'ai:provider:clear',
@@ -18,6 +19,16 @@ const AI_CHANNELS = Object.freeze({
     privacyAccept: 'ai:privacy:accept',
     budgetUpdate: 'ai:budget:update',
     externalOpen: 'ai:external:open',
+    agentList: 'ai:agent:list',
+    agentCreate: 'ai:agent:create',
+    agentUpdate: 'ai:agent:update',
+    agentDelete: 'ai:agent:delete',
+    agentSetEnabled: 'ai:agent:setEnabled',
+    agentSkillList: 'ai:agent:skill:list',
+    agentSkillUpdate: 'ai:agent:skill:update',
+    agentSkillSetEnabled: 'ai:agent:skill:setEnabled',
+    agentSkillDelete: 'ai:agent:skill:delete',
+    agentSkillReset: 'ai:agent:skill:reset',
 });
 
 function assertAIWindowSender(event, getAIWindow) {
@@ -72,6 +83,7 @@ function registerAIIPC({ ipcMain, getAIWindow, getService, shell, logger }) {
     };
 
     register(AI_CHANNELS.bootstrap, (service) => service.bootstrap());
+    register(AI_CHANNELS.knowledgeList, (service) => service.listKnowledge());
     register(AI_CHANNELS.providerSave, (service, _event, payload) => service.saveProvider(payload));
     register(AI_CHANNELS.providerTest, (service, _event, payload) => service.testProvider(payload?.code));
     register(AI_CHANNELS.providerClear, (service, _event, payload) => service.clearProvider(payload?.code));
@@ -92,6 +104,16 @@ function registerAIIPC({ ipcMain, getAIWindow, getService, shell, logger }) {
         await shell.openExternal(url);
         return { opened: true };
     });
+    register(AI_CHANNELS.agentList, (service) => service.listAgentsForGovernance());
+    register(AI_CHANNELS.agentCreate, (service, _event, payload) => service.createCustomAgent(payload));
+    register(AI_CHANNELS.agentUpdate, (service, _event, payload) => service.updateCustomAgent(payload));
+    register(AI_CHANNELS.agentDelete, (service, _event, payload) => service.deleteCustomAgent(payload));
+    register(AI_CHANNELS.agentSetEnabled, (service, _event, payload) => service.setAgentEnabled(payload));
+    register(AI_CHANNELS.agentSkillList, (service, _event, payload) => service.listAgentSkills(payload));
+    register(AI_CHANNELS.agentSkillUpdate, (service, _event, payload) => service.updateAgentSkillBinding(payload));
+    register(AI_CHANNELS.agentSkillSetEnabled, (service, _event, payload) => service.setAgentSkillEnabled(payload));
+    register(AI_CHANNELS.agentSkillDelete, (service, _event, payload) => service.deleteAgentSkillBinding(payload));
+    register(AI_CHANNELS.agentSkillReset, (service, _event, payload) => service.resetBuiltinAgentBindings(payload));
 
     return () => {
         if (typeof ipcMain.removeHandler !== 'function') {

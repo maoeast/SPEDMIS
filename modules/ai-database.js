@@ -4,8 +4,10 @@ const { randomUUID } = require('crypto');
 const initSqlJs = require('sql.js');
 const { getBuiltinAgents } = require('./ai-agent-catalog');
 const { PROVIDER_PRESETS } = require('./ai-provider-client');
+const { getBuiltinKnowledgeSkills } = require('./ai-skill-catalog');
+const { BUILTIN_AGENT_SKILL_BINDINGS } = require('./ai-agent-skill-bindings');
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const DEFAULT_OWNER_KEY = 'local-os-profile';
 const DEFAULT_MONTHLY_TOKEN_LIMIT = 10000000;
 const DEFAULT_CONVERSATION_TITLE = '新对话';
@@ -30,6 +32,106 @@ function parseJsonArray(value) {
     }
 }
 
+function parseJsonObject(value) {
+    if (typeof value !== 'string' || !value) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+// 解析 ai_agent_skill.config（{ referenceIds: string[] | null }）的三态 referenceIds：
+// null/缺省 → null（表示「该技能全部引用」）；数组 → 字符串数组。
+function parseReferenceIds(configValue) {
+    if (typeof configValue !== 'string' || !configValue) {
+        return null;
+    }
+    try {
+        const parsed = JSON.parse(configValue);
+        if (parsed === null) {
+            return null;
+        }
+        if (parsed && parsed.referenceIds === null) {
+            return null;
+        }
+        if (parsed && Array.isArray(parsed.referenceIds)) {
+            return parsed.referenceIds.map(String);
+        }
+    } catch {
+        // 落到默认 null。
+    }
+    return null;
+}
+
+function parseKnowledgePayload(value) {
+    if (typeof value !== 'string' || !value) {
+        return { body: '', references: [], metadata: {} };
+    }
+    try {
+        const parsed = JSON.parse(value);
+        if (!parsed || typeof parsed !== 'object') {
+            return { body: '', references: [], metadata: {} };
+        }
+        const references = Array.isArray(parsed.references)
+            ? parsed.references
+                  .filter((reference) => reference && typeof reference === 'object')
+                  .map((reference) => ({
+                      id: String(reference.id || ''),
+                      title: String(reference.title || ''),
+                      content: String(reference.content || ''),
+                  }))
+                  .filter((reference) => reference.id)
+            : [];
+        return {
+            body: typeof parsed.body === 'string' ? parsed.body : '',
+            references,
+            metadata: parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : {},
+        };
+    } catch {
+        return { body: '', references: [], metadata: {} };
+    }
+}
+
+function validateCustomAgentCode(value) {
+    const code = typeof value === 'string' ? value.trim() : '';
+    if (!/^[a-z0-9_-]{1,64}$/.test(code)) {
+        throw new AIDatabaseError(
+            'invalid_agent_code',
+            '智能体标识只能包含小写字母、数字、下划线或连字符（1-64 位）。'
+        );
+    }
+    return code;
+}
+
+function mapKnowledgeSkillRow(row, includePayload = false) {
+    if (!row) {
+        return null;
+    }
+    const skill = {
+        code: String(row.code),
+        name: String(row.name),
+        description: String(row.description || ''),
+        kind: String(row.kind || 'knowledge'),
+        sourceType: String(row.source_type || 'builtin'),
+        sourceUrl: String(row.source_url || ''),
+        license: String(row.license || ''),
+        evidenceLevel: String(row.evidence_level || ''),
+        riskLevel: String(row.risk_level || ''),
+        audience: String(row.audience || ''),
+        contentVersion: String(row.content_version || '0'),
+        enabled: Number(row.enabled) === 1,
+        sort: Number(row.sort || 0),
+    };
+    if (includePayload) {
+        skill.payload = parseKnowledgePayload(row.knowledge_payload);
+    }
+    return skill;
+}
+
 function monthKey(date = new Date()) {
     return date.toISOString().slice(0, 7);
 }
@@ -51,6 +153,8 @@ function mapAgentRow(row, includeSystemPrompt = false) {
         source: String(row.source),
         license: String(row.license),
         contentVersion: String(row.content_version),
+        sourceType: String(row.source_type || 'builtin'),
+        enabled: Number(row.enabled) === 1,
         sort: Number(row.sort || 0),
     };
     if (includeSystemPrompt) {
@@ -110,6 +214,8 @@ function mapMessageRow(row) {
         totalTokens: Number(row.total_tokens || 0),
         usageStatus: String(row.usage_status || 'unknown'),
         errorKind: row.error_kind == null ? null : String(row.error_kind),
+        knowledgeSnapshot: row.knowledge_snapshot == null ? null : String(row.knowledge_snapshot),
+        knowledgeProvenance: parseJsonObject(row.knowledge_provenance),
         createdAt: String(row.created_at),
         updatedAt: String(row.updated_at),
     };
@@ -128,6 +234,8 @@ class AIAssistantDatabase {
         this.now = options.now || (() => new Date().toISOString());
         this.builtinAgents = options.builtinAgents || getBuiltinAgents();
         this.providerPresets = options.providerPresets || Object.values(PROVIDER_PRESETS);
+        this.builtinSkills = options.builtinSkills || getBuiltinKnowledgeSkills();
+        this.builtinAgentSkillBindings = options.builtinAgentSkillBindings || BUILTIN_AGENT_SKILL_BINDINGS;
         this.SQL = options.SQL || null;
         this.db = null;
         this.initialized = false;
@@ -177,6 +285,8 @@ class AIAssistantDatabase {
                 this._createSchema();
                 this._syncAgents();
                 this._syncProviders();
+                this._syncSkills();
+                this._syncAgentSkills();
                 this._ensurePreference(DEFAULT_OWNER_KEY);
             });
             this.initialized = true;
@@ -215,6 +325,7 @@ class AIAssistantDatabase {
                 source TEXT NOT NULL,
                 license TEXT NOT NULL,
                 content_version TEXT NOT NULL,
+                source_type TEXT NOT NULL DEFAULT 'builtin',
                 enabled INTEGER NOT NULL DEFAULT 1,
                 sort INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
@@ -255,6 +366,8 @@ class AIAssistantDatabase {
                 total_tokens INTEGER NOT NULL DEFAULT 0,
                 usage_status TEXT NOT NULL DEFAULT 'unknown' CHECK (usage_status IN ('exact', 'unknown')),
                 error_kind TEXT,
+                knowledge_snapshot TEXT,
+                knowledge_provenance TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
@@ -282,12 +395,48 @@ class AIAssistantDatabase {
                 FOREIGN KEY (current_provider_code) REFERENCES ai_provider(code)
             );
 
+            CREATE TABLE IF NOT EXISTS ai_skill (
+                code TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                kind TEXT NOT NULL DEFAULT 'knowledge' CHECK(kind IN ('tool', 'knowledge')),
+                knowledge_payload TEXT NOT NULL DEFAULT '',
+                source_type TEXT NOT NULL DEFAULT 'builtin',
+                source_url TEXT NOT NULL DEFAULT '',
+                license TEXT NOT NULL DEFAULT '',
+                evidence_level TEXT NOT NULL DEFAULT '未标注',
+                risk_level TEXT NOT NULL DEFAULT '常规',
+                audience TEXT NOT NULL DEFAULT '教师',
+                content_version TEXT NOT NULL DEFAULT '0',
+                enabled INTEGER NOT NULL DEFAULT 1,
+                sort INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS ai_agent_skill (
+                agent_code TEXT NOT NULL,
+                skill_code TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                sort INTEGER NOT NULL DEFAULT 0,
+                config TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (agent_code, skill_code),
+                FOREIGN KEY (agent_code) REFERENCES ai_agent(code) ON DELETE CASCADE,
+                FOREIGN KEY (skill_code) REFERENCES ai_skill(code) ON DELETE CASCADE
+            );
+
             CREATE INDEX IF NOT EXISTS idx_ai_conversation_owner_updated
                 ON ai_conversation(owner_key, updated_at DESC);
             CREATE INDEX IF NOT EXISTS idx_ai_message_conversation_created
                 ON ai_message(conversation_id, created_at, id);
             CREATE INDEX IF NOT EXISTS idx_ai_monthly_usage_owner_month
                 ON ai_monthly_usage(owner_key, month);
+            CREATE INDEX IF NOT EXISTS idx_ai_agent_skill_agent
+                ON ai_agent_skill(agent_code, enabled, sort);
+            CREATE INDEX IF NOT EXISTS idx_ai_skill_kind_enabled
+                ON ai_skill(kind, enabled, sort);
         `);
 
         const schemaVersionRow = this._queryOne('SELECT value FROM ai_schema_meta WHERE key = ?', ['schema_version']);
@@ -297,6 +446,13 @@ class AIAssistantDatabase {
         }
         if (previousSchemaVersion > 0 && previousSchemaVersion < 2) {
             this._execute('UPDATE ai_preference SET hard_limit_enabled = 1');
+        }
+        if (previousSchemaVersion > 0 && previousSchemaVersion < 3) {
+            // Phase 2：消息的知识快照/溯源 + 智能体来源类型。
+            // ai_skill / ai_agent_skill 表已由上面的 CREATE TABLE IF NOT EXISTS 创建。
+            this._addColumnIfMissing('ai_message', 'knowledge_snapshot', 'TEXT');
+            this._addColumnIfMissing('ai_message', 'knowledge_provenance', 'TEXT');
+            this._addColumnIfMissing('ai_agent', 'source_type', "TEXT NOT NULL DEFAULT 'builtin'");
         }
 
         this._execute(
@@ -375,6 +531,420 @@ class AIAssistantDatabase {
         }
     }
 
+    _syncSkills() {
+        const timestamp = this.now();
+        this.builtinSkills.forEach((skill, index) => {
+            const payload = JSON.stringify({
+                body: skill.body,
+                references: skill.references.map((reference) => ({
+                    id: reference.id,
+                    title: reference.title,
+                    content: reference.content,
+                })),
+                metadata: skill.metadata,
+            });
+            const existing = this._queryOne(
+                'SELECT source_type, content_version FROM ai_skill WHERE code = ?',
+                [skill.code]
+            );
+            if (!existing) {
+                this._execute(
+                    `INSERT INTO ai_skill (
+                        code, name, description, kind, knowledge_payload,
+                        source_type, source_url, license, evidence_level, risk_level, audience,
+                        content_version, enabled, sort, created_at, updated_at
+                     ) VALUES (?, ?, ?, 'knowledge', ?, 'builtin', '', ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+                    [
+                        skill.code,
+                        skill.name,
+                        skill.description,
+                        payload,
+                        skill.metadata.license,
+                        skill.metadata.evidenceLevel,
+                        skill.metadata.riskLevel,
+                        skill.metadata.audience,
+                        skill.contentVersion,
+                        index,
+                        timestamp,
+                        timestamp,
+                    ]
+                );
+            } else if (
+                String(existing.source_type) === 'builtin'
+                && this._versionIsNewer(skill.contentVersion, String(existing.content_version))
+            ) {
+                // 仅当内置技能版本严格上升时刷新正文；自定义技能或旧版本保持不动。
+                this._execute(
+                    `UPDATE ai_skill SET
+                        name = ?, description = ?, knowledge_payload = ?, license = ?,
+                        evidence_level = ?, risk_level = ?, audience = ?, content_version = ?,
+                        sort = ?, updated_at = ?
+                     WHERE code = ? AND source_type = 'builtin'`,
+                    [
+                        skill.name,
+                        skill.description,
+                        payload,
+                        skill.metadata.license,
+                        skill.metadata.evidenceLevel,
+                        skill.metadata.riskLevel,
+                        skill.metadata.audience,
+                        skill.contentVersion,
+                        index,
+                        timestamp,
+                        skill.code,
+                    ]
+                );
+            }
+        });
+    }
+
+    _versionIsNewer(candidate, stored) {
+        const parse = (value) => String(value || '0').split('.').map((part) => Number(part) || 0);
+        const candidateParts = parse(candidate);
+        const storedParts = parse(stored);
+        const length = Math.max(candidateParts.length, storedParts.length);
+        for (let index = 0; index < length; index += 1) {
+            const candidatePart = candidateParts[index] || 0;
+            const storedPart = storedParts[index] || 0;
+            if (candidatePart !== storedPart) {
+                return candidatePart > storedPart;
+            }
+        }
+        return false;
+    }
+
+    _syncAgentSkills() {
+        const timestamp = this.now();
+        // ON CONFLICT DO NOTHING：保留用户对内置绑定的停用 / referenceIds 微调；需恢复
+        // seed 时由治理层的 resetBuiltinAgentBindings 删除后重跑。
+        for (const binding of this.builtinAgentSkillBindings) {
+            const config = JSON.stringify({ referenceIds: binding.referenceIds });
+            this._execute(
+                `INSERT INTO ai_agent_skill (agent_code, skill_code, enabled, sort, config, created_at, updated_at)
+                 VALUES (?, ?, 1, ?, ?, ?, ?)
+                 ON CONFLICT(agent_code, skill_code) DO NOTHING`,
+                [binding.agentCode, binding.skillCode, binding.sort, config, timestamp, timestamp]
+            );
+        }
+    }
+
+    listKnowledgeSkills(options = {}) {
+        this._assertReady();
+        const includeDisabled = Boolean(options.includeDisabled);
+        const where = includeDisabled
+            ? "WHERE kind = 'knowledge'"
+            : "WHERE kind = 'knowledge' AND enabled = 1";
+        return this._query(`SELECT * FROM ai_skill ${where} ORDER BY sort ASC, code ASC`)
+            .map((row) => mapKnowledgeSkillRow(row));
+    }
+
+    getKnowledgeSkill(code) {
+        this._assertReady();
+        return mapKnowledgeSkillRow(
+            this._queryOne('SELECT * FROM ai_skill WHERE code = ?', [code]),
+            true
+        );
+    }
+
+    listAgentSkillBindings(agentCode) {
+        this._assertReady();
+        return this._query(
+            `SELECT x.skill_code, x.enabled AS binding_enabled, x.sort, x.config,
+                    s.name AS skill_name, s.enabled AS skill_enabled, s.source_type
+             FROM ai_agent_skill x
+             JOIN ai_skill s ON s.code = x.skill_code
+             WHERE x.agent_code = ?
+             ORDER BY x.sort ASC, x.skill_code ASC`,
+            [agentCode]
+        ).map((row) => ({
+            skillCode: String(row.skill_code),
+            name: String(row.skill_name || row.skill_code),
+            enabled: Number(row.binding_enabled) === 1,
+            sort: Number(row.sort || 0),
+            referenceIds: parseReferenceIds(row.config),
+            skillEnabled: Number(row.skill_enabled) === 1,
+            sourceType: String(row.source_type || 'builtin'),
+        }));
+    }
+
+    // 注入器消费的过滤集：启用的绑定 + 启用的技能 + knowledge 类 + 有 payload。
+    getEnabledAgentKnowledgeBindings(agentCode) {
+        this._assertReady();
+        return this._query(
+            `SELECT x.skill_code, x.sort, x.config
+             FROM ai_agent_skill x
+             JOIN ai_skill s ON s.code = x.skill_code
+             WHERE x.agent_code = ? AND x.enabled = 1 AND s.enabled = 1
+               AND s.kind = 'knowledge' AND s.knowledge_payload != ''
+             ORDER BY x.sort ASC, x.skill_code ASC`,
+            [agentCode]
+        ).map((row) => ({
+            skillCode: String(row.skill_code),
+            sort: Number(row.sort || 0),
+            referenceIds: parseReferenceIds(row.config),
+        }));
+    }
+
+    getKnowledgeSummaryForBootstrap() {
+        this._assertReady();
+        const skillRows = this._query(
+            `SELECT code, name, description, source_type, license, content_version,
+                    evidence_level, risk_level, audience, knowledge_payload
+             FROM ai_skill
+             WHERE kind = 'knowledge' AND enabled = 1
+             ORDER BY sort ASC, code ASC`
+        );
+        const skills = skillRows.map((row) => {
+            const payload = parseKnowledgePayload(row.knowledge_payload);
+            return {
+                code: String(row.code),
+                name: String(row.name),
+                description: String(row.description || ''),
+                referenceCount: payload.references.length,
+                sourceType: String(row.source_type || 'builtin'),
+                license: String(row.license || ''),
+                contentVersion: String(row.content_version || '0'),
+                evidenceLevel: String(row.evidence_level || ''),
+                riskLevel: String(row.risk_level || ''),
+                audience: String(row.audience || ''),
+            };
+        });
+        const totalReferences = skills.reduce((total, skill) => total + skill.referenceCount, 0);
+
+        const bindingRows = this._query(
+            `SELECT x.agent_code, x.skill_code, x.config
+             FROM ai_agent_skill x
+             JOIN ai_skill s ON s.code = x.skill_code
+             WHERE x.enabled = 1 AND s.enabled = 1 AND s.kind = 'knowledge'
+             ORDER BY x.agent_code ASC, x.sort ASC, x.skill_code ASC`
+        );
+        const agentBindings = {};
+        for (const row of bindingRows) {
+            const agentCode = String(row.agent_code);
+            if (!agentBindings[agentCode]) {
+                agentBindings[agentCode] = [];
+            }
+            agentBindings[agentCode].push({
+                skillCode: String(row.skill_code),
+                referenceIds: parseReferenceIds(row.config),
+            });
+        }
+
+        return {
+            totalSkills: skills.length,
+            totalReferences,
+            skills,
+            agentBindings,
+        };
+    }
+
+    listAllAgents() {
+        this._assertReady();
+        return this._query('SELECT * FROM ai_agent ORDER BY sort ASC, code ASC').map((row) => mapAgentRow(row));
+    }
+
+    getAgentByCode(code) {
+        this._assertReady();
+        return mapAgentRow(this._queryOne('SELECT * FROM ai_agent WHERE code = ?', [code]), true);
+    }
+
+    async createCustomAgent(payload = {}) {
+        this._assertReady();
+        const code = validateCustomAgentCode(payload.code);
+        if (this._queryOne('SELECT 1 FROM ai_agent WHERE code = ?', [code])) {
+            throw new AIDatabaseError('agent_already_exists', '该智能体标识已存在。');
+        }
+        const timestamp = this.now();
+        const maxSortRow = this._queryOne('SELECT COALESCE(MAX(sort), -1) AS max_sort FROM ai_agent');
+        const sort = Number(maxSortRow?.max_sort || -1) + 1;
+        this._execute(
+            `INSERT INTO ai_agent (
+                code, name, display_name, avatar_text, avatar_tone, tagline, teacher_support,
+                expertise_tags, system_prompt, starter_prompts, source, license, content_version,
+                source_type, enabled, sort, created_at, updated_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'custom', '', '1.0.0', 'custom', 1, ?, ?, ?)`,
+            [
+                code,
+                payload.name || code,
+                payload.displayName || payload.name || code,
+                payload.avatarText || 'AI',
+                payload.avatarTone || 'neutral',
+                payload.tagline || '',
+                payload.teacherSupport || '',
+                JSON.stringify(Array.isArray(payload.expertiseTags) ? payload.expertiseTags : []),
+                payload.systemPrompt || '',
+                JSON.stringify(Array.isArray(payload.starterPrompts) ? payload.starterPrompts : []),
+                sort,
+                timestamp,
+                timestamp,
+            ]
+        );
+        await this._commitMutation();
+        return this.getAgentByCode(code);
+    }
+
+    async updateCustomAgent(code, patch = {}) {
+        this._assertReady();
+        const existing = this._queryOne(
+            'SELECT 1 FROM ai_agent WHERE code = ? AND source_type = ?',
+            [code, 'custom']
+        );
+        if (!existing) {
+            throw new AIDatabaseError('agent_not_editable', '只能编辑自定义智能体。');
+        }
+        const fields = [];
+        const params = [];
+        const apply = (column, value) => {
+            fields.push(`${column} = ?`);
+            params.push(value);
+        };
+        if (patch.name !== undefined) {
+            apply('name', patch.name);
+        }
+        if (patch.displayName !== undefined) {
+            apply('display_name', patch.displayName);
+        }
+        if (patch.avatarText !== undefined) {
+            apply('avatar_text', patch.avatarText);
+        }
+        if (patch.avatarTone !== undefined) {
+            apply('avatar_tone', patch.avatarTone);
+        }
+        if (patch.tagline !== undefined) {
+            apply('tagline', patch.tagline);
+        }
+        if (patch.teacherSupport !== undefined) {
+            apply('teacher_support', patch.teacherSupport);
+        }
+        if (patch.expertiseTags !== undefined) {
+            apply('expertise_tags', JSON.stringify(Array.isArray(patch.expertiseTags) ? patch.expertiseTags : []));
+        }
+        if (patch.systemPrompt !== undefined) {
+            apply('system_prompt', patch.systemPrompt);
+        }
+        if (patch.starterPrompts !== undefined) {
+            apply('starter_prompts', JSON.stringify(Array.isArray(patch.starterPrompts) ? patch.starterPrompts : []));
+        }
+        if (fields.length === 0) {
+            return this.getAgentByCode(code);
+        }
+        fields.push('updated_at = ?');
+        params.push(this.now(), code);
+        this._execute(
+            `UPDATE ai_agent SET ${fields.join(', ')} WHERE code = ? AND source_type = 'custom'`,
+            params
+        );
+        await this._commitMutation();
+        return this.getAgentByCode(code);
+    }
+
+    async deleteCustomAgent(code) {
+        this._assertReady();
+        const inUse = this._queryOne('SELECT 1 FROM ai_conversation WHERE agent_code = ? LIMIT 1', [code]);
+        if (inUse) {
+            throw new AIDatabaseError('agent_in_use', '该智能体仍有会话，请先删除相关会话后再删除。');
+        }
+        const deleted = this._transaction(() => {
+            const existing = this._queryOne(
+                'SELECT 1 FROM ai_agent WHERE code = ? AND source_type = ?',
+                [code, 'custom']
+            );
+            if (!existing) {
+                return false;
+            }
+            this._execute('DELETE FROM ai_agent_skill WHERE agent_code = ?', [code]);
+            this._execute('DELETE FROM ai_agent WHERE code = ? AND source_type = ?', [code, 'custom']);
+            return true;
+        });
+        if (deleted) {
+            await this._commitMutation();
+        }
+        return deleted;
+    }
+
+    async setAgentEnabled(code, enabled) {
+        this._assertReady();
+        const changed = this._execute(
+            'UPDATE ai_agent SET enabled = ?, updated_at = ? WHERE code = ?',
+            [enabled ? 1 : 0, this.now(), code]
+        );
+        if (!changed) {
+            throw new AIDatabaseError('agent_not_found', '未找到指定的智能体。');
+        }
+        await this._commitMutation();
+        return this.getAgentByCode(code);
+    }
+
+    async upsertAgentSkillBinding(agentCode, skillCode, referenceIds, enabled = true, sort = 0) {
+        this._assertReady();
+        const config = JSON.stringify({ referenceIds });
+        this._execute(
+            `INSERT INTO ai_agent_skill (agent_code, skill_code, enabled, sort, config, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT(agent_code, skill_code) DO UPDATE SET
+                enabled = excluded.enabled, sort = excluded.sort, config = excluded.config,
+                updated_at = excluded.updated_at`,
+            [agentCode, skillCode, enabled ? 1 : 0, sort, config, this.now(), this.now()]
+        );
+        await this._commitMutation();
+        return this.listAgentSkillBindings(agentCode);
+    }
+
+    async setAgentSkillEnabled(agentCode, skillCode, enabled) {
+        this._assertReady();
+        const changed = this._execute(
+            `UPDATE ai_agent_skill SET enabled = ?, updated_at = ?
+             WHERE agent_code = ? AND skill_code = ?`,
+            [enabled ? 1 : 0, this.now(), agentCode, skillCode]
+        );
+        if (!changed) {
+            throw new AIDatabaseError('binding_not_found', '未找到指定的技能绑定。');
+        }
+        await this._commitMutation();
+        return this.listAgentSkillBindings(agentCode);
+    }
+
+    async deleteAgentSkillBinding(agentCode, skillCode) {
+        this._assertReady();
+        const changed = this._execute(
+            'DELETE FROM ai_agent_skill WHERE agent_code = ? AND skill_code = ?',
+            [agentCode, skillCode]
+        );
+        if (!changed) {
+            throw new AIDatabaseError('binding_not_found', '未找到指定的技能绑定。');
+        }
+        await this._commitMutation();
+        return this.listAgentSkillBindings(agentCode);
+    }
+
+    async resetBuiltinAgentBindings(agentCode) {
+        this._assertReady();
+        const agent = this._queryOne(
+            'SELECT 1 FROM ai_agent WHERE code = ? AND source_type = ?',
+            [agentCode, 'builtin']
+        );
+        if (!agent) {
+            throw new AIDatabaseError('agent_not_found', '未找到指定的内置智能体。');
+        }
+        const timestamp = this.now();
+        this._transaction(() => {
+            this._execute('DELETE FROM ai_agent_skill WHERE agent_code = ?', [agentCode]);
+            for (const binding of this.builtinAgentSkillBindings) {
+                if (binding.agentCode !== agentCode) {
+                    continue;
+                }
+                const config = JSON.stringify({ referenceIds: binding.referenceIds });
+                this._execute(
+                    `INSERT INTO ai_agent_skill (agent_code, skill_code, enabled, sort, config, created_at, updated_at)
+                     VALUES (?, ?, 1, ?, ?, ?, ?)`,
+                    [binding.agentCode, binding.skillCode, binding.sort, config, timestamp, timestamp]
+                );
+            }
+        });
+        await this._commitMutation();
+        return this.listAgentSkillBindings(agentCode);
+    }
+
     _ensurePreference(ownerKey) {
         this._execute(
             `INSERT OR IGNORE INTO ai_preference (
@@ -419,6 +989,16 @@ class AIAssistantDatabase {
         return this._query(sql, params)[0] || null;
     }
 
+    _addColumnIfMissing(table, column, declaration) {
+        try {
+            this._execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
+        } catch (error) {
+            if (!/duplicate column/i.test(String(error?.message || ''))) {
+                throw error;
+            }
+        }
+    }
+
     _transaction(work) {
         this.db.run('BEGIN TRANSACTION');
         try {
@@ -438,6 +1018,22 @@ class AIAssistantDatabase {
     async _commitMutation() {
         this.dirty = true;
         await this.flush();
+    }
+
+    // 在事务内写入 assistant 消息的知识快照/溯源；无知识时写 NULL，使 user 消息与
+    // 无知识 assistant 消息的列保持 NULL。调用方需已在 _transaction 内。
+    _writeKnowledgeSnapshot(messageId, conversationId, knowledgeBlock, knowledgeProvenance) {
+        const hasKnowledge = typeof knowledgeBlock === 'string' && knowledgeBlock.length > 0;
+        this._execute(
+            `UPDATE ai_message SET knowledge_snapshot = ?, knowledge_provenance = ?
+             WHERE id = ? AND conversation_id = ?`,
+            [
+                hasKnowledge ? knowledgeBlock : null,
+                hasKnowledge && knowledgeProvenance ? JSON.stringify(knowledgeProvenance) : null,
+                messageId,
+                conversationId,
+            ]
+        );
     }
 
     async flush() {
@@ -762,7 +1358,7 @@ class AIAssistantDatabase {
         };
     }
 
-    async completeAssistantMessage(ownerKey, conversationId, messageId, content, usage) {
+    async completeAssistantMessage(ownerKey, conversationId, messageId, content, usage, knowledgeBlock = null, knowledgeProvenance = null) {
         this._assertReady();
         const usageIsExact = usage?.status === 'exact';
         const promptTokens = usageIsExact ? Math.max(0, Math.floor(Number(usage.promptTokens) || 0)) : 0;
@@ -798,6 +1394,7 @@ class AIAssistantDatabase {
             if (!changed) {
                 throw new AIDatabaseError('message_not_found', '未找到待完成的回复消息。');
             }
+            this._writeKnowledgeSnapshot(messageId, conversationId, knowledgeBlock, knowledgeProvenance);
             this._execute(
                 `INSERT INTO ai_monthly_usage (
                     owner_key, month, prompt_tokens, completion_tokens, total_tokens, request_count, updated_at
@@ -820,21 +1417,28 @@ class AIAssistantDatabase {
         return mapMessageRow(this._queryOne('SELECT * FROM ai_message WHERE id = ?', [messageId]));
     }
 
-    async failAssistantMessage(ownerKey, conversationId, messageId, status, errorKind, partialContent = '') {
+    async failAssistantMessage(ownerKey, conversationId, messageId, status, errorKind, partialContent = '', knowledgeBlock = null, knowledgeProvenance = null) {
         this._assertReady();
         if (status !== 'error' && status !== 'cancelled') {
             throw new AIDatabaseError('invalid_message_status', '回复消息状态无效。');
         }
-        const changed = this._execute(
-            `UPDATE ai_message
-             SET content = ?, status = ?, error_kind = ?, updated_at = ?
-             WHERE id = ? AND conversation_id = ? AND role = 'assistant' AND status = 'pending'
-               AND EXISTS (
-                   SELECT 1 FROM ai_conversation c
-                   WHERE c.id = ai_message.conversation_id AND c.owner_key = ?
-               )`,
-            [partialContent, status, errorKind, this.now(), messageId, conversationId, ownerKey]
-        );
+        const changed = this._transaction(() => {
+            const updated = this._execute(
+                `UPDATE ai_message
+                 SET content = ?, status = ?, error_kind = ?, updated_at = ?
+                 WHERE id = ? AND conversation_id = ? AND role = 'assistant' AND status = 'pending'
+                   AND EXISTS (
+                       SELECT 1 FROM ai_conversation c
+                       WHERE c.id = ai_message.conversation_id AND c.owner_key = ?
+                   )`,
+                [partialContent, status, errorKind, this.now(), messageId, conversationId, ownerKey]
+            );
+            if (!updated) {
+                return false;
+            }
+            this._writeKnowledgeSnapshot(messageId, conversationId, knowledgeBlock, knowledgeProvenance);
+            return true;
+        });
         if (!changed) {
             throw new AIDatabaseError('message_not_found', '未找到待更新的回复消息。');
         }
@@ -850,6 +1454,7 @@ class AIAssistantDatabase {
             agents: this.listAgents(),
             providers: this.listProviders(),
             conversations: this.listConversations(ownerKey),
+            knowledge: this.getKnowledgeSummaryForBootstrap(),
             preference: {
                 currentProviderCode: preference.currentProviderCode,
                 monthlyTokenLimit: preference.monthlyTokenLimit,

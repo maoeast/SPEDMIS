@@ -200,6 +200,26 @@
                     <p id="privacyStatusText">首次发送时确认</p>
                 </div>
             </section>
+
+            <section class="settings-section agent-governance-section" aria-labelledby="agentGovernanceHeading">
+                <div class="section-title-row">
+                    <h3 id="agentGovernanceHeading">智能体管理</h3>
+                    <button class="secondary-button compact-button" id="createAgentButton" type="button">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                        <span>新建</span>
+                    </button>
+                </div>
+                <div class="agent-governance-list" id="agentGovernanceList" role="list"></div>
+            </section>
+
+            <section class="settings-section knowledge-section" aria-labelledby="knowledgeHeading">
+                <div class="section-title-row">
+                    <h3 id="knowledgeHeading">知识技能</h3>
+                    <span class="usage-month" id="knowledgeCatalogSummary"></span>
+                </div>
+                <p class="knowledge-hint">按智能体绑定精确注入，超长内容自动截断。</p>
+                <div class="knowledge-catalog-list" id="knowledgeCatalogList" role="list"></div>
+            </section>
         </aside>
     </div>
 

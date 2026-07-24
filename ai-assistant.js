@@ -19,6 +19,7 @@
         conversations: [],
         preference: null,
         usage: null,
+        knowledge: null,
         currentConversationId: null,
         messages: [],
         providerCode: null,
@@ -29,6 +30,7 @@
         pendingDraft: '',
         noticeTimer: null,
         bootstrapped: false,
+        allAgents: [],
     };
 
     const elements = {};
@@ -84,6 +86,10 @@
             'monthlyTokenLimitError',
             'hardLimitEnabled',
             'privacyStatusText',
+            'knowledgeCatalogList',
+            'knowledgeCatalogSummary',
+            'agentGovernanceList',
+            'createAgentButton',
             'privacyDialog',
             'privacyProviderName',
             'declinePrivacyButton',
@@ -258,6 +264,7 @@
         if (panelName === 'settings') {
             elements.settingsPanel.setAttribute('aria-hidden', 'false');
             elements.settingsPanel.removeAttribute('inert');
+            loadAgentGovernance();
         } else {
             elements.settingsPanel.setAttribute('aria-hidden', 'true');
             elements.settingsPanel.setAttribute('inert', '');
@@ -507,8 +514,329 @@
             column.appendChild(stateRow);
         }
 
+        const knowledgeBadge = renderMessageKnowledgeBadge(message);
+        if (knowledgeBadge) {
+            column.appendChild(knowledgeBadge);
+        }
+
         row.appendChild(column);
         return row;
+    }
+
+    function renderMessageKnowledgeBadge(message) {
+        const provenance = message && message.knowledgeProvenance;
+        if (!provenance || !Array.isArray(provenance.skillCodes) || provenance.skillCodes.length === 0) {
+            return null;
+        }
+        const wrapper = createElement('div', 'knowledge-badge-row');
+        const badge = createElement('span', 'knowledge-badge');
+        if (provenance.truncated) {
+            badge.classList.add('is-truncated');
+        }
+        const truncatedSuffix = provenance.truncated ? '（已截断）' : '';
+        badge.textContent = `已注入 · ${provenance.skillCodes.length} 项技能${truncatedSuffix}`;
+
+        const details = document.createElement('details');
+        details.className = 'knowledge-provenance';
+        const summary = createElement('summary', '', '知识溯源');
+        details.appendChild(summary);
+        const list = createElement('ul', 'knowledge-provenance-list');
+        provenance.skillCodes.forEach((code) => {
+            list.appendChild(createElement('li', '', code));
+        });
+        details.appendChild(list);
+        if (Array.isArray(provenance.referenceIds) && provenance.referenceIds.length > 0) {
+            details.appendChild(createElement('p', 'knowledge-provenance-refs', `引用 ${provenance.referenceIds.length} 份`));
+        }
+        wrapper.append(badge, details);
+        return wrapper;
+    }
+
+    function renderKnowledgeCatalog() {
+        const list = elements.knowledgeCatalogList;
+        if (!list) {
+            return;
+        }
+        list.replaceChildren();
+        const knowledge = state.knowledge;
+        const summaryEl = elements.knowledgeCatalogSummary;
+        if (!knowledge || !Array.isArray(knowledge.skills) || knowledge.skills.length === 0) {
+            if (summaryEl) {
+                summaryEl.textContent = '';
+            }
+            list.appendChild(createElement('p', 'knowledge-hint', '暂无可用知识技能。'));
+            return;
+        }
+        if (summaryEl) {
+            summaryEl.textContent = `${knowledge.totalSkills} 技能 · ${knowledge.totalReferences} 引用`;
+        }
+        knowledge.skills.forEach((skill) => {
+            const item = createElement('div', 'knowledge-catalog-item');
+            item.setAttribute('role', 'listitem');
+            const name = createElement('strong', '', skill.name);
+            const metaText = `${skill.referenceCount} 引用 · ${skill.evidenceLevel || '未标注'} · ${skill.riskLevel || '常规'} · v${skill.contentVersion || '0'}`;
+            item.append(name, createElement('span', 'knowledge-catalog-meta', metaText));
+            if (skill.license) {
+                item.appendChild(createElement('span', 'knowledge-catalog-license', skill.license));
+            }
+            list.appendChild(item);
+        });
+    }
+
+    async function loadAgentGovernance() {
+        if (!elements.agentGovernanceList) {
+            return;
+        }
+        try {
+            const data = unwrap(await api.listAgentsForGovernance(), '加载智能体列表失败。');
+            state.allAgents = Array.isArray(data) ? data : [];
+        } catch (error) {
+            state.allAgents = [];
+            showStatus(normalizeError(error, '加载智能体列表失败。').message, 'error');
+        }
+        renderAgentGovernance();
+    }
+
+    function renderAgentGovernance() {
+        const list = elements.agentGovernanceList;
+        if (!list) {
+            return;
+        }
+        list.replaceChildren();
+        const agents = Array.isArray(state.allAgents) ? state.allAgents : [];
+        if (agents.length === 0) {
+            list.appendChild(createElement('p', 'knowledge-hint', '暂无智能体。'));
+            return;
+        }
+        agents.forEach((agent) => list.appendChild(renderAgentGovernanceItem(agent)));
+    }
+
+    function renderAgentGovernanceItem(agent) {
+        const item = createElement('div', 'agent-governance-item');
+        item.setAttribute('role', 'listitem');
+        item.dataset.agentCode = agent.code;
+
+        const header = createElement('div', 'agent-governance-header');
+        header.appendChild(createElement('strong', '', agent.displayName || agent.name));
+        header.appendChild(createElement(
+            'span',
+            agent.sourceType === 'custom' ? 'source-badge is-custom' : 'source-badge',
+            agent.sourceType === 'custom' ? '自定义' : '内置'
+        ));
+
+        const toggleLabel = createElement('label', 'toggle-row compact-toggle');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = Boolean(agent.enabled);
+        checkbox.addEventListener('change', () => toggleAgentEnabled(agent.code, checkbox.checked));
+        toggleLabel.append(checkbox, createElement('span', 'toggle', ''), createElement('span', '', agent.enabled ? '已启用' : '已停用'));
+
+        const actions = createElement('div', 'agent-governance-actions');
+        const bindButton = createElement('button', 'secondary-button compact-button', '技能绑定');
+        bindButton.type = 'button';
+        bindButton.addEventListener('click', () => toggleBindingEditor(agent, item));
+        actions.appendChild(bindButton);
+        if (agent.sourceType === 'custom') {
+            const editButton = createElement('button', 'secondary-button compact-button', '编辑');
+            editButton.type = 'button';
+            editButton.addEventListener('click', () => openCustomAgentDialog(agent));
+            const deleteButton = createElement('button', 'danger-quiet-button compact-button', '删除');
+            deleteButton.type = 'button';
+            deleteButton.addEventListener('click', () => removeCustomAgent(agent));
+            actions.append(editButton, deleteButton);
+        }
+
+        item.append(header, toggleLabel, actions);
+        return item;
+    }
+
+    async function toggleAgentEnabled(code, enabled) {
+        try {
+            await api.setAgentEnabled({ code, enabled });
+            state.allAgents = state.allAgents.map((agent) => (agent.code === code ? { ...agent, enabled } : agent));
+            state.agents = state.allAgents.filter((agent) => agent.enabled);
+            renderAgentGovernance();
+            renderAgentSwitcher();
+            renderConversationView();
+            showStatus(enabled ? '已启用该智能体。' : '已停用该智能体。', 'success', 1600);
+        } catch (error) {
+            showStatus(normalizeError(error, '更新启用状态失败。').message, 'error');
+            await loadAgentGovernance();
+        }
+    }
+
+    async function toggleBindingEditor(agent, item) {
+        const existing = item.querySelector('.agent-binding-editor');
+        if (existing) {
+            existing.remove();
+            return;
+        }
+        const editor = createElement('div', 'agent-binding-editor');
+        editor.appendChild(createElement('p', 'knowledge-hint', '正在加载技能绑定…'));
+        item.appendChild(editor);
+        try {
+            const bindings = unwrap(await api.listAgentSkills({ agentCode: agent.code }), '加载技能绑定失败。');
+            renderAgentBindingEditor(agent, editor, Array.isArray(bindings) ? bindings : []);
+        } catch (error) {
+            editor.replaceChildren(createElement('p', 'knowledge-hint', normalizeError(error, '加载技能绑定失败。').message));
+        }
+    }
+
+    function describeReferenceIds(referenceIds, total) {
+        if (referenceIds === null || referenceIds === undefined) {
+            return total > 0 ? `全部 ${total} 引用` : '仅正文';
+        }
+        if (Array.isArray(referenceIds) && referenceIds.length === 0) {
+            return '仅正文';
+        }
+        return `${referenceIds.length} 引用`;
+    }
+
+    function renderAgentBindingEditor(agent, container, bindings) {
+        container.replaceChildren();
+        const skills = (state.knowledge && Array.isArray(state.knowledge.skills)) ? state.knowledge.skills : [];
+        if (skills.length === 0) {
+            container.appendChild(createElement('p', 'knowledge-hint', '暂无可用知识技能。'));
+            return;
+        }
+        const bindingBySkill = new Map(bindings.map((binding) => [binding.skillCode, binding]));
+        skills.forEach((skill) => {
+            const binding = bindingBySkill.get(skill.code);
+            const row = createElement('div', 'agent-binding-row');
+            const label = createElement('label', 'agent-binding-toggle');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = Boolean(binding && binding.enabled);
+            checkbox.addEventListener('change', () => saveAgentBinding(agent.code, skill.code, checkbox.checked, container));
+            const refText = describeReferenceIds(binding ? binding.referenceIds : undefined, skill.referenceCount);
+            label.append(checkbox, createElement('span', 'agent-binding-refs', `${skill.name} · ${refText}`));
+            row.appendChild(label);
+            container.appendChild(row);
+        });
+        if (agent.sourceType === 'builtin') {
+            const reset = createElement('button', 'secondary-button compact-button', '重置为内置绑定');
+            reset.type = 'button';
+            reset.addEventListener('click', () => resetAgentBindings(agent.code, container));
+            container.appendChild(reset);
+        }
+    }
+
+    async function saveAgentBinding(agentCode, skillCode, mounted, container) {
+        try {
+            if (mounted) {
+                await api.updateAgentSkillBinding({ agentCode, skillCode, referenceIds: null });
+            } else {
+                await api.deleteAgentSkillBinding({ agentCode, skillCode });
+            }
+            showStatus(mounted ? '已挂载技能。' : '已卸载技能。', 'success', 1500);
+            const bindings = unwrap(await api.listAgentSkills({ agentCode }), '加载技能绑定失败。');
+            const agent = state.allAgents.find((item) => item.code === agentCode);
+            renderAgentBindingEditor(agent, container, Array.isArray(bindings) ? bindings : []);
+        } catch (error) {
+            showStatus(normalizeError(error, '保存技能绑定失败。').message, 'error');
+        }
+    }
+
+    async function resetAgentBindings(agentCode, container) {
+        try {
+            const bindings = await api.resetBuiltinAgentBindings({ agentCode });
+            showStatus('已重置为内置绑定。', 'success', 1500);
+            const agent = state.allAgents.find((item) => item.code === agentCode);
+            renderAgentBindingEditor(agent, container, Array.isArray(bindings) ? bindings : []);
+        } catch (error) {
+            showStatus(normalizeError(error, '重置失败。').message, 'error');
+        }
+    }
+
+    async function removeCustomAgent(agent) {
+        try {
+            const result = unwrap(await api.deleteCustomAgent({ code: agent.code }), '删除失败。');
+            if (result && result.deleted) {
+                showStatus('已删除自定义智能体。', 'success', 1600);
+                await loadAgentGovernance();
+            } else {
+                showStatus('该智能体仍有会话，请先删除相关会话。', 'warning');
+            }
+        } catch (error) {
+            showStatus(normalizeError(error, '删除失败。').message, 'error');
+        }
+    }
+
+    function appendFormField(form, label, type) {
+        const wrapper = createElement('label', 'form-field');
+        wrapper.appendChild(createElement('span', '', label));
+        const input = document.createElement('input');
+        input.type = type;
+        input.required = true;
+        wrapper.appendChild(input);
+        form.appendChild(wrapper);
+        return input;
+    }
+
+    function openCustomAgentDialog(existing) {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'agent-editor-dialog';
+        const form = document.createElement('form');
+        form.method = 'dialog';
+        form.appendChild(createElement('h3', '', existing ? '编辑自定义智能体' : '新建自定义智能体'));
+
+        const codeInput = appendFormField(form, '标识（小写字母/数字/_/-）', 'text');
+        codeInput.value = existing ? existing.code : `custom-${Date.now().toString(36)}`;
+        codeInput.disabled = Boolean(existing);
+        const nameInput = appendFormField(form, '名称', 'text');
+        nameInput.value = existing ? (existing.displayName || existing.name) : '';
+        const taglineInput = appendFormField(form, '一句话定位（可选）', 'text');
+        taglineInput.value = existing ? (existing.tagline || '') : '';
+
+        const promptLabel = createElement('label', 'form-field');
+        promptLabel.appendChild(createElement('span', '', '系统提示词'));
+        const promptInput = document.createElement('textarea');
+        promptInput.rows = 6;
+        promptInput.required = true;
+        promptInput.value = existing ? (existing.systemPrompt || '') : '';
+        promptLabel.appendChild(promptInput);
+        form.appendChild(promptLabel);
+
+        const actions = createElement('div', 'split-actions');
+        const cancel = createElement('button', 'secondary-button', '取消');
+        cancel.type = 'button';
+        cancel.addEventListener('click', () => dialog.close());
+        const submit = createElement('button', 'primary-button', existing ? '保存' : '创建');
+        submit.type = 'submit';
+        actions.append(cancel, submit);
+        form.appendChild(actions);
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            submit.disabled = true;
+            const payload = {
+                code: codeInput.value.trim(),
+                name: nameInput.value.trim(),
+                tagline: taglineInput.value.trim(),
+                systemPrompt: promptInput.value,
+            };
+            try {
+                if (existing) {
+                    await api.updateCustomAgent(payload);
+                } else {
+                    await api.createCustomAgent(payload);
+                }
+                dialog.close();
+                showStatus(existing ? '已保存修改。' : '已创建自定义智能体。', 'success', 1600);
+                await loadAgentGovernance();
+            } catch (error) {
+                submit.disabled = false;
+                showStatus(normalizeError(error, '保存失败。').message, 'error');
+            }
+        });
+        dialog.appendChild(form);
+        document.body.appendChild(dialog);
+        dialog.addEventListener('close', () => dialog.remove());
+        dialog.showModal();
+    }
+
+    function createCustomAgent() {
+        openCustomAgentDialog(null);
     }
 
     function isNearBottom() {
@@ -828,6 +1156,9 @@
         if (message && payload.message) {
             Object.assign(message, payload.message);
         }
+        if (message && payload.knowledge && payload.knowledge.provenance && !message.knowledgeProvenance) {
+            message.knowledgeProvenance = payload.knowledge.provenance;
+        }
         state.usage = payload.usage || state.usage;
         renderMessages(true);
         renderBudget();
@@ -1105,6 +1436,9 @@
         elements.switchAgentButton.addEventListener('click', toggleAgentSwitcher);
         elements.openSettingsPanelButton.addEventListener('click', () => openPanel('settings'));
         elements.closeSettingsPanelButton.addEventListener('click', closePanels);
+        if (elements.createAgentButton) {
+            elements.createAgentButton.addEventListener('click', () => createCustomAgent());
+        }
         elements.panelBackdrop.addEventListener('click', closePanels);
         elements.providerForm.addEventListener('submit', saveProvider);
         elements.testProviderButton.addEventListener('click', testProvider);
@@ -1173,11 +1507,13 @@
             state.conversations = Array.isArray(data.conversations) ? data.conversations : [];
             state.preference = data.preference || null;
             state.usage = data.usage || null;
+            state.knowledge = data.knowledge || null;
             state.providerCode = state.preference?.currentProviderCode || state.providers[0]?.code || null;
             state.bootstrapped = true;
             elements.initializingLayer.hidden = true;
             renderConversations();
             renderSettings();
+            renderKnowledgeCatalog();
             renderConversationView();
             if (state.conversations[0]) {
                 await selectConversation(state.conversations[0].id);

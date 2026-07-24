@@ -16,6 +16,10 @@ describe('AI assistant UI contract', () => {
         expect(html).toContain('id="switchAgentButton"');
         expect(html).toContain('id="agentSwitcherList"');
         expect(html).toContain('id="providerForm"');
+        expect(html).toContain('id="knowledgeCatalogList"');
+        expect(html).toContain('id="knowledgeCatalogSummary"');
+        expect(html).toContain('id="agentGovernanceList"');
+        expect(html).toContain('id="createAgentButton"');
         expect(html).toMatch(/id="settingsPanel"[^>]*aria-hidden="true"[^>]*inert/);
         expect(html).toMatch(/id="hardLimitEnabled"[^>]*checked/);
         expect(html).toContain('id="privacyDialog"');
@@ -42,6 +46,11 @@ describe('AI assistant UI contract', () => {
         expect(script).toContain('globalScope.aiAPI');
         expect(script).toContain('globalScope.safeMarkdown');
         expect(script).toContain('renderAgentSwitcher');
+        expect(script).toContain('renderKnowledgeCatalog');
+        expect(script).toContain('renderMessageKnowledgeBadge');
+        expect(script).toContain('renderAgentGovernance');
+        expect(script).toContain('renderAgentBindingEditor');
+        expect(script).toContain('createCustomAgent');
         expect(script).toContain('./images/ai-agent-avatars/个别化教学专家.png');
         expect(script).toContain('./images/ai-agent-avatars/课堂沟通支持专家.png');
         expect(script).toContain('./images/ai-agent-avatars/成长观察助手.png');

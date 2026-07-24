@@ -69,7 +69,8 @@ docs/planning/*
 tools/
 
 # Test files
-test/
+test/*
+!test/ai-*.test.js
 
 # Temp
 .tmp/

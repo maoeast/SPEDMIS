@@ -144,4 +144,49 @@ describe('AI assistant service', () => {
             message: expect.objectContaining({ status: 'cancelled', content: '部分内容' }),
         }));
     });
+
+    test('injects bound knowledge into the system prompt and records provenance', async () => {
+        let capturedMessages = null;
+        providerClient.streamChat.mockImplementation(async ({ messages, onDelta }) => {
+            capturedMessages = messages;
+            onDelta('回答');
+            return {
+                content: '带知识的回答',
+                usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15, status: 'exact' },
+            };
+        });
+
+        const conversation = await configureAndCreateConversation();
+        const started = await service.startChat({
+            conversationId: conversation.id,
+            content: '请用专业知识回答',
+        }, sender);
+        const completion = service.activeRequests.get(started.requestId).completionPromise;
+        deferredCallbacks.shift()();
+        await completion;
+
+        expect(capturedMessages).not.toBeNull();
+        expect(capturedMessages[0].role).toBe('system');
+        expect(capturedMessages[0].content).toContain('以下是你掌握的专业技能知识，请据此回答：');
+        expect(capturedMessages[0].content).toContain('## 专业技能：');
+        expect(capturedMessages[0].content).toContain('special-education-teacher');
+
+        expect(sender.send).toHaveBeenCalledWith('ai:chat:done', expect.objectContaining({
+            knowledge: {
+                provenance: expect.objectContaining({
+                    skillCodes: expect.arrayContaining(['special-education-teacher']),
+                    truncated: false,
+                }),
+                truncated: false,
+            },
+        }));
+
+        const assistant = database.listMessages('local-os-profile', conversation.id)
+            .find((message) => message.role === 'assistant');
+        expect(assistant.knowledgeProvenance).toEqual(expect.objectContaining({
+            skillCodes: expect.arrayContaining(['special-education-teacher']),
+            truncated: false,
+        }));
+        expect(assistant.knowledgeSnapshot).toContain('## 专业技能：');
+    });
 });

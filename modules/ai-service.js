@@ -3,6 +3,8 @@ const { AISecretError } = require('./ai-secret-store');
 const { AIProviderError, validateHttpsBaseUrl } = require('./ai-provider-client');
 const { AIDatabaseError, DEFAULT_OWNER_KEY } = require('./ai-database');
 const { buildPromptMessages } = require('./ai-prompt-builder');
+const { assembleKnowledgeBlock, KNOWLEDGE_HEADER } = require('./ai-knowledge-injector');
+const { getBuiltinAgent } = require('./ai-agent-catalog');
 
 const PRIVACY_NOTICE_VERSION = '2026-07-23-v1';
 const MAX_MESSAGE_LENGTH = 30000;
@@ -32,6 +34,31 @@ function requireString(value, fieldName, maximumLength) {
 
 function optionalId(value, fieldName = '标识') {
     return requireString(value, fieldName, 128);
+}
+
+function optionalString(value, maximumLength) {
+    if (typeof value !== 'string') {
+        return '';
+    }
+    return value.trim().slice(0, maximumLength);
+}
+
+function truncateList(value, maximumLength) {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.slice(0, maximumLength).map((item) => (typeof item === 'string' ? item : String(item)));
+}
+
+// 三态 referenceIds 归一化：null=该技能全部引用；[]=仅正文；[...]=指定。
+function normalizeReferenceIds(value) {
+    if (value === null) {
+        return null;
+    }
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.filter((item) => typeof item === 'string' && item.length > 0);
 }
 
 function toPublicAIError(error) {
@@ -88,6 +115,135 @@ class AIAssistantService {
     bootstrap() {
         this._assertReady();
         return this.database.getBootstrap(this.ownerKey, this.privacyVersion);
+    }
+
+    listKnowledge() {
+        this._assertReady();
+        return {
+            skills: this.database.listKnowledgeSkills({ includeDisabled: false }),
+            summary: this.database.getKnowledgeSummaryForBootstrap(),
+        };
+    }
+
+    listAgentsForGovernance() {
+        this._assertReady();
+        return this.database.listAllAgents();
+    }
+
+    async createCustomAgent(payload = {}) {
+        this._assertReady();
+        const code = requireString(payload.code, '智能体标识', 64);
+        if (getBuiltinAgent(code)) {
+            throw new AIServiceError('reserved_agent_code', '不能使用内置智能体标识。');
+        }
+        const name = requireString(payload.name, '名称', 64);
+        const systemPrompt = requireString(payload.systemPrompt, '系统提示词', MAX_MESSAGE_LENGTH);
+        return this.database.createCustomAgent({
+            code,
+            name,
+            systemPrompt,
+            expertiseTags: truncateList(payload.expertiseTags, 12),
+            starterPrompts: truncateList(payload.starterPrompts, 8),
+            displayName: optionalString(payload.displayName, 64),
+            tagline: optionalString(payload.tagline, 128),
+            teacherSupport: optionalString(payload.teacherSupport, 200),
+            avatarText: optionalString(payload.avatarText, 4),
+            avatarTone: optionalString(payload.avatarTone, 32),
+        });
+    }
+
+    async updateCustomAgent(payload = {}) {
+        this._assertReady();
+        const code = requireString(payload.code, '智能体标识', 64);
+        const patch = {};
+        if (payload.name !== undefined) {
+            patch.name = requireString(payload.name, '名称', 64);
+        }
+        if (payload.systemPrompt !== undefined) {
+            patch.systemPrompt = requireString(payload.systemPrompt, '系统提示词', MAX_MESSAGE_LENGTH);
+        }
+        if (payload.displayName !== undefined) {
+            patch.displayName = optionalString(payload.displayName, 64);
+        }
+        if (payload.tagline !== undefined) {
+            patch.tagline = optionalString(payload.tagline, 128);
+        }
+        if (payload.teacherSupport !== undefined) {
+            patch.teacherSupport = optionalString(payload.teacherSupport, 200);
+        }
+        if (payload.avatarText !== undefined) {
+            patch.avatarText = optionalString(payload.avatarText, 4);
+        }
+        if (payload.avatarTone !== undefined) {
+            patch.avatarTone = optionalString(payload.avatarTone, 32);
+        }
+        if (payload.expertiseTags !== undefined) {
+            patch.expertiseTags = truncateList(payload.expertiseTags, 12);
+        }
+        if (payload.starterPrompts !== undefined) {
+            patch.starterPrompts = truncateList(payload.starterPrompts, 8);
+        }
+        return this.database.updateCustomAgent(code, patch);
+    }
+
+    async deleteCustomAgent(payload = {}) {
+        this._assertReady();
+        const code = requireString(payload.code, '智能体标识', 64);
+        this._abortRequestsForAgent(code);
+        const deleted = await this.database.deleteCustomAgent(code);
+        return { code, deleted };
+    }
+
+    setAgentEnabled(payload = {}) {
+        this._assertReady();
+        const code = requireString(payload.code, '智能体标识', 64);
+        return this.database.setAgentEnabled(code, Boolean(payload.enabled));
+    }
+
+    listAgentSkills(payload = {}) {
+        this._assertReady();
+        const agentCode = requireString(payload.agentCode, '智能体标识', 64);
+        return this.database.listAgentSkillBindings(agentCode);
+    }
+
+    updateAgentSkillBinding(payload = {}) {
+        this._assertReady();
+        const agentCode = requireString(payload.agentCode, '智能体标识', 64);
+        const skillCode = requireString(payload.skillCode, '技能标识', 64);
+        return this.database.upsertAgentSkillBinding(
+            agentCode,
+            skillCode,
+            normalizeReferenceIds(payload.referenceIds)
+        );
+    }
+
+    setAgentSkillEnabled(payload = {}) {
+        this._assertReady();
+        const agentCode = requireString(payload.agentCode, '智能体标识', 64);
+        const skillCode = requireString(payload.skillCode, '技能标识', 64);
+        return this.database.setAgentSkillEnabled(agentCode, skillCode, Boolean(payload.enabled));
+    }
+
+    deleteAgentSkillBinding(payload = {}) {
+        this._assertReady();
+        const agentCode = requireString(payload.agentCode, '智能体标识', 64);
+        const skillCode = requireString(payload.skillCode, '技能标识', 64);
+        return this.database.deleteAgentSkillBinding(agentCode, skillCode);
+    }
+
+    resetBuiltinAgentBindings(payload = {}) {
+        this._assertReady();
+        const agentCode = requireString(payload.agentCode, '智能体标识', 64);
+        return this.database.resetBuiltinAgentBindings(agentCode);
+    }
+
+    _abortRequestsForAgent(agentCode) {
+        for (const entry of this.activeRequests.values()) {
+            const conversation = this.database.getConversation(this.ownerKey, entry.conversationId);
+            if (conversation && conversation.agentCode === agentCode) {
+                entry.controller.abort();
+            }
+        }
     }
 
     async saveProvider(payload = {}) {
@@ -252,8 +408,28 @@ class AIAssistantService {
         const apiKey = this.secretStore.revealApiKey(provider.apiKeyEncrypted);
 
         const pair = await this.database.createMessagePair(this.ownerKey, conversationId, content);
+
+        // Phase 2a：按 agent 绑定组装知识块并前置到 system prompt。
+        const bindings = this.database.getEnabledAgentKnowledgeBindings(conversation.agentCode);
+        const { block: knowledgeBlock, provenance: knowledgeProvenance } = assembleKnowledgeBlock({
+            bindings,
+            skillProvider: (code) => {
+                const skill = this.database.getKnowledgeSkill(code);
+                if (!skill || !skill.payload) {
+                    return null;
+                }
+                return {
+                    name: skill.name,
+                    body: skill.payload.body,
+                    references: skill.payload.references,
+                };
+            },
+        });
+        const systemPrompt = knowledgeBlock
+            ? `${agent.systemPrompt}${KNOWLEDGE_HEADER}${knowledgeBlock}`
+            : agent.systemPrompt;
         const promptMessages = buildPromptMessages({
-            systemPrompt: agent.systemPrompt,
+            systemPrompt,
             messages: this.database.listPromptMessages(this.ownerKey, conversationId),
         });
         const requestId = this.requestIdFactory();
@@ -267,6 +443,8 @@ class AIAssistantService {
             provider,
             apiKey,
             promptMessages,
+            knowledgeBlock,
+            knowledgeProvenance,
             partialContent: '',
             completionPromise: null,
         };
@@ -310,7 +488,9 @@ class AIAssistantService {
                 entry.conversationId,
                 entry.assistantMessageId,
                 result.content,
-                result.usage
+                result.usage,
+                entry.knowledgeBlock,
+                entry.knowledgeProvenance
             );
             const preference = this.database.getPreference(this.ownerKey);
             const usage = this.database.getMonthlyUsage(this.ownerKey);
@@ -319,6 +499,10 @@ class AIAssistantService {
                 conversationId: entry.conversationId,
                 message,
                 usage,
+                knowledge: {
+                    provenance: entry.knowledgeProvenance,
+                    truncated: Boolean(entry.knowledgeProvenance && entry.knowledgeProvenance.truncated),
+                },
                 overLimit: usage.totalTokens >= preference.monthlyTokenLimit,
             });
         } catch (error) {
@@ -332,7 +516,9 @@ class AIAssistantService {
                     entry.assistantMessageId,
                     messageStatus,
                     publicError.kind,
-                    entry.partialContent
+                    entry.partialContent,
+                    entry.knowledgeBlock,
+                    entry.knowledgeProvenance
                 );
             } catch (databaseError) {
                 this.logger?.error?.('Failed to persist AI chat failure', {

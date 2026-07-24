@@ -1062,6 +1062,210 @@ body.show-settings .settings-panel {
     font-weight: 800;
 }
 
+.knowledge-hint {
+    margin: 0 0 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.knowledge-catalog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.knowledge-catalog-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 10px;
+    padding: 10px 12px;
+    background: var(--surface-muted);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.knowledge-catalog-item strong {
+    font-size: 13px;
+    color: var(--text);
+}
+
+.knowledge-catalog-meta {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.knowledge-catalog-license {
+    color: var(--text-muted);
+    font-size: 10px;
+    letter-spacing: 0.02em;
+}
+
+.knowledge-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.knowledge-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background: var(--teal-soft);
+    color: var(--teal);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.knowledge-badge.is-truncated {
+    background: var(--warning-soft);
+    color: var(--warning);
+}
+
+.knowledge-provenance {
+    flex: 1 1 140px;
+    min-width: 0;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.knowledge-provenance summary {
+    cursor: pointer;
+    color: var(--text-secondary);
+}
+
+.knowledge-provenance-list {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.knowledge-provenance-refs {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+}
+
+.agent-governance-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-governance-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--surface-muted);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.agent-governance-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.agent-governance-header strong {
+    font-size: 13px;
+    color: var(--text);
+}
+
+.source-badge {
+    flex: none;
+    padding: 2px 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.source-badge.is-custom {
+    background: var(--teal-soft);
+    border-color: transparent;
+    color: var(--teal);
+}
+
+.compact-toggle {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.agent-governance-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.compact-button {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+.agent-binding-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    margin-top: 4px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.agent-binding-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.agent-binding-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.agent-binding-refs {
+    color: var(--text-muted);
+}
+
+.agent-editor-dialog {
+    width: min(520px, 92vw);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-high);
+}
+
+.agent-editor-dialog form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.agent-editor-dialog textarea {
+    width: 100%;
+    resize: vertical;
+    font-family: inherit;
+}
+
 .provider-segments {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
