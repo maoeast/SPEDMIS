@@ -12,6 +12,15 @@
         iep: { key: 'iep', defaultName: '综合测评领域', canonicalDomain: '综合测评', color: '#7EA7FF', entryType: 'iep' },
     };
 
+    const FIXED_MODULES = Object.freeze({
+        aiAssistant: Object.freeze({
+            key: 'aiAssistant',
+            defaultName: 'AI 教师助手',
+            color: '#E56A5D',
+            entryType: 'ai',
+        }),
+    });
+
     const MODULES_BY_KEY = [...BASE_MODULES, ...Object.values(OPTIONAL_MODULES)]
         .reduce((accumulator, module) => {
             accumulator[module.key] = module;
@@ -88,6 +97,8 @@
                 return 'fas fa-heart';
             case 'iep':
                 return 'fas fa-clipboard-check';
+            case 'aiAssistant':
+                return 'fas fa-comments';
             default:
                 return 'fas fa-compass';
         }
@@ -111,11 +122,23 @@
         return modules;
     }
 
+    function buildHomeEntries(selectedModule, moduleNames = {}) {
+        return [
+            ...buildModulesData(selectedModule, moduleNames),
+            {
+                ...FIXED_MODULES.aiAssistant,
+                name: FIXED_MODULES.aiAssistant.defaultName,
+            },
+        ];
+    }
+
     const api = {
         BASE_MODULES,
         OPTIONAL_MODULES,
+        FIXED_MODULES,
         MODULES_BY_KEY,
         buildModulesData,
+        buildHomeEntries,
         getAllModuleMeta,
         getModuleMeta,
         resolveModuleKey,

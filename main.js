@@ -1,6 +1,7 @@
-const { app, BrowserWindow, shell, ipcMain, Menu, BrowserView } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, Menu, BrowserView, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 const config = require('./config');
 const { getGlobalCacheManager } = require('./cache');
 const { getLogger } = require('./logger');
@@ -14,9 +15,20 @@ const secretManager = require('./modules/secret-manager');
 const activationCrypto = require('./modules/activation-crypto');
 const machineCodeManager = require('./modules/machine-code-manager');
 const vmDetector = require('./modules/vm-detector');
+const { AIAssistantDatabase } = require('./modules/ai-database');
+const { createAISecretStore } = require('./modules/ai-secret-store');
+const { AIProviderClient } = require('./modules/ai-provider-client');
+const { AIAssistantService, AIServiceError } = require('./modules/ai-service');
+const { registerAIIPC } = require('./modules/ai-ipc');
 
 let mainWindow;
 let iepWindow = null;
+let aiWindow = null;
+let aiService = null;
+let aiInitializationPromise = null;
+let aiInitializationFailed = false;
+let aiShutdownStarted = false;
+let aiShutdownComplete = false;
 let psyseenView = null;  // AI 心理测验 BrowserView（已废弃，保留兼容）
 let psyseenWindow = null;  // AI 心理测验独立窗口
 const logger = getLogger('MAIN');
@@ -177,6 +189,117 @@ function createWindow() {
     callback({ cancel: false, responseHeaders: responseHeaders });
   });
 }
+
+async function initializeAIService() {
+  const database = new AIAssistantDatabase({
+    dbPath: path.join(app.getPath('userData'), 'ai-assistant.db'),
+  });
+  const service = new AIAssistantService({
+    database,
+    secretStore: createAISecretStore(safeStorage),
+    providerClient: new AIProviderClient(),
+    logger,
+  });
+
+  await service.initialize();
+  aiService = service;
+  aiInitializationFailed = false;
+  logger.info('AI assistant service initialized');
+  return service;
+}
+
+async function getAIService() {
+  if (aiInitializationPromise) {
+    await aiInitializationPromise;
+  }
+  if (!aiService) {
+    throw new AIServiceError(
+      'service_unavailable',
+      aiInitializationFailed
+        ? 'AI 助手初始化失败，请重启应用后重试。'
+        : 'AI 助手正在初始化，请稍后重试。'
+    );
+  }
+  return aiService;
+}
+
+function createAIWindow() {
+  if (aiWindow && !aiWindow.isDestroyed()) {
+    if (aiWindow.isMinimized()) {
+      aiWindow.restore();
+    }
+    aiWindow.show();
+    aiWindow.focus();
+    return aiWindow;
+  }
+
+  const aiPagePath = path.join(__dirname, 'ai-assistant.html');
+  const aiPageUrl = pathToFileURL(aiPagePath).toString();
+  aiWindow = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 720,
+    minHeight: 580,
+    show: false,
+    frame: true,
+    hasShadow: true,
+    backgroundColor: '#f4f6f7',
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      spellcheck: false,
+      preload: path.join(__dirname, 'ai-preload.js'),
+    },
+  });
+
+  const senderId = aiWindow.webContents.id;
+  aiWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  aiWindow.webContents.on('will-navigate', (event, url) => {
+    if (url !== aiPageUrl) {
+      event.preventDefault();
+    }
+  });
+  aiWindow.once('ready-to-show', () => {
+    if (aiWindow && !aiWindow.isDestroyed()) {
+      aiWindow.maximize();
+      aiWindow.show();
+    }
+  });
+  aiWindow.loadFile(aiPagePath);
+  aiWindow.on('closed', () => {
+    aiService?.cancelForSender(senderId);
+    aiWindow = null;
+    logger.info('AI assistant window closed');
+  });
+
+  logger.info('AI assistant window created');
+  return aiWindow;
+}
+
+registerAIIPC({
+  ipcMain,
+  getAIWindow: () => aiWindow,
+  getService: getAIService,
+  shell,
+  logger,
+});
+
+ipcMain.handle('ai-open-window', async (event) => {
+  if (!mainWindow || event?.sender !== mainWindow.webContents) {
+    return { success: false, error: '该请求只能由系统首页发起。' };
+  }
+  try {
+    createAIWindow();
+    return { success: true };
+  } catch (error) {
+    logger.error('Failed to open AI assistant window', { kind: error?.kind || 'internal' });
+    return { success: false, error: 'AI 工作台打开失败，请稍后重试。' };
+  }
+});
 
 // 检查本地激活记录
 async function checkActivationStatus() {
@@ -402,6 +525,36 @@ app.whenReady().then(async () => {
   // 初始化权限管理器
   await permissionManager.initializePermissions();
   createWindow();
+  aiInitializationPromise = initializeAIService().catch((error) => {
+    aiInitializationFailed = true;
+    logger.error('AI assistant service initialization failed', {
+      kind: error?.kind || 'internal',
+    });
+    return null;
+  });
+});
+
+app.on('before-quit', (event) => {
+  if (aiShutdownComplete || (!aiService && !aiInitializationPromise)) {
+    return;
+  }
+
+  event.preventDefault();
+  if (aiShutdownStarted) {
+    return;
+  }
+  aiShutdownStarted = true;
+
+  Promise.resolve(aiInitializationPromise)
+    .catch(() => null)
+    .then(() => aiService?.close())
+    .catch((error) => {
+      logger.error('AI assistant shutdown failed', { kind: error?.kind || 'internal' });
+    })
+    .finally(() => {
+      aiShutdownComplete = true;
+      app.quit();
+    });
 });
 
 app.on('window-all-closed', () => {
@@ -1100,4 +1253,6 @@ ipcMain.handle('psyseen-close-window', async (event) => {
 
 module.exports = {
   checkActivationStatus,
+  createAIWindow,
+  getAIService,
 };

@@ -7,3 +7,6 @@
 - IEP Èë¿Ú¸ÄÎªË«²ã½á¹¹£ºiep/index.html ÊÇ Electron ¿ÇÒ³£¬iep/embedded-entry.html ±£ÁôÔ­ÒµÎñÒ³²¢Í¨¹ý webview ÄÚÇ¶¡£
 - IEP ¿ÇÒ³Ö»±£ÁôÓÒÏÂ½ÇÐü¸¡µ¼º½°´Å¥£»¶¥²¿¹¤¾ßÀ¸ºÍ×´Ì¬ÎÄ×ÖÒÑÒÆ³ý£¬±ÜÃâÕÚµ²ÒµÎñÄÚÈÝ¡£
 - IEP ¶ÀÁ¢´°¿Ú±ØÐëÆôÓÃ webviewTag: true£»Ê×Ò³Ä¬ÈÏÈë¿Ú¸ÄÎª selectedModule = 'iep'£¬µ«ÒÑ³Ö¾Ã»¯µÄ psy Ñ¡Ôñ²»×Ô¶¯Ç¨ÒÆ¡£
+
+## 2026-07-24
+- æ–°å¢žç‹¬ç«‹ SPEDMIS AI æ•™å¸ˆå·¥ä½œå°ï¼šåŽŸç”Ÿ HTML + CommonJS Electron Main/Preloadï¼ŒAI æ•°æ®ç‹¬ç«‹å­˜æ”¾äºŽ sql.js æ•°æ®åº“ï¼›ä¸å¼•å…¥ Vueã€Piniaã€Element Plus æˆ–é¢å¤–åŽŸç”Ÿä¾èµ–ã€‚

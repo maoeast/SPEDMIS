@@ -1,13 +1,16 @@
-const { buildModulesData } = require('../modules/home-modules');
+const { buildModulesData, buildHomeEntries, MODULES_BY_KEY } = require('../modules/home-modules');
 
 describe('home modules composition', () => {
-    test('should show AI心理测验 when selected module is psy', () => {
+    test('should show AI 心理测评 when selected module is psy', () => {
         const modules = buildModulesData('psy');
         const names = modules.map((item) => item.name);
 
-        expect(names).toContain('AI 心理测验');
+        expect(names).toContain('AI 心理测评');
         expect(names).not.toContain('综合测评领域');
-        expect(names[names.length - 1]).toBe('AI 心理测验');
+        expect(modules[modules.length - 1]).toMatchObject({
+            key: 'psy',
+            name: 'AI 心理测评',
+        });
     });
 
     test('should show 综合测评领域 when selected module is iep', () => {
@@ -15,8 +18,11 @@ describe('home modules composition', () => {
         const names = modules.map((item) => item.name);
 
         expect(names).toContain('综合测评领域');
-        expect(names).not.toContain('AI 心理测验');
-        expect(names[names.length - 1]).toBe('综合测评领域');
+        expect(names).not.toContain('AI 心理测评');
+        expect(modules[modules.length - 1]).toMatchObject({
+            key: 'iep',
+            name: '综合测评领域',
+        });
     });
 
     test('should hide both optional modules when selected module is none', () => {
@@ -25,6 +31,39 @@ describe('home modules composition', () => {
 
         expect(modules).toHaveLength(5);
         expect(names).not.toContain('综合测评领域');
-        expect(names).not.toContain('AI 心理测验');
+        expect(names).not.toContain('AI 心理测评');
+    });
+
+    test('should apply custom names to base and optional modules', () => {
+        const modules = buildModulesData('psy', {
+            sensoryIntegration: '感统训练中心',
+            executiveFunction: '执行支持中心',
+            socialCommunication: '社交沟通中心',
+            adaptiveLiving: '生活适应中心',
+            emotionalBehavior: '情绪行为中心',
+            iep: '综合评估中心',
+            psy: 'AI心理测评',
+        });
+
+        expect(modules[0]).toMatchObject({
+            key: 'sensoryIntegration',
+            name: '感统训练中心',
+        });
+        expect(modules[modules.length - 1]).toMatchObject({
+            key: 'psy',
+            name: 'AI心理测评',
+        });
+    });
+
+    test('should append the fixed AI assistant entry without adding it to module naming metadata', () => {
+        const entries = buildHomeEntries('none');
+
+        expect(entries).toHaveLength(6);
+        expect(entries[entries.length - 1]).toMatchObject({
+            key: 'aiAssistant',
+            name: 'AI 教师助手',
+            entryType: 'ai',
+        });
+        expect(MODULES_BY_KEY.aiAssistant).toBeUndefined();
     });
 });

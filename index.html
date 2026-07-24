@@ -104,6 +104,21 @@
                 return;
             }
 
+            if (module.entryType === 'ai') {
+                card.addEventListener('click', async () => {
+                    try {
+                        const result = await window.electronAPI.openAIAssistant();
+                        if (!result?.success) {
+                            alert(result?.error || 'AI 工作台打开失败，请稍后重试。');
+                        }
+                    } catch (error) {
+                        console.error('打开 AI 工作台失败:', error);
+                        alert('AI 工作台打开失败，请稍后重试。');
+                    }
+                });
+                return;
+            }
+
             card.addEventListener('click', () => {
                 window.location.href = `module.html?moduleKey=${encodeURIComponent(module.key)}`;
             });
@@ -121,11 +136,12 @@
                 console.error('加载首页入口模块配置失败:', error);
             }
 
-            const moduleList = window.homeModules.buildModulesData(selectedModule, currentModuleNames);
+            const moduleList = window.homeModules.buildHomeEntries(selectedModule, currentModuleNames);
             modulesContainer.innerHTML = '';
 
             moduleList.forEach((module) => {
-                const card = document.createElement('div');
+                const card = document.createElement('button');
+                card.type = 'button';
                 card.className = 'module-card';
                 card.style.backgroundColor = module.color;
                 card.setAttribute('data-module', module.key);

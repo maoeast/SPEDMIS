@@ -49,6 +49,17 @@ describe('IEP shell page', () => {
         expect(shellActionsBlock?.[1]).toContain('background: rgba(255, 255, 255, 0.18);');
     });
 
+    test('should load the iep display name from module name configuration', () => {
+        const html = fs.readFileSync(
+            path.join(__dirname, '..', 'iep', 'index.html'),
+            'utf8'
+        );
+
+        expect(html).toContain('getModuleNameConfig');
+        expect(html).toContain('moduleNames?.iep');
+        expect(html).toContain('iepDisplayName');
+    });
+
     test('should not render a top toolbar wrapper', () => {
         const html = fs.readFileSync(
             path.join(__dirname, '..', 'iep', 'index.html'),

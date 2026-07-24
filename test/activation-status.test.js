@@ -92,6 +92,23 @@ jest.mock('../modules/entry-module-manager', () => ({
     setEntryModuleConfig: jest.fn((config) => config),
 }));
 
+jest.mock('../modules/module-name-manager', () => ({
+    getModuleNameConfig: jest.fn(() => ({
+        moduleNames: {
+            sensoryIntegration: '感知觉统合领域',
+            executiveFunction: '执行功能领域',
+            socialCommunication: '社交沟通领域',
+            adaptiveLiving: '生活适应领域',
+            emotionalBehavior: '情绪行为领域',
+            iep: '综合测评领域',
+            psy: 'AI 心理测评',
+        },
+    })),
+    setModuleNameConfig: jest.fn((config) => config),
+    resolveModuleKey: jest.fn(({ moduleKey, domain }) => moduleKey || domain || null),
+    getModuleMeta: jest.fn(),
+}));
+
 jest.mock('../modules/logo-handler', () => ({
     initialize: jest.fn(),
     saveLogo: jest.fn(),
@@ -184,23 +201,6 @@ describe('activation status compatibility', () => {
         );
     });
 
-    test('should register entry module IPC handlers', () => {
-        require('../main');
-
-        expect(mockIpcHandle).toHaveBeenCalledWith(
-            'get-entry-module-config',
-            expect.any(Function)
-        );
-        expect(mockIpcHandle).toHaveBeenCalledWith(
-            'set-entry-module-config',
-            expect.any(Function)
-        );
-        expect(mockIpcHandle).toHaveBeenCalledWith(
-            'iep-open-window',
-            expect.any(Function)
-        );
-    });
-
     test('should accept degraded current hardware when the saved device ledger still matches', async () => {
         const config = require('../config');
         const machineCodeManager = require('../modules/machine-code-manager');
@@ -250,6 +250,36 @@ describe('activation status compatibility', () => {
         expect(mockWriteFile).toHaveBeenCalledWith(
             storagePath,
             expect.stringContaining('"encrypted":"migrated-encrypted-payload"')
+        );
+    });
+
+    test('should register entry module IPC handlers', () => {
+        require('../main');
+
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'get-entry-module-config',
+            expect.any(Function)
+        );
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'set-entry-module-config',
+            expect.any(Function)
+        );
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'iep-open-window',
+            expect.any(Function)
+        );
+    });
+
+    test('should register module name IPC handlers', () => {
+        require('../main');
+
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'get-module-name-config',
+            expect.any(Function)
+        );
+        expect(mockIpcHandle).toHaveBeenCalledWith(
+            'set-module-name-config',
+            expect.any(Function)
         );
     });
 

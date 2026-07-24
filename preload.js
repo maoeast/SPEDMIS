@@ -391,6 +391,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         throw error;
       });
   },
+  openAIAssistant: () => {
+    return ipcRenderer
+      .invoke('ai-open-window')
+      .catch((error) => {
+        handleIpcError('openAIAssistant', error, null);
+        throw error;
+      });
+  },
   openPsyseenDashboard: () => {
     return ipcRenderer
       .invoke('psyseen-open-dashboard')
