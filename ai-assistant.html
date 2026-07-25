@@ -93,10 +93,14 @@
             </section>
 
             <footer class="composer" id="composer">
+                <div class="attachment-preview-strip" id="attachmentPreviewStrip" hidden></div>
                 <div class="composer-box">
                     <textarea id="messageInput" rows="1" maxlength="30000" placeholder="先选择一位助手" aria-label="输入消息" disabled></textarea>
                     <div class="composer-actions">
                         <span class="character-count" id="characterCount">0 / 30000</span>
+                        <button class="icon-button attach-button" id="attachImageButton" type="button" aria-label="添加图片" title="添加图片" disabled>
+                            <i class="fa-solid fa-paperclip" aria-hidden="true"></i>
+                        </button>
                         <button class="icon-button stop-button" id="stopButton" type="button" aria-label="停止生成" title="停止生成" hidden>
                             <i class="fa-solid fa-stop" aria-hidden="true"></i>
                         </button>
@@ -107,6 +111,7 @@
                     </div>
                 </div>
                 <p class="composer-caption">发送前请移除姓名、联系方式等可识别信息</p>
+                <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/gif,image/webp,image/bmp" multiple hidden>
             </footer>
         </main>
 
@@ -142,6 +147,14 @@
                     <label class="form-field" for="providerApiKey">
                         <span>API Key</span>
                         <input id="providerApiKey" name="apiKey" type="password" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="留空则保留现有密钥">
+                    </label>
+                    <label class="toggle-row" for="providerSupportsVision">
+                        <span>
+                            <strong>该模型支持图片（视觉）</strong>
+                            <small>仅当模型确有视觉能力时开启；开启后才能发送图片</small>
+                        </span>
+                        <input id="providerSupportsVision" name="supportsVision" type="checkbox">
+                        <span class="toggle" aria-hidden="true"></span>
                     </label>
                     <button class="primary-button full-width" id="saveProviderButton" type="submit">
                         <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>

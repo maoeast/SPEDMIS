@@ -206,6 +206,98 @@ describe('AI assistant database', () => {
         expect(noKnowledge.knowledgeProvenance).toBeNull();
     });
 
+    test('migrates schema v3 to v4 adding tools_enabled and supports_vision columns', async () => {
+        const dbPath = path.join(tempDirectory, 'ai-assistant.db');
+        await database.close();
+        const SQL = await initSqlJs();
+        const legacy = new SQL.Database(await fs.promises.readFile(dbPath));
+        legacy.run("UPDATE ai_schema_meta SET value = '3' WHERE key = 'schema_version'");
+        await fs.promises.writeFile(dbPath, Buffer.from(legacy.export()));
+        legacy.close();
+
+        database = new AIAssistantDatabase({ dbPath });
+        await database.initialize();
+        expect(database.getSchemaVersion()).toBe(SCHEMA_VERSION);
+        const agentCols = database._query('PRAGMA table_info(ai_agent)').map((row) => row.name);
+        const providerCols = database._query('PRAGMA table_info(ai_provider)').map((row) => row.name);
+        expect(agentCols).toContain('tools_enabled');
+        expect(providerCols).toContain('supports_vision');
+        expect(database._query("SELECT name FROM sqlite_master WHERE type='table' AND name='ai_tool_call'")).toHaveLength(1);
+        expect(database.getAgentByCode('special_ed_teacher').toolsEnabled).toBe(false);
+    });
+
+    test('setAgentToolsEnabled flips, survives reopen and builtin re-sync, rejects unknown agents', async () => {
+        await database.setAgentToolsEnabled('special_ed_teacher', true);
+        expect(database.getAgentByCode('special_ed_teacher').toolsEnabled).toBe(true);
+
+        const dbPath = path.join(tempDirectory, 'ai-assistant.db');
+        await database.close();
+        database = new AIAssistantDatabase({ dbPath });
+        await database.initialize();
+        expect(database.getAgentByCode('special_ed_teacher').toolsEnabled).toBe(true);
+        database._syncAgents();
+        expect(database.getAgentByCode('special_ed_teacher').toolsEnabled).toBe(true);
+
+        await expect(database.setAgentToolsEnabled('does-not-exist', true)).rejects.toMatchObject({ kind: 'agent_not_found' });
+    });
+
+    test('records and lists tool-call audit rows without raw result content', async () => {
+        const conversation = await database.createConversation(DEFAULT_OWNER_KEY, 'special_ed_teacher');
+        await database.recordToolCall({
+            conversationId: conversation.id,
+            messageId: 'msg-audit',
+            toolName: 'search_intervention_apps',
+            toolCallId: 'call_1',
+            arguments: '{"domain":"感知觉统合"}',
+            resultSize: 1234,
+            status: 'success',
+            round: 0,
+        });
+        const calls = database.listToolCalls('msg-audit');
+        expect(calls).toHaveLength(1);
+        expect(calls[0]).toMatchObject({ toolName: 'search_intervention_apps', status: 'success', resultSize: 1234 });
+        expect(calls[0]).not.toHaveProperty('content');
+        expect(calls[0]).not.toHaveProperty('result');
+    });
+
+    test('creates and links attachments, and persists supports_vision on the provider', async () => {
+        const providerBefore = database.getProvider('deepseek');
+        expect(providerBefore.supportsVision).toBe(false);
+        await database.saveProvider({
+            ownerKey: DEFAULT_OWNER_KEY,
+            code: 'deepseek',
+            baseUrl: providerBefore.baseUrl,
+            model: 'deepseek-chat',
+            supportsVision: true,
+        });
+        expect(database.getProvider('deepseek').supportsVision).toBe(true);
+
+        const conversation = await database.createConversation(DEFAULT_OWNER_KEY, 'special_ed_teacher');
+        const attachment = await database.createAttachment({
+            conversationId: conversation.id,
+            fileName: 'scene.png',
+            relativePath: `${conversation.id}/1-scene.png`,
+            mimeType: 'image/png',
+            sizeBytes: 2048,
+            sha256: 'abc123',
+            width: 1280,
+            height: 720,
+        });
+        expect(attachment.status).toBe('pending');
+        expect(attachment.messageId).toBeNull();
+
+        await database.linkAttachmentsToMessage('msg-att', [attachment.id], conversation.id);
+        const linked = database.listAttachmentsForMessage('msg-att');
+        expect(linked).toHaveLength(1);
+        expect(linked[0]).toMatchObject({ status: 'attached', messageId: 'msg-att' });
+
+        expect(database.listAttachments(conversation.id)).toHaveLength(1);
+        expect(database.listAttachmentPaths(conversation.id)).toHaveLength(1);
+
+        await database.deleteAttachment(attachment.id);
+        expect(database.listAttachments(conversation.id)).toHaveLength(0);
+    });
+
     test('persists conversations, message status and exact monthly usage across reopen', async () => {
         const conversation = await database.createConversation(
             DEFAULT_OWNER_KEY,

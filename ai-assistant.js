@@ -31,6 +31,7 @@
         noticeTimer: null,
         bootstrapped: false,
         allAgents: [],
+        currentAttachments: [],
     };
 
     const elements = {};
@@ -62,6 +63,10 @@
             'agentGrid',
             'messageList',
             'messageInput',
+            'attachImageButton',
+            'imageFileInput',
+            'attachmentPreviewStrip',
+            'providerSupportsVision',
             'characterCount',
             'stopButton',
             'sendButton',
@@ -519,8 +524,28 @@
             column.appendChild(knowledgeBadge);
         }
 
+        const toolStepsNode = renderMessageToolSteps(message);
+        if (toolStepsNode) {
+            column.appendChild(toolStepsNode);
+        }
+
         row.appendChild(column);
         return row;
+    }
+
+    function renderMessageToolSteps(message) {
+        const steps = message && Array.isArray(message.toolSteps) ? message.toolSteps : [];
+        if (steps.length === 0) {
+            return null;
+        }
+        const wrapper = createElement('div', 'tool-steps-row');
+        steps.forEach((step) => {
+            const label = TOOL_STEP_LABELS[step.name] || step.name || '工具';
+            const chip = createElement('span', `tool-step-chip${step.ok ? '' : ' is-failed'}`);
+            chip.textContent = `${label}${step.ok ? ' ✓' : ' ✗'}`;
+            wrapper.appendChild(chip);
+        });
+        return wrapper;
     }
 
     function renderMessageKnowledgeBadge(message) {
@@ -631,6 +656,17 @@
         checkbox.addEventListener('change', () => toggleAgentEnabled(agent.code, checkbox.checked));
         toggleLabel.append(checkbox, createElement('span', 'toggle', ''), createElement('span', '', agent.enabled ? '已启用' : '已停用'));
 
+        const toolsLabel = createElement('label', 'toggle-row compact-toggle tools-toggle');
+        const toolsCheckbox = document.createElement('input');
+        toolsCheckbox.type = 'checkbox';
+        toolsCheckbox.checked = Boolean(agent.toolsEnabled);
+        toolsCheckbox.addEventListener('change', () => toggleAgentToolsEnabled(agent.code, toolsCheckbox.checked));
+        toolsLabel.append(
+            toolsCheckbox,
+            createElement('span', 'toggle', ''),
+            createElement('span', '', agent.toolsEnabled ? '工具已启用（回复不再逐字流式）' : '启用只读工具')
+        );
+
         const actions = createElement('div', 'agent-governance-actions');
         const bindButton = createElement('button', 'secondary-button compact-button', '技能绑定');
         bindButton.type = 'button';
@@ -646,8 +682,20 @@
             actions.append(editButton, deleteButton);
         }
 
-        item.append(header, toggleLabel, actions);
+        item.append(header, toggleLabel, toolsLabel, actions);
         return item;
+    }
+
+    async function toggleAgentToolsEnabled(code, enabled) {
+        try {
+            await api.setAgentToolsEnabled({ code, enabled });
+            state.allAgents = state.allAgents.map((agent) => (agent.code === code ? { ...agent, toolsEnabled: enabled } : agent));
+            renderAgentGovernance();
+            showStatus(enabled ? '已为该智能体启用只读工具。' : '已停用该智能体的工具。', 'success', 1600);
+        } catch (error) {
+            showStatus(normalizeError(error, '更新工具开关失败。').message, 'error');
+            await loadAgentGovernance();
+        }
     }
 
     async function toggleAgentEnabled(code, enabled) {
@@ -875,10 +923,18 @@
     function updateComposerState() {
         const hasConversation = Boolean(currentConversation());
         const busy = Boolean(state.activeRequest || state.startingConversationId);
+        const provider = getProvider(state.preference?.currentProviderCode);
+        const supportsVision = Boolean(provider && provider.supportsVision);
+        const hasAttachments = state.currentAttachments.length > 0;
         elements.messageInput.disabled = !hasConversation || busy;
-        elements.sendButton.disabled = !hasConversation || busy || !elements.messageInput.value.trim();
+        elements.sendButton.disabled = !hasConversation || busy || !elements.messageInput.value.trim()
+            || (hasAttachments && !supportsVision);
         elements.stopButton.hidden = !busy;
         elements.stopButton.disabled = !state.activeRequest;
+        if (elements.attachImageButton) {
+            elements.attachImageButton.disabled = !hasConversation || busy || !supportsVision;
+            elements.attachImageButton.title = supportsVision ? '添加图片' : '当前模型不支持图片';
+        }
         elements.messageInput.placeholder = hasConversation
             ? (busy ? '正在生成回复…' : '写下你想讨论的课堂情境')
             : '先选择一位助手';
@@ -918,6 +974,7 @@
         elements.providerModelLabel.textContent = provider.code === 'volcengine' ? '接入点 ID' : '模型';
         elements.providerModel.placeholder = provider.code === 'volcengine' ? '例如 ep-2024…' : '例如 deepseek-chat';
         elements.providerApiKey.value = '';
+        elements.providerSupportsVision.checked = Boolean(provider.supportsVision);
         elements.providerKeyStatus.textContent = provider.hasApiKey ? '已配置' : '未配置';
         elements.providerKeyStatus.classList.toggle('is-configured', Boolean(provider.hasApiKey));
     }
@@ -1012,6 +1069,7 @@
             return;
         }
         await cancelActiveRequest();
+        clearAttachments();
         state.currentConversationId = conversationId;
         state.messages = [];
         renderConversations();
@@ -1129,6 +1187,26 @@
             : null;
     }
 
+    const TOOL_STEP_LABELS = {
+        search_intervention_apps: '查询干预应用目录',
+        query_usage_stats: '查询使用统计',
+    };
+
+    function handleToolStep(payload) {
+        if (!payload?.requestId || !eventBelongsToActive(payload, 'toolStep')) {
+            return;
+        }
+        const label = TOOL_STEP_LABELS[payload.name] || payload.name || '工具';
+        showStatus(`工具调用：${label}${payload.ok ? '' : '（失败）'}…`, 'warning', 2000);
+        const message = findAssistantMessage();
+        if (message) {
+            const steps = Array.isArray(message.toolSteps) ? message.toolSteps.slice() : [];
+            steps.push({ name: payload.name, ok: payload.ok, round: payload.round });
+            message.toolSteps = steps;
+            renderMessages();
+        }
+    }
+
     function handleDelta(payload) {
         if (!payload?.requestId || !eventBelongsToActive(payload, 'delta')) {
             return;
@@ -1158,6 +1236,9 @@
         }
         if (message && payload.knowledge && payload.knowledge.provenance && !message.knowledgeProvenance) {
             message.knowledgeProvenance = payload.knowledge.provenance;
+        }
+        if (message && Array.isArray(payload.toolSteps)) {
+            message.toolSteps = payload.toolSteps;
         }
         state.usage = payload.usage || state.usage;
         renderMessages(true);
@@ -1208,10 +1289,13 @@
         state.startingConversationId = state.currentConversationId;
         updateComposerState();
         try {
+            const attachmentIds = state.currentAttachments.map((item) => item.id);
             const result = unwrap(await api.startChat({
                 conversationId: state.currentConversationId,
                 content: normalizedContent,
+                attachmentIds,
             }), '无法开始回复。');
+            clearAttachments();
             const requestWasCancelled = state.cancelStartingRequested
                 || result.conversationId !== state.currentConversationId;
             state.cancelStartingRequested = false;
@@ -1246,6 +1330,95 @@
             updateComposerState();
             showStatus(normalizeError(error, '无法开始回复。').message, 'error', 0);
         }
+    }
+
+    function readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new globalScope.FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(new Error('读取图片失败。'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderAttachmentPreview() {
+        const strip = elements.attachmentPreviewStrip;
+        if (!strip) {
+            return;
+        }
+        strip.replaceChildren();
+        strip.hidden = state.currentAttachments.length === 0;
+        state.currentAttachments.forEach((item) => {
+            const chip = createElement('div', 'attachment-chip');
+            const img = createElement('img', 'attachment-chip-image');
+            img.src = item.previewDataUrl;
+            img.alt = item.fileName;
+            const remove = createElement('button', 'attachment-chip-remove', '×');
+            remove.type = 'button';
+            remove.setAttribute('aria-label', '移除图片');
+            remove.addEventListener('click', () => removeAttachment(item.id));
+            chip.append(img, remove);
+            strip.appendChild(chip);
+        });
+    }
+
+    async function removeAttachment(attachmentId) {
+        state.currentAttachments = state.currentAttachments.filter((item) => item.id !== attachmentId);
+        try {
+            await api.deleteAttachment({ attachmentId });
+        } catch {
+            // best-effort：DB 软删，文件随会话删除回收。
+        }
+        renderAttachmentPreview();
+        updateComposerState();
+    }
+
+    function clearAttachments() {
+        state.currentAttachments = [];
+        if (elements.imageFileInput) {
+            elements.imageFileInput.value = '';
+        }
+        renderAttachmentPreview();
+    }
+
+    async function handleImageFiles(fileList) {
+        const files = Array.from(fileList || []).filter((file) => file && file.type.startsWith('image/'));
+        if (files.length === 0 || !state.currentConversationId) {
+            return;
+        }
+        const provider = getProvider(state.preference?.currentProviderCode);
+        if (!provider || !provider.supportsVision) {
+            showStatus('当前模型不支持图片，请在设置中开启视觉能力。', 'error');
+            return;
+        }
+        const remaining = 4 - state.currentAttachments.length;
+        if (remaining <= 0) {
+            showStatus('单次最多附带 4 张图片。', 'warning');
+            return;
+        }
+        for (const file of files.slice(0, remaining)) {
+            if (file.size > 5 * 1024 * 1024) {
+                showStatus(`${file.name} 超过 5MB，已跳过。`, 'warning');
+                continue;
+            }
+            try {
+                const dataUrl = await readFileAsDataUrl(file);
+                const result = unwrap(await api.uploadAttachment({
+                    conversationId: state.currentConversationId,
+                    fileName: file.name,
+                    dataUrl,
+                }), '图片上传失败。');
+                state.currentAttachments.push({
+                    id: result.id,
+                    previewDataUrl: result.previewDataUrl,
+                    fileName: file.name,
+                });
+            } catch (error) {
+                showStatus(normalizeError(error, '图片上传失败。').message, 'error');
+            }
+        }
+        renderAttachmentPreview();
+        updateComposerState();
     }
 
     async function requestSend() {
@@ -1348,6 +1521,7 @@
                 baseUrl: elements.providerBaseUrl.value.trim(),
                 model: elements.providerModel.value.trim(),
                 apiKey: elements.providerApiKey.value,
+                supportsVision: elements.providerSupportsVision.checked,
             }), 'Provider 配置未保存。');
             state.providers = state.providers.map((item) => item.code === provider.code ? provider : item);
             state.preference.currentProviderCode = provider.code;
@@ -1439,6 +1613,19 @@
         if (elements.createAgentButton) {
             elements.createAgentButton.addEventListener('click', () => createCustomAgent());
         }
+        if (elements.attachImageButton) {
+            elements.attachImageButton.addEventListener('click', () => {
+                if (elements.imageFileInput) {
+                    elements.imageFileInput.click();
+                }
+            });
+        }
+        if (elements.imageFileInput) {
+            elements.imageFileInput.addEventListener('change', (event) => {
+                handleImageFiles(event.target.files);
+                elements.imageFileInput.value = '';
+            });
+        }
         elements.panelBackdrop.addEventListener('click', closePanels);
         elements.providerForm.addEventListener('submit', saveProvider);
         elements.testProviderButton.addEventListener('click', testProvider);
@@ -1488,10 +1675,12 @@
         const unsubscribeDelta = api.onChatDelta(handleDelta);
         const unsubscribeDone = api.onChatDone(handleDone);
         const unsubscribeError = api.onChatError(handleError);
+        const unsubscribeToolStep = api.onChatToolStep(handleToolStep);
         globalScope.addEventListener('beforeunload', () => {
             unsubscribeDelta?.();
             unsubscribeDone?.();
             unsubscribeError?.();
+            unsubscribeToolStep?.();
             if (state.activeRequest) {
                 api.cancelChat(state.activeRequest.requestId, state.activeRequest.conversationId).catch(() => {});
             }

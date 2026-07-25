@@ -92,16 +92,54 @@ function describeHttpError(status, providerName = '模型服务') {
     return new AIProviderError('request_rejected', `${providerName} 拒绝了请求（HTTP ${status}）。`, { httpStatus: status });
 }
 
+function normalizeOneMessage(message) {
+    const { role } = message;
+    if (role === 'tool') {
+        // OpenAI 工具结果消息：必须 string content + tool_call_id。
+        if (typeof message.content !== 'string' || !message.content
+            || typeof message.tool_call_id !== 'string' || !message.tool_call_id) {
+            return null;
+        }
+        return { role: 'tool', tool_call_id: message.tool_call_id, content: message.content };
+    }
+    if (role === 'assistant') {
+        // 带 tool_calls 的助手消息：content 可空，但保留 tool_calls（OpenAI 协议要求
+        // 工具结果消息前必须有发起调用的助手消息）。
+        if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
+            return {
+                role: 'assistant',
+                content: typeof message.content === 'string' ? message.content : '',
+                tool_calls: message.tool_calls,
+            };
+        }
+        if (typeof message.content !== 'string' || !message.content.trim()) {
+            return null;
+        }
+        return { role: 'assistant', content: message.content };
+    }
+    // system / user：接受 string 或数组 content（数组=Phase 3 多模态）。
+    if (typeof message.content === 'string') {
+        if (!message.content.trim()) {
+            return null;
+        }
+        return { role, content: message.content };
+    }
+    if (Array.isArray(message.content)) {
+        return { role, content: message.content };
+    }
+    return null;
+}
+
 function normalizeMessages(messages) {
     if (!Array.isArray(messages)) {
         return [];
     }
 
-    const allowedRoles = new Set(['system', 'user', 'assistant']);
+    const allowedRoles = new Set(['system', 'user', 'assistant', 'tool']);
     return messages
         .filter((message) => message && allowedRoles.has(message.role))
-        .filter((message) => typeof message.content === 'string' && message.content.trim())
-        .map((message) => ({ role: message.role, content: message.content }));
+        .map((message) => normalizeOneMessage(message))
+        .filter(Boolean);
 }
 
 function createRequestController(externalSignal, timeoutMs) {
@@ -331,6 +369,42 @@ class AIProviderClient {
         return {
             content,
             usage: usage || { promptTokens: 0, completionTokens: 0, totalTokens: 0, status: 'unknown' },
+        };
+    }
+
+    async completeChat({ apiKey, baseUrl, model, providerName, messages, tools, signal }) {
+        const normalizedMessages = normalizeMessages(messages);
+        if (!normalizedMessages.some((message) => message.role === 'user')) {
+            throw new AIProviderError('empty_message', '没有可发送的用户消息。');
+        }
+        const body = { model, messages: normalizedMessages, stream: false };
+        if (Array.isArray(tools) && tools.length > 0) {
+            body.tools = tools;
+            body.tool_choice = 'auto';
+        }
+        const data = await this._requestJson({ apiKey, baseUrl, model, providerName, signal, body });
+        const choice = data && data.choices && data.choices[0];
+        if (!choice || !choice.message) {
+            throw new AIProviderError('response_format', '模型服务返回的响应格式不兼容。');
+        }
+        const content = typeof choice.message.content === 'string' ? choice.message.content : '';
+        const rawToolCalls = Array.isArray(choice.message.tool_calls) ? choice.message.tool_calls : [];
+        const toolCalls = rawToolCalls
+            .filter((call) => call && call.id && call.function && call.function.name)
+            .map((call) => ({
+                id: call.id,
+                type: 'function',
+                function: {
+                    name: call.function.name,
+                    arguments: typeof call.function.arguments === 'string'
+                        ? call.function.arguments
+                        : JSON.stringify(call.function.arguments || {}),
+                },
+            }));
+        return {
+            content,
+            usage: mapUsage(data.usage) || { promptTokens: 0, completionTokens: 0, totalTokens: 0, status: 'unknown' },
+            toolCalls,
         };
     }
 

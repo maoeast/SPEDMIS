@@ -42,9 +42,15 @@ describe('AI preload contract', () => {
             'startChat',
             'cancelChat',
             'acceptPrivacy',
+            'setAgentToolsEnabled',
+            'uploadAttachment',
+            'listAttachments',
+            'deleteAttachment',
+            'readAttachmentDataUrl',
             'onChatDelta',
             'onChatDone',
             'onChatError',
+            'onChatToolStep',
         ]));
         expect(aiAPI.execute).toBeUndefined();
 
@@ -52,9 +58,11 @@ describe('AI preload contract', () => {
         await aiAPI.saveProvider({ code: 'deepseek' });
         await aiAPI.startChat({ conversationId: 'conversation-1', content: 'hello' });
         await aiAPI.cancelChat('request-1', 'conversation-1');
+        await aiAPI.setAgentToolsEnabled({ code: 'special_ed_teacher', enabled: true });
 
         expect(ipcInvoke).toHaveBeenCalledWith('ai:bootstrap');
         expect(ipcInvoke).toHaveBeenCalledWith('ai:provider:save', { code: 'deepseek' });
+        expect(ipcInvoke).toHaveBeenCalledWith('ai:agent:setToolsEnabled', { code: 'special_ed_teacher', enabled: true });
         expect(ipcInvoke).toHaveBeenCalledWith('ai:chat:start', { conversationId: 'conversation-1', content: 'hello' });
         expect(ipcInvoke).toHaveBeenCalledWith('ai:chat:cancel', {
             requestId: 'request-1',

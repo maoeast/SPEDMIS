@@ -7,7 +7,7 @@ const { PROVIDER_PRESETS } = require('./ai-provider-client');
 const { getBuiltinKnowledgeSkills } = require('./ai-skill-catalog');
 const { BUILTIN_AGENT_SKILL_BINDINGS } = require('./ai-agent-skill-bindings');
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const DEFAULT_OWNER_KEY = 'local-os-profile';
 const DEFAULT_MONTHLY_TOKEN_LIMIT = 10000000;
 const DEFAULT_CONVERSATION_TITLE = '新对话';
@@ -155,6 +155,7 @@ function mapAgentRow(row, includeSystemPrompt = false) {
         contentVersion: String(row.content_version),
         sourceType: String(row.source_type || 'builtin'),
         enabled: Number(row.enabled) === 1,
+        toolsEnabled: Number(row.tools_enabled) === 1,
         sort: Number(row.sort || 0),
     };
     if (includeSystemPrompt) {
@@ -174,6 +175,7 @@ function mapProviderRow(row, includeSecret = false) {
         model: String(row.model),
         enabled: Number(row.enabled) === 1,
         hasApiKey: Number(row.has_key) === 1,
+        supportsVision: Number(row.supports_vision) === 1,
         sort: Number(row.sort || 0),
         updatedAt: String(row.updated_at),
     };
@@ -181,6 +183,27 @@ function mapProviderRow(row, includeSecret = false) {
         provider.apiKeyEncrypted = String(row.api_key_enc || '');
     }
     return provider;
+}
+
+function mapAttachmentRow(row) {
+    if (!row) {
+        return null;
+    }
+    return {
+        id: String(row.id),
+        conversationId: String(row.conversation_id),
+        messageId: row.message_id == null ? null : String(row.message_id),
+        fileName: String(row.file_name),
+        relativePath: String(row.relative_path),
+        mimeType: String(row.mime_type),
+        sizeBytes: Number(row.size_bytes || 0),
+        sha256: String(row.sha256),
+        width: row.width == null ? null : Number(row.width),
+        height: row.height == null ? null : Number(row.height),
+        status: String(row.status),
+        createdAt: String(row.created_at),
+        updatedAt: String(row.updated_at),
+    };
 }
 
 function mapConversationRow(row) {
@@ -326,6 +349,7 @@ class AIAssistantDatabase {
                 license TEXT NOT NULL,
                 content_version TEXT NOT NULL,
                 source_type TEXT NOT NULL DEFAULT 'builtin',
+                tools_enabled INTEGER NOT NULL DEFAULT 0,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 sort INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
@@ -339,6 +363,7 @@ class AIAssistantDatabase {
                 model TEXT NOT NULL DEFAULT '',
                 api_key_enc TEXT NOT NULL DEFAULT '',
                 has_key INTEGER NOT NULL DEFAULT 0,
+                supports_vision INTEGER NOT NULL DEFAULT 0,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 sort INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
@@ -437,6 +462,49 @@ class AIAssistantDatabase {
                 ON ai_agent_skill(agent_code, enabled, sort);
             CREATE INDEX IF NOT EXISTS idx_ai_skill_kind_enabled
                 ON ai_skill(kind, enabled, sort);
+
+            CREATE TABLE IF NOT EXISTS ai_tool_call (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                message_id TEXT NOT NULL,
+                tool_name TEXT NOT NULL,
+                tool_call_id TEXT NOT NULL,
+                arguments TEXT NOT NULL DEFAULT '',
+                result_size INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL CHECK(status IN ('success', 'error', 'timeout', 'rejected')),
+                round INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ai_tool_call_message
+                ON ai_tool_call(message_id);
+            CREATE INDEX IF NOT EXISTS idx_ai_tool_call_conversation
+                ON ai_tool_call(conversation_id);
+
+            CREATE TABLE IF NOT EXISTS ai_attachment (
+                id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                message_id TEXT,
+                file_name TEXT NOT NULL,
+                relative_path TEXT NOT NULL,
+                mime_type TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                sha256 TEXT NOT NULL,
+                width INTEGER,
+                height INTEGER,
+                status TEXT NOT NULL CHECK(status IN ('pending', 'attached', 'orphaned', 'deleted')),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_ai_attachment_conversation
+                ON ai_attachment(conversation_id);
+            CREATE INDEX IF NOT EXISTS idx_ai_attachment_message
+                ON ai_attachment(message_id);
+            CREATE INDEX IF NOT EXISTS idx_ai_attachment_status
+                ON ai_attachment(status);
         `);
 
         const schemaVersionRow = this._queryOne('SELECT value FROM ai_schema_meta WHERE key = ?', ['schema_version']);
@@ -454,6 +522,12 @@ class AIAssistantDatabase {
             this._addColumnIfMissing('ai_message', 'knowledge_provenance', 'TEXT');
             this._addColumnIfMissing('ai_agent', 'source_type', "TEXT NOT NULL DEFAULT 'builtin'");
         }
+        if (previousSchemaVersion > 0 && previousSchemaVersion < 4) {
+            // Phase 3：按 agent 启用工具 + provider 视觉能力位。
+            // ai_tool_call / ai_attachment 表由 CREATE TABLE IF NOT EXISTS 创建。
+            this._addColumnIfMissing('ai_agent', 'tools_enabled', 'INTEGER NOT NULL DEFAULT 0');
+            this._addColumnIfMissing('ai_provider', 'supports_vision', 'INTEGER NOT NULL DEFAULT 0');
+        }
 
         this._execute(
             `INSERT INTO ai_schema_meta (key, value) VALUES ('schema_version', ?)
@@ -469,8 +543,8 @@ class AIAssistantDatabase {
                 `INSERT INTO ai_agent (
                     code, name, display_name, avatar_text, avatar_tone, tagline, teacher_support,
                     expertise_tags, system_prompt, starter_prompts, source, license, content_version,
-                    enabled, sort, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                    tools_enabled, enabled, sort, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?)
                 ON CONFLICT(code) DO UPDATE SET
                     name = excluded.name,
                     display_name = excluded.display_name,
@@ -875,6 +949,161 @@ class AIAssistantDatabase {
         return this.getAgentByCode(code);
     }
 
+    async setAgentToolsEnabled(code, enabled) {
+        this._assertReady();
+        const changed = this._execute(
+            'UPDATE ai_agent SET tools_enabled = ?, updated_at = ? WHERE code = ?',
+            [enabled ? 1 : 0, this.now(), code]
+        );
+        if (!changed) {
+            throw new AIDatabaseError('agent_not_found', '未找到指定的智能体。');
+        }
+        await this._commitMutation();
+        return this.getAgentByCode(code);
+    }
+
+    async recordToolCall({ conversationId, messageId, toolName, toolCallId, arguments: args, resultSize, status, round }) {
+        this._assertReady();
+        const truncatedArgs = typeof args === 'string' ? args.slice(0, 2000) : '';
+        this._execute(
+            `INSERT INTO ai_tool_call (
+                id, conversation_id, message_id, tool_name, tool_call_id, arguments,
+                result_size, status, round, created_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                this.idFactory(),
+                conversationId,
+                messageId,
+                toolName,
+                toolCallId,
+                truncatedArgs,
+                Number(resultSize || 0),
+                status,
+                Number(round || 0),
+                this.now(),
+            ]
+        );
+        await this._commitMutation();
+        return true;
+    }
+
+    listToolCalls(messageId) {
+        this._assertReady();
+        return this._query(
+            `SELECT id, tool_name, tool_call_id, arguments, result_size, status, round, created_at
+             FROM ai_tool_call WHERE message_id = ?
+             ORDER BY round ASC, created_at ASC`,
+            [messageId]
+        ).map((row) => ({
+            id: String(row.id),
+            toolName: String(row.tool_name),
+            toolCallId: String(row.tool_call_id),
+            arguments: String(row.arguments || ''),
+            resultSize: Number(row.result_size || 0),
+            status: String(row.status),
+            round: Number(row.round || 0),
+            createdAt: String(row.created_at),
+        }));
+    }
+
+    async createAttachment({ conversationId, fileName, relativePath, mimeType, sizeBytes, sha256, width, height }) {
+        this._assertReady();
+        const id = this.idFactory();
+        const timestamp = this.now();
+        this._execute(
+            `INSERT INTO ai_attachment (
+                id, conversation_id, message_id, file_name, relative_path, mime_type,
+                size_bytes, sha256, width, height, status, created_at, updated_at
+             ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+            [
+                id, conversationId, fileName, relativePath, mimeType, sizeBytes, sha256,
+                width == null ? null : width, height == null ? null : height, timestamp, timestamp,
+            ]
+        );
+        await this._commitMutation();
+        return mapAttachmentRow(this._queryOne('SELECT * FROM ai_attachment WHERE id = ?', [id]));
+    }
+
+    async linkAttachmentsToMessage(messageId, attachmentIds, conversationId) {
+        this._assertReady();
+        const ids = Array.isArray(attachmentIds)
+            ? attachmentIds.filter((value) => typeof value === 'string' && value)
+            : [];
+        if (ids.length === 0) {
+            return [];
+        }
+        const placeholders = ids.map(() => '?').join(', ');
+        this._execute(
+            `UPDATE ai_attachment SET message_id = ?, status = 'attached', updated_at = ?
+             WHERE id IN (${placeholders}) AND conversation_id = ?`,
+            [messageId, this.now(), ...ids, conversationId]
+        );
+        await this._commitMutation();
+        return ids;
+    }
+
+    listAttachments(conversationId) {
+        this._assertReady();
+        return this._query(
+            `SELECT * FROM ai_attachment WHERE conversation_id = ? AND status != 'deleted' ORDER BY created_at ASC`,
+            [conversationId]
+        ).map((row) => mapAttachmentRow(row));
+    }
+
+    listAttachmentsForMessage(messageId) {
+        this._assertReady();
+        return this._query(
+            `SELECT * FROM ai_attachment WHERE message_id = ? AND status != 'deleted' ORDER BY created_at ASC`,
+            [messageId]
+        ).map((row) => mapAttachmentRow(row));
+    }
+
+    listAttachmentsByIds(attachmentIds, conversationId) {
+        this._assertReady();
+        const ids = Array.isArray(attachmentIds)
+            ? attachmentIds.filter((value) => typeof value === 'string' && value)
+            : [];
+        if (ids.length === 0) {
+            return [];
+        }
+        const placeholders = ids.map(() => '?').join(', ');
+        return this._query(
+            `SELECT * FROM ai_attachment WHERE id IN (${placeholders}) AND conversation_id = ? AND status = 'pending'`,
+            [...ids, conversationId]
+        ).map((row) => mapAttachmentRow(row));
+    }
+
+    listAttachmentPaths(conversationId) {
+        this._assertReady();
+        return this._query(
+            'SELECT id, relative_path FROM ai_attachment WHERE conversation_id = ?',
+            [conversationId]
+        ).map((row) => ({ id: String(row.id), relativePath: String(row.relative_path) }));
+    }
+
+    listPromptAttachments(conversationId) {
+        this._assertReady();
+        return this._query(
+            `SELECT a.* FROM ai_attachment a
+             JOIN ai_message m ON m.id = a.message_id
+             WHERE a.conversation_id = ? AND a.status = 'attached' AND m.role = 'user'
+             ORDER BY a.created_at ASC`,
+            [conversationId]
+        ).map((row) => mapAttachmentRow(row));
+    }
+
+    async deleteAttachment(attachmentId) {
+        this._assertReady();
+        const changed = this._execute(
+            `UPDATE ai_attachment SET status = 'deleted', updated_at = ? WHERE id = ?`,
+            [this.now(), attachmentId]
+        );
+        if (changed) {
+            await this._commitMutation();
+        }
+        return Boolean(changed);
+    }
+
     async upsertAgentSkillBinding(agentCode, skillCode, referenceIds, enabled = true, sort = 0) {
         this._assertReady();
         const config = JSON.stringify({ referenceIds });
@@ -1089,25 +1318,28 @@ class AIAssistantDatabase {
         return mapProviderRow(this._queryOne('SELECT * FROM ai_provider WHERE code = ? AND enabled = 1', [code]), true);
     }
 
-    async saveProvider({ ownerKey, code, baseUrl, model, apiKeyEncrypted }) {
+    async saveProvider({ ownerKey, code, baseUrl, model, apiKeyEncrypted, supportsVision }) {
         this._assertReady();
         const existing = this.getProvider(code);
         if (!existing) {
             throw new AIDatabaseError('provider_not_found', '未找到指定的 Provider。');
         }
+        const visionFlag = supportsVision !== undefined
+            ? (supportsVision ? 1 : 0)
+            : (existing.supportsVision ? 1 : 0);
 
         this._transaction(() => {
             if (apiKeyEncrypted !== undefined) {
                 this._execute(
                     `UPDATE ai_provider
-                     SET base_url = ?, model = ?, api_key_enc = ?, has_key = ?, updated_at = ?
+                     SET base_url = ?, model = ?, api_key_enc = ?, has_key = ?, supports_vision = ?, updated_at = ?
                      WHERE code = ?`,
-                    [baseUrl, model, apiKeyEncrypted, apiKeyEncrypted ? 1 : 0, this.now(), code]
+                    [baseUrl, model, apiKeyEncrypted, apiKeyEncrypted ? 1 : 0, visionFlag, this.now(), code]
                 );
             } else {
                 this._execute(
-                    `UPDATE ai_provider SET base_url = ?, model = ?, updated_at = ? WHERE code = ?`,
-                    [baseUrl, model, this.now(), code]
+                    `UPDATE ai_provider SET base_url = ?, model = ?, supports_vision = ?, updated_at = ? WHERE code = ?`,
+                    [baseUrl, model, visionFlag, this.now(), code]
                 );
             }
             this._ensurePreference(ownerKey);

@@ -189,4 +189,65 @@ describe('AI assistant service', () => {
         }));
         expect(assistant.knowledgeSnapshot).toContain('## 专业技能：');
     });
+
+    test('runs a bounded tool loop for a tools-enabled agent and audits each call', async () => {
+        providerClient.completeChat = jest.fn()
+            .mockResolvedValueOnce({
+                content: '',
+                usage: { promptTokens: 5, completionTokens: 0, totalTokens: 5, status: 'exact' },
+                toolCalls: [{
+                    id: 'call_1',
+                    type: 'function',
+                    function: { name: 'search_intervention_apps', arguments: '{"domain":"感知觉统合"}' },
+                }],
+            })
+            .mockResolvedValueOnce({
+                content: '已为你找到相关应用。',
+                usage: { promptTokens: 20, completionTokens: 8, totalTokens: 28, status: 'exact' },
+                toolCalls: [],
+            });
+
+        await service.setAgentToolsEnabled({ code: 'special_ed_teacher', enabled: true });
+        const conversation = await configureAndCreateConversation();
+        const started = await service.startChat({
+            conversationId: conversation.id,
+            content: '有哪些感觉统合应用',
+        }, sender);
+        const completion = service.activeRequests.get(started.requestId).completionPromise;
+        deferredCallbacks.shift()();
+        await completion;
+
+        expect(providerClient.completeChat).toHaveBeenCalledTimes(2);
+        expect(providerClient.streamChat).not.toHaveBeenCalled();
+        expect(sender.send).toHaveBeenCalledWith('ai:chat:delta', expect.objectContaining({
+            delta: '已为你找到相关应用。',
+        }));
+        expect(sender.send).toHaveBeenCalledWith('ai:chat:tool:step', expect.objectContaining({
+            name: 'search_intervention_apps',
+            ok: true,
+        }));
+        expect(sender.send).toHaveBeenCalledWith('ai:chat:done', expect.objectContaining({
+            toolSteps: expect.arrayContaining([expect.objectContaining({ name: 'search_intervention_apps' })]),
+        }));
+        const assistant = database.listMessages('local-os-profile', conversation.id)
+            .find((message) => message.role === 'assistant');
+        expect(database.listToolCalls(assistant.id)).toEqual([
+            expect.objectContaining({ toolName: 'search_intervention_apps', status: 'success' }),
+        ]);
+    });
+
+    test('blocks image attachments locally when the provider does not support vision', async () => {
+        const conversation = await configureAndCreateConversation();
+        const messagesBefore = database.listMessages('local-os-profile', conversation.id).length;
+
+        await expect(service.startChat({
+            conversationId: conversation.id,
+            content: '看看这张课堂图片',
+            attachmentIds: ['fake-attachment-id'],
+        }, sender)).rejects.toMatchObject({ kind: 'vision_not_supported' });
+
+        // 本地拦截：不应创建任何新消息行，也不应发起网络请求。
+        expect(database.listMessages('local-os-profile', conversation.id)).toHaveLength(messagesBefore);
+        expect(providerClient.streamChat).not.toHaveBeenCalled();
+    });
 });

@@ -16,6 +16,7 @@ const AI_CHANNELS = Object.freeze({
     chatDelta: 'ai:chat:delta',
     chatDone: 'ai:chat:done',
     chatError: 'ai:chat:error',
+    chatToolStep: 'ai:chat:tool:step',
     privacyAccept: 'ai:privacy:accept',
     budgetUpdate: 'ai:budget:update',
     externalOpen: 'ai:external:open',
@@ -24,11 +25,16 @@ const AI_CHANNELS = Object.freeze({
     agentUpdate: 'ai:agent:update',
     agentDelete: 'ai:agent:delete',
     agentSetEnabled: 'ai:agent:setEnabled',
+    agentSetToolsEnabled: 'ai:agent:setToolsEnabled',
     agentSkillList: 'ai:agent:skill:list',
     agentSkillUpdate: 'ai:agent:skill:update',
     agentSkillSetEnabled: 'ai:agent:skill:setEnabled',
     agentSkillDelete: 'ai:agent:skill:delete',
     agentSkillReset: 'ai:agent:skill:reset',
+    attachmentUpload: 'ai:attachment:upload',
+    attachmentList: 'ai:attachment:list',
+    attachmentRemove: 'ai:attachment:remove',
+    attachmentReadDataUrl: 'ai:attachment:readDataUrl',
 });
 
 function assertAIWindowSender(event, getAIWindow) {
@@ -109,11 +115,16 @@ function registerAIIPC({ ipcMain, getAIWindow, getService, shell, logger }) {
     register(AI_CHANNELS.agentUpdate, (service, _event, payload) => service.updateCustomAgent(payload));
     register(AI_CHANNELS.agentDelete, (service, _event, payload) => service.deleteCustomAgent(payload));
     register(AI_CHANNELS.agentSetEnabled, (service, _event, payload) => service.setAgentEnabled(payload));
+    register(AI_CHANNELS.agentSetToolsEnabled, (service, _event, payload) => service.setAgentToolsEnabled(payload));
     register(AI_CHANNELS.agentSkillList, (service, _event, payload) => service.listAgentSkills(payload));
     register(AI_CHANNELS.agentSkillUpdate, (service, _event, payload) => service.updateAgentSkillBinding(payload));
     register(AI_CHANNELS.agentSkillSetEnabled, (service, _event, payload) => service.setAgentSkillEnabled(payload));
     register(AI_CHANNELS.agentSkillDelete, (service, _event, payload) => service.deleteAgentSkillBinding(payload));
     register(AI_CHANNELS.agentSkillReset, (service, _event, payload) => service.resetBuiltinAgentBindings(payload));
+    register(AI_CHANNELS.attachmentUpload, (service, _event, payload) => service.uploadAttachment(payload));
+    register(AI_CHANNELS.attachmentList, (service, _event, payload) => service.listAttachments(payload));
+    register(AI_CHANNELS.attachmentRemove, (service, _event, payload) => service.deleteAttachment(payload));
+    register(AI_CHANNELS.attachmentReadDataUrl, (service, _event, payload) => service.readAttachmentDataUrl(payload));
 
     return () => {
         if (typeof ipcMain.removeHandler !== 'function') {

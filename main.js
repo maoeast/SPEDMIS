@@ -194,10 +194,20 @@ async function initializeAIService() {
   const database = new AIAssistantDatabase({
     dbPath: path.join(app.getPath('userData'), 'ai-assistant.db'),
   });
+  let appsCatalog = {};
+  try {
+    const appsJsonPath = path.join(app.getAppPath(), 'apps.json');
+    appsCatalog = JSON.parse(await fs.promises.readFile(appsJsonPath, 'utf8'));
+  } catch (error) {
+    logger.warn('Failed to load apps.json for AI tools', { error: error.message });
+  }
   const service = new AIAssistantService({
     database,
     secretStore: createAISecretStore(safeStorage),
     providerClient: new AIProviderClient(),
+    appsCatalog,
+    usageStatsModule: usageStats,
+    attachmentDir: path.join(app.getPath('userData'), 'ai-attachments'),
     logger,
   });
 
