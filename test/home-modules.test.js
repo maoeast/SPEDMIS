@@ -1,4 +1,4 @@
-const { buildModulesData, buildHomeEntries, MODULES_BY_KEY } = require('../modules/home-modules');
+const { buildModulesData } = require('../modules/home-modules');
 
 describe('home modules composition', () => {
     test('should show AI 心理测评 when selected module is psy', () => {
@@ -53,17 +53,5 @@ describe('home modules composition', () => {
             key: 'psy',
             name: 'AI心理测评',
         });
-    });
-
-    test('should append the fixed AI assistant entry without adding it to module naming metadata', () => {
-        const entries = buildHomeEntries('none');
-
-        expect(entries).toHaveLength(6);
-        expect(entries[entries.length - 1]).toMatchObject({
-            key: 'aiAssistant',
-            name: 'AI 教师助手',
-            entryType: 'ai',
-        });
-        expect(MODULES_BY_KEY.aiAssistant).toBeUndefined();
     });
 });

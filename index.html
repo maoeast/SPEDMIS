@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="./fontawesome/css/all.min.css">
 </head>
 <body class="index-page">
+    <video class="video-background" autoplay muted loop playsinline preload="auto" poster="images/back.jpg" aria-hidden="true">
+        <source src="images/back.mp4" type="video/mp4">
+    </video>
+    <div class="video-overlay" aria-hidden="true"></div>
+
     <div class="exit-button" id="exitButton">
         <i class="fas fa-sign-out-alt"></i>
         <span>退出</span>
@@ -17,6 +22,10 @@
         <i class="fas fa-user-circle"></i>
         <span>用户中心</span>
     </div>
+
+    <button class="ai-assistant-fab" id="aiAssistantFab" type="button" title="AI 教师助手" aria-label="AI 教师助手">
+        <i class="fas fa-comments" aria-hidden="true"></i>
+    </button>
 
     <div class="logo-container" id="logoContainer">
         <img src="images/logo.png" alt="公司 logo" class="logo" id="logoImage" title="公司 logo">
@@ -104,21 +113,6 @@
                 return;
             }
 
-            if (module.entryType === 'ai') {
-                card.addEventListener('click', async () => {
-                    try {
-                        const result = await window.electronAPI.openAIAssistant();
-                        if (!result?.success) {
-                            alert(result?.error || 'AI 工作台打开失败，请稍后重试。');
-                        }
-                    } catch (error) {
-                        console.error('打开 AI 工作台失败:', error);
-                        alert('AI 工作台打开失败，请稍后重试。');
-                    }
-                });
-                return;
-            }
-
             card.addEventListener('click', () => {
                 window.location.href = `module.html?moduleKey=${encodeURIComponent(module.key)}`;
             });
@@ -136,7 +130,7 @@
                 console.error('加载首页入口模块配置失败:', error);
             }
 
-            const moduleList = window.homeModules.buildHomeEntries(selectedModule, currentModuleNames);
+            const moduleList = window.homeModules.buildModulesData(selectedModule, currentModuleNames);
             modulesContainer.innerHTML = '';
 
             moduleList.forEach((module) => {
@@ -249,6 +243,18 @@
 
         document.getElementById('userCenterButton').addEventListener('click', () => {
             window.location.href = 'user-center.html';
+        });
+
+        document.getElementById('aiAssistantFab').addEventListener('click', async () => {
+            try {
+                const result = await window.electronAPI.openAIAssistant();
+                if (!result?.success) {
+                    alert(result?.error || 'AI 工作台打开失败，请稍后重试。');
+                }
+            } catch (error) {
+                console.error('打开 AI 工作台失败:', error);
+                alert('AI 工作台打开失败，请稍后重试。');
+            }
         });
 
         registerAdvancedSettingsEntry();
