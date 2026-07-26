@@ -320,6 +320,64 @@
             background: rgba(18, 116, 217, 0.04);
         }
 
+        .switch-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 26px;
+            flex: 0 0 auto;
+        }
+
+        .switch input {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .switch .track {
+            position: absolute;
+            inset: 0;
+            border-radius: 999px;
+            background: #c9d6e4;
+            transition: background 0.2s ease;
+        }
+
+        .switch .thumb {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(22, 54, 92, 0.25);
+            transition: transform 0.2s ease;
+        }
+
+        .switch input:checked ~ .track {
+            background: var(--accent);
+        }
+
+        .switch input:checked ~ .thumb {
+            transform: translateX(20px);
+        }
+
+        .switch-state {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
         @media (max-width: 1320px) {
             .workspace {
                 grid-template-columns: 210px 1fr;
@@ -472,12 +530,53 @@
                     <div class="section-head">
                         <div>
                             <h2>系统维护</h2>
-                            <p>本次改版先预留位置，避免后续新设置再次挤回长页面结构。</p>
+                            <p>控制系统级功能开关。修改后需重新打开 AI 助手窗口才会生效。</p>
                         </div>
                     </div>
 
-                    <div class="placeholder-panel">
-                        <div class="helper-text">后续如需加入缓存清理、统计入口、管理员维护项，可直接放入此分组。</div>
+                    <div class="field-grid">
+                        <div class="field-card wide">
+                            <div class="field-label">AI 智能体管理</div>
+                            <div class="switch-row">
+                                <label class="switch">
+                                    <input type="checkbox" id="agentManagementEnabled" />
+                                    <span class="track"></span>
+                                    <span class="thumb"></span>
+                                </label>
+                                <span class="switch-state" id="agentManagementStateLabel">已关闭</span>
+                            </div>
+                            <div class="field-hint">开启后，AI 助手「服务设置」中才会显示「智能体管理」区块（可创建、编辑智能体并开启工具调用）。默认关闭以保持界面简洁。</div>
+                        </div>
+                        <div class="field-card wide">
+                            <div class="field-label">显示知识技能区块</div>
+                            <div class="switch-row">
+                                <label class="switch">
+                                    <input type="checkbox" id="knowledgeSectionVisible" />
+                                    <span class="track"></span>
+                                    <span class="thumb"></span>
+                                </label>
+                                <span class="switch-state" id="knowledgeSectionStateLabel">已关闭</span>
+                            </div>
+                            <div class="field-hint">开启后，AI 助手「服务设置」中才会显示「知识技能」区块。默认关闭以保持界面简洁；保存后重新打开 AI 助手窗口生效。</div>
+                        </div>
+                        <div class="field-card wide">
+                            <div class="field-label">显示本月额度</div>
+                            <div class="switch-row">
+                                <label class="switch">
+                                    <input type="checkbox" id="budgetSectionVisible" />
+                                    <span class="track"></span>
+                                    <span class="thumb"></span>
+                                </label>
+                                <span class="switch-state" id="budgetSectionStateLabel">已关闭</span>
+                            </div>
+                            <div class="field-hint">开启后，AI 助手「服务设置」中才会显示「本月额度」区块（用量进度与额度设置）。默认关闭以保持界面简洁；保存后重新打开 AI 助手窗口生效。</div>
+                        </div>
+                    </div>
+
+                    <div class="action-row">
+                        <button class="btn btn-primary" type="button" onclick="saveMaintenanceConfig()">保存维护设置</button>
+                        <button class="btn btn-secondary" type="button" onclick="loadMaintenanceConfig()">重新加载</button>
+                        <div></div>
                     </div>
                 </section>
             </main>
@@ -798,6 +897,60 @@
             showMessage('已撤销未保存的模块名称修改。', 'success');
         }
 
+        const MAINTENANCE_FLAGS = [
+            { key: 'agentManagementEnabled', checkbox: 'agentManagementEnabled', label: 'agentManagementStateLabel' },
+            { key: 'knowledgeSectionVisible', checkbox: 'knowledgeSectionVisible', label: 'knowledgeSectionStateLabel' },
+            { key: 'budgetSectionVisible', checkbox: 'budgetSectionVisible', label: 'budgetSectionStateLabel' },
+        ];
+
+        function applyMaintenanceFlag({ checkbox, label }, enabled) {
+            const checkboxEl = document.getElementById(checkbox);
+            const stateLabel = document.getElementById(label);
+            if (!checkboxEl) {
+                return;
+            }
+            checkboxEl.checked = Boolean(enabled);
+            if (stateLabel) {
+                stateLabel.textContent = checkboxEl.checked ? '已开启' : '已关闭';
+            }
+        }
+
+        async function loadMaintenanceConfig() {
+            try {
+                const result = await window.electronAPI.getAiFeatureFlags();
+                if (result.success && result.data) {
+                    MAINTENANCE_FLAGS.forEach((flag) => applyMaintenanceFlag(flag, result.data[flag.key]));
+                    return;
+                }
+            } catch (error) {
+                console.error('加载系统维护配置失败:', error);
+            }
+
+            MAINTENANCE_FLAGS.forEach((flag) => applyMaintenanceFlag(flag, false));
+        }
+
+        async function saveMaintenanceConfig() {
+            const payload = {};
+            MAINTENANCE_FLAGS.forEach((flag) => {
+                const checkboxEl = document.getElementById(flag.checkbox);
+                payload[flag.key] = checkboxEl ? checkboxEl.checked : false;
+            });
+
+            try {
+                showMessage('正在保存维护设置...', 'info');
+                const result = await window.electronAPI.setAiFeatureFlags(payload);
+
+                if (result.success && result.data) {
+                    MAINTENANCE_FLAGS.forEach((flag) => applyMaintenanceFlag(flag, result.data[flag.key]));
+                    showMessage('系统维护设置已保存，重新打开 AI 助手后生效。', 'success');
+                } else {
+                    showMessage('保存维护设置失败: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('保存维护设置失败: ' + error.message, 'error');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('.nav-item').forEach((button) => {
                 button.addEventListener('click', () => {
@@ -805,11 +958,24 @@
                 });
             });
 
+            MAINTENANCE_FLAGS.forEach((flag) => {
+                const checkboxEl = document.getElementById(flag.checkbox);
+                if (checkboxEl) {
+                    checkboxEl.addEventListener('change', (event) => {
+                        const stateLabel = document.getElementById(flag.label);
+                        if (stateLabel) {
+                            stateLabel.textContent = event.target.checked ? '已开启' : '已关闭';
+                        }
+                    });
+                }
+            });
+
             try {
                 await Promise.all([
                     loadProductInfo(),
                     loadEntryModuleConfig(),
                     loadModuleNameConfig(),
+                    loadMaintenanceConfig(),
                 ]);
             } catch (error) {
                 showMessage('加载高级设置失败: ' + error.message, 'error');

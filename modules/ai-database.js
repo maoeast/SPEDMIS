@@ -7,7 +7,7 @@ const { PROVIDER_PRESETS } = require('./ai-provider-client');
 const { getBuiltinKnowledgeSkills } = require('./ai-skill-catalog');
 const { BUILTIN_AGENT_SKILL_BINDINGS } = require('./ai-agent-skill-bindings');
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 const DEFAULT_OWNER_KEY = 'local-os-profile';
 const DEFAULT_MONTHLY_TOKEN_LIMIT = 10000000;
 const DEFAULT_CONVERSATION_TITLE = '新对话';
@@ -168,11 +168,19 @@ function mapProviderRow(row, includeSecret = false) {
     if (!row) {
         return null;
     }
+    const model = String(row.model || '');
+    // endpoints：显式列表优先；为空但 model 非空时惰性合成单项列表（旧数据/种子免回填）。
+    const endpoints = parseJsonArray(row.endpoints_json)
+        .map((value) => String(value || ''))
+        .filter((value) => value.length > 0);
+    const resolvedEndpoints = endpoints.length > 0 ? endpoints : (model ? [model] : []);
     const provider = {
         code: String(row.code),
         name: String(row.name),
         baseUrl: String(row.base_url),
-        model: String(row.model),
+        model,
+        endpoints: resolvedEndpoints,
+        activeEndpoint: model,
         enabled: Number(row.enabled) === 1,
         hasApiKey: Number(row.has_key) === 1,
         supportsVision: Number(row.supports_vision) === 1,
@@ -361,6 +369,7 @@ class AIAssistantDatabase {
                 name TEXT NOT NULL,
                 base_url TEXT NOT NULL,
                 model TEXT NOT NULL DEFAULT '',
+                endpoints_json TEXT NOT NULL DEFAULT '[]',
                 api_key_enc TEXT NOT NULL DEFAULT '',
                 has_key INTEGER NOT NULL DEFAULT 0,
                 supports_vision INTEGER NOT NULL DEFAULT 0,
@@ -413,9 +422,10 @@ class AIAssistantDatabase {
                 owner_key TEXT PRIMARY KEY,
                 privacy_version TEXT,
                 privacy_accepted_at TEXT,
-                current_provider_code TEXT NOT NULL DEFAULT 'deepseek',
+                current_provider_code TEXT NOT NULL DEFAULT 'volcengine',
                 monthly_token_limit INTEGER NOT NULL DEFAULT 10000000,
                 hard_limit_enabled INTEGER NOT NULL DEFAULT 1,
+                knowledge_section_visible INTEGER NOT NULL DEFAULT 0,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (current_provider_code) REFERENCES ai_provider(code)
             );
@@ -527,6 +537,14 @@ class AIAssistantDatabase {
             // ai_tool_call / ai_attachment 表由 CREATE TABLE IF NOT EXISTS 创建。
             this._addColumnIfMissing('ai_agent', 'tools_enabled', 'INTEGER NOT NULL DEFAULT 0');
             this._addColumnIfMissing('ai_provider', 'supports_vision', 'INTEGER NOT NULL DEFAULT 0');
+        }
+        if (previousSchemaVersion > 0 && previousSchemaVersion < 5) {
+            // Phase 5：provider 多接入点列表 + 知识技能区块可见性开关。
+            this._addColumnIfMissing('ai_provider', 'endpoints_json', "TEXT NOT NULL DEFAULT '[]'");
+            this._addColumnIfMissing('ai_preference', 'knowledge_section_visible', 'INTEGER NOT NULL DEFAULT 0');
+            // DeepSeek 官方渠道已下线：把仍指向 deepseek 的偏好迁到火山方舟，再清除 deepseek 行。
+            this._execute("UPDATE ai_preference SET current_provider_code = 'volcengine' WHERE current_provider_code = 'deepseek'");
+            this._execute("DELETE FROM ai_provider WHERE code = 'deepseek'");
         }
 
         this._execute(
@@ -1178,7 +1196,7 @@ class AIAssistantDatabase {
         this._execute(
             `INSERT OR IGNORE INTO ai_preference (
                 owner_key, current_provider_code, monthly_token_limit, hard_limit_enabled, updated_at
-             ) VALUES (?, 'deepseek', ?, 1, ?)`,
+             ) VALUES (?, 'volcengine', ?, 1, ?)`,
             [ownerKey, DEFAULT_MONTHLY_TOKEN_LIMIT, this.now()]
         );
     }
@@ -1318,7 +1336,7 @@ class AIAssistantDatabase {
         return mapProviderRow(this._queryOne('SELECT * FROM ai_provider WHERE code = ? AND enabled = 1', [code]), true);
     }
 
-    async saveProvider({ ownerKey, code, baseUrl, model, apiKeyEncrypted, supportsVision }) {
+    async saveProvider({ ownerKey, code, baseUrl, model, apiKeyEncrypted, supportsVision, endpointsJson }) {
         this._assertReady();
         const existing = this.getProvider(code);
         if (!existing) {
@@ -1327,19 +1345,23 @@ class AIAssistantDatabase {
         const visionFlag = supportsVision !== undefined
             ? (supportsVision ? 1 : 0)
             : (existing.supportsVision ? 1 : 0);
+        // endpointsJson 未提供时保留现有列表（兼容直接调用 DB 的旧路径）。
+        const resolvedEndpointsJson = endpointsJson !== undefined
+            ? endpointsJson
+            : JSON.stringify(existing.endpoints || []);
 
         this._transaction(() => {
             if (apiKeyEncrypted !== undefined) {
                 this._execute(
                     `UPDATE ai_provider
-                     SET base_url = ?, model = ?, api_key_enc = ?, has_key = ?, supports_vision = ?, updated_at = ?
+                     SET base_url = ?, model = ?, endpoints_json = ?, api_key_enc = ?, has_key = ?, supports_vision = ?, updated_at = ?
                      WHERE code = ?`,
-                    [baseUrl, model, apiKeyEncrypted, apiKeyEncrypted ? 1 : 0, visionFlag, this.now(), code]
+                    [baseUrl, model, resolvedEndpointsJson, apiKeyEncrypted, apiKeyEncrypted ? 1 : 0, visionFlag, this.now(), code]
                 );
             } else {
                 this._execute(
-                    `UPDATE ai_provider SET base_url = ?, model = ?, supports_vision = ?, updated_at = ? WHERE code = ?`,
-                    [baseUrl, model, visionFlag, this.now(), code]
+                    `UPDATE ai_provider SET base_url = ?, model = ?, endpoints_json = ?, supports_vision = ?, updated_at = ? WHERE code = ?`,
+                    [baseUrl, model, resolvedEndpointsJson, visionFlag, this.now(), code]
                 );
             }
             this._ensurePreference(ownerKey);
@@ -1373,9 +1395,10 @@ class AIAssistantDatabase {
                 ownerKey,
                 privacyVersion: null,
                 privacyAcceptedAt: null,
-                currentProviderCode: 'deepseek',
+                currentProviderCode: 'volcengine',
                 monthlyTokenLimit: DEFAULT_MONTHLY_TOKEN_LIMIT,
                 hardLimitEnabled: true,
+                knowledgeSectionVisible: false,
             };
         }
         return {
@@ -1385,6 +1408,7 @@ class AIAssistantDatabase {
             currentProviderCode: String(row.current_provider_code),
             monthlyTokenLimit: Number(row.monthly_token_limit),
             hardLimitEnabled: Number(row.hard_limit_enabled) === 1,
+            knowledgeSectionVisible: Number(row.knowledge_section_visible) === 1,
         };
     }
 
@@ -1410,6 +1434,35 @@ class AIAssistantDatabase {
              SET monthly_token_limit = ?, hard_limit_enabled = ?, updated_at = ?
              WHERE owner_key = ?`,
             [monthlyTokenLimit, hardLimitEnabled ? 1 : 0, this.now(), ownerKey]
+        );
+        await this._commitMutation();
+        return this.getPreference(ownerKey);
+    }
+
+    async updatePreference(ownerKey, patch = {}) {
+        this._assertReady();
+        // allowlist：渲染层可改的偏好字段 → 列名（可扩展）。
+        const ALLOWED = { knowledgeSectionVisible: 'knowledge_section_visible' };
+        const sets = [];
+        const values = [];
+        for (const [key, value] of Object.entries(patch || {})) {
+            const column = ALLOWED[key];
+            if (!column) {
+                continue;
+            }
+            sets.push(`${column} = ?`);
+            values.push(value ? 1 : 0);
+        }
+        if (sets.length === 0) {
+            return this.getPreference(ownerKey);
+        }
+        this._ensurePreference(ownerKey);
+        sets.push('updated_at = ?');
+        values.push(this.now());
+        values.push(ownerKey);
+        this._execute(
+            `UPDATE ai_preference SET ${sets.join(', ')} WHERE owner_key = ?`,
+            values
         );
         await this._commitMutation();
         return this.getPreference(ownerKey);
@@ -1507,6 +1560,71 @@ class AIAssistantDatabase {
             await this._commitMutation();
         }
         return deleted;
+    }
+
+    // 从指定的 user 消息（含）起截断会话尾部：删除该消息及其后的所有消息（助手回复等），
+    // 将被删 user 消息上的 attached 附件标记为 orphaned（保留行审计）并返回其相对路径供
+    // service 层清理文件；同时清除这些消息的 ai_tool_call 审计行（无 FK 级联）。
+    // 用于「编辑并重发最近一条消息」：截断后再由 startChat 重建一对全新消息。
+    async deleteMessagesFrom(ownerKey, conversationId, fromMessageId) {
+        this._assertReady();
+        const orphaned = this._transaction(() => {
+            const owned = this._queryOne(
+                'SELECT 1 FROM ai_conversation WHERE id = ? AND owner_key = ?',
+                [conversationId, ownerKey]
+            );
+            if (!owned) {
+                throw new AIDatabaseError('conversation_not_found', '未找到指定的会话。');
+            }
+            const anchor = this._queryOne(
+                'SELECT rowid AS r, role FROM ai_message WHERE id = ? AND conversation_id = ?',
+                [fromMessageId, conversationId]
+            );
+            if (!anchor) {
+                throw new AIDatabaseError('message_not_found', '未找到指定的消息。');
+            }
+            if (String(anchor.role) !== 'user') {
+                throw new AIDatabaseError('invalid_input', '只能从用户消息开始重新发送。');
+            }
+            const doomedRows = this._query(
+                'SELECT id FROM ai_message WHERE conversation_id = ? AND rowid >= ?',
+                [conversationId, anchor.r]
+            );
+            const doomedIds = doomedRows.map((row) => String(row.id));
+            if (doomedIds.length === 0) {
+                return [];
+            }
+            const doomedPlaceholders = doomedIds.map(() => '?').join(', ');
+
+            // 被截断消息上的 attached 附件 → orphaned（保留行审计），返回路径供清理文件。
+            const orphanAttachments = this._query(
+                `SELECT id, relative_path FROM ai_attachment
+                 WHERE conversation_id = ? AND status = 'attached' AND message_id IN (${doomedPlaceholders})`,
+                [conversationId, ...doomedIds]
+            ).map((row) => ({ id: String(row.id), relativePath: String(row.relative_path) }));
+            if (orphanAttachments.length > 0) {
+                const orphanPlaceholders = orphanAttachments.map(() => '?').join(', ');
+                this._execute(
+                    `UPDATE ai_attachment SET status = 'orphaned', message_id = NULL, updated_at = ?
+                     WHERE id IN (${orphanPlaceholders})`,
+                    [this.now(), ...orphanAttachments.map((item) => item.id)]
+                );
+            }
+
+            // 工具调用审计无 message FK，随消息删除避免悬挂。
+            this._execute(
+                `DELETE FROM ai_tool_call WHERE message_id IN (${doomedPlaceholders})`,
+                doomedIds
+            );
+
+            this._execute(
+                `DELETE FROM ai_message WHERE conversation_id = ? AND id IN (${doomedPlaceholders})`,
+                [conversationId, ...doomedIds]
+            );
+            return orphanAttachments;
+        });
+        await this._commitMutation();
+        return orphaned;
     }
 
     listMessages(ownerKey, conversationId, options = {}) {
@@ -1691,6 +1809,7 @@ class AIAssistantDatabase {
                 currentProviderCode: preference.currentProviderCode,
                 monthlyTokenLimit: preference.monthlyTokenLimit,
                 hardLimitEnabled: preference.hardLimitEnabled,
+                knowledgeSectionVisible: preference.knowledgeSectionVisible,
                 privacyAccepted: preference.privacyVersion === privacyVersion && Boolean(preference.privacyAcceptedAt),
                 privacyAcceptedAt: preference.privacyAcceptedAt,
                 privacyVersion,

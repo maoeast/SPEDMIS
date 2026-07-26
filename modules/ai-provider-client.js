@@ -1,19 +1,12 @@
 const REQUEST_TIMEOUT_MS = 60000;
 
 const PROVIDER_PRESETS = Object.freeze({
-    deepseek: Object.freeze({
-        code: 'deepseek',
-        name: 'DeepSeek',
-        baseUrl: 'https://api.deepseek.com',
-        defaultModel: 'deepseek-chat',
-        sort: 1,
-    }),
     volcengine: Object.freeze({
         code: 'volcengine',
         name: '火山方舟',
         baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
         defaultModel: '',
-        sort: 2,
+        sort: 1,
     }),
 });
 

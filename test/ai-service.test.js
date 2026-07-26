@@ -54,9 +54,10 @@ describe('AI assistant service', () => {
     async function configureAndCreateConversation() {
         await service.acceptPrivacy({ accepted: true });
         await service.saveProvider({
-            code: 'deepseek',
-            baseUrl: 'https://api.deepseek.com',
-            model: 'deepseek-chat',
+            code: 'volcengine',
+            baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+            endpoints: ['ep-test'],
+            activeEndpoint: 'ep-test',
             apiKey: 'secret-key',
         });
         return service.createConversation({ agentCode: 'special_ed_teacher' });
@@ -249,5 +250,129 @@ describe('AI assistant service', () => {
         // 本地拦截：不应创建任何新消息行，也不应发起网络请求。
         expect(database.listMessages('local-os-profile', conversation.id)).toHaveLength(messagesBefore);
         expect(providerClient.streamChat).not.toHaveBeenCalled();
+    });
+
+    test('replaceFromMessageId truncates the prior exchange and regenerates cleanly', async () => {
+        const conversation = await configureAndCreateConversation();
+        const first = await service.startChat({ conversationId: conversation.id, content: '原问题' }, sender);
+        const firstCompletion = service.activeRequests.get(first.requestId).completionPromise;
+        deferredCallbacks.shift()();
+        await firstCompletion;
+
+        expect(database.listMessages('local-os-profile', conversation.id)).toEqual([
+            expect.objectContaining({ role: 'user', content: '原问题' }),
+            expect.objectContaining({ role: 'assistant', content: '流式回答' }),
+        ]);
+
+        const second = await service.startChat({
+            conversationId: conversation.id,
+            content: '改后的问题',
+            replaceFromMessageId: first.userMessage.id,
+        }, sender);
+        const secondCompletion = service.activeRequests.get(second.requestId).completionPromise;
+        deferredCallbacks.shift()();
+        await secondCompletion;
+
+        // 旧问答被截断，只剩新生成的一对；无重复 user 消息。
+        expect(database.listMessages('local-os-profile', conversation.id)).toEqual([
+            expect.objectContaining({ role: 'user', content: '改后的问题' }),
+            expect.objectContaining({ role: 'assistant', content: '流式回答' }),
+        ]);
+        expect(providerClient.streamChat).toHaveBeenCalledTimes(2);
+        expect(sender.send).toHaveBeenCalledWith('ai:chat:done', expect.objectContaining({
+            message: expect.objectContaining({ role: 'assistant', content: '流式回答' }),
+        }));
+    });
+
+    test('replaceFromMessageId leaves history intact when pre-flight fails', async () => {
+        const conversation = await configureAndCreateConversation();
+        const first = await service.startChat({ conversationId: conversation.id, content: '原问题' }, sender);
+        const firstCompletion = service.activeRequests.get(first.requestId).completionPromise;
+        deferredCallbacks.shift()();
+        await firstCompletion;
+
+        await service.updateBudget({ monthlyTokenLimit: 0, hardLimitEnabled: true });
+
+        await expect(service.startChat({
+            conversationId: conversation.id,
+            content: '改后的问题',
+            replaceFromMessageId: first.userMessage.id,
+        }, sender)).rejects.toMatchObject({ kind: 'budget_exceeded' });
+
+        // 预检失败时不得截断历史。
+        expect(database.listMessages('local-os-profile', conversation.id)).toEqual([
+            expect.objectContaining({ role: 'user', content: '原问题' }),
+            expect.objectContaining({ role: 'assistant', content: '流式回答' }),
+        ]);
+    });
+
+    test('saveProvider persists multiple endpoints, marks the active one, and forwards supportsVision', async () => {
+        const provider = await service.saveProvider({
+            code: 'volcengine',
+            baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+            endpoints: ['ep-fast', 'ep-pro'],
+            activeEndpoint: 'ep-pro',
+            supportsVision: true,
+        });
+        expect(provider.endpoints).toEqual(['ep-fast', 'ep-pro']);
+        expect(provider.model).toBe('ep-pro');
+        expect(provider.activeEndpoint).toBe('ep-pro');
+
+        const stored = database.getProvider('volcengine');
+        expect(stored.endpoints).toEqual(['ep-fast', 'ep-pro']);
+        // supportsVision 此前在 service 层被丢弃，这里确保透传到 DB。
+        expect(stored.supportsVision).toBe(true);
+
+        // 缺省 active 回退首项；空列表被拒。
+        const fallback = await service.saveProvider({
+            code: 'volcengine',
+            baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+            endpoints: ['ep-only'],
+        });
+        expect(fallback.activeEndpoint).toBe('ep-only');
+        await expect(service.saveProvider({
+            code: 'volcengine',
+            baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+            endpoints: [],
+        })).rejects.toMatchObject({ kind: 'invalid_input' });
+    });
+
+    test('updatePreference delegates to the database and returns the preference', async () => {
+        expect(database.getPreference('local-os-profile').knowledgeSectionVisible).toBe(false);
+        const result = await service.updatePreference({ knowledgeSectionVisible: true });
+        expect(result.preference.knowledgeSectionVisible).toBe(true);
+        expect(database.getPreference('local-os-profile').knowledgeSectionVisible).toBe(true);
+    });
+
+    test('bootstrap exposes system feature flags from the injected provider', async () => {
+        // 默认（未注入 provider）：三块（智能体管理 / 知识技能 / 本月额度）均隐藏。
+        const defaultBootstrap = service.bootstrap();
+        expect(defaultBootstrap.features).toEqual({
+            agentManagementEnabled: false,
+            knowledgeSectionVisible: false,
+            budgetSectionVisible: false,
+        });
+        // 既有字段仍完整，features 是新增键。
+        expect(defaultBootstrap.preference).toBeDefined();
+        expect(Array.isArray(defaultBootstrap.providers)).toBe(true);
+
+        // 注入系统级开关后：bootstrap 反映三项均为 true。
+        const flaggedService = new AIAssistantService({
+            database,
+            providerClient,
+            secretStore: service.secretStore,
+            getFeatureFlags: () => ({
+                agentManagementEnabled: true,
+                knowledgeSectionVisible: true,
+                budgetSectionVisible: true,
+            }),
+        });
+        await flaggedService.initialize();
+
+        expect(flaggedService.bootstrap().features).toEqual({
+            agentManagementEnabled: true,
+            knowledgeSectionVisible: true,
+            budgetSectionVisible: true,
+        });
     });
 });

@@ -32,7 +32,6 @@ describe('AI assistant database', () => {
         expect(database.getSchemaVersion()).toBe(SCHEMA_VERSION);
         expect(database.listAgents()).toHaveLength(5);
         expect(database.listProviders()).toEqual([
-            expect.objectContaining({ code: 'deepseek', hasApiKey: false }),
             expect.objectContaining({ code: 'volcengine', hasApiKey: false }),
         ]);
         expect(database.getPreference(DEFAULT_OWNER_KEY).hardLimitEnabled).toBe(true);
@@ -261,16 +260,17 @@ describe('AI assistant database', () => {
     });
 
     test('creates and links attachments, and persists supports_vision on the provider', async () => {
-        const providerBefore = database.getProvider('deepseek');
+        const providerBefore = database.getProvider('volcengine');
         expect(providerBefore.supportsVision).toBe(false);
         await database.saveProvider({
             ownerKey: DEFAULT_OWNER_KEY,
-            code: 'deepseek',
+            code: 'volcengine',
             baseUrl: providerBefore.baseUrl,
-            model: 'deepseek-chat',
+            model: 'ep-test',
+            endpointsJson: JSON.stringify(['ep-test']),
             supportsVision: true,
         });
-        expect(database.getProvider('deepseek').supportsVision).toBe(true);
+        expect(database.getProvider('volcengine').supportsVision).toBe(true);
 
         const conversation = await database.createConversation(DEFAULT_OWNER_KEY, 'special_ed_teacher');
         const attachment = await database.createAttachment({
@@ -296,6 +296,64 @@ describe('AI assistant database', () => {
 
         await database.deleteAttachment(attachment.id);
         expect(database.listAttachments(conversation.id)).toHaveLength(0);
+    });
+
+    test('deleteMessagesFrom truncates from a user anchor, orphaning its attachments and clearing tool calls', async () => {
+        const conversation = await database.createConversation(DEFAULT_OWNER_KEY, 'special_ed_teacher');
+        const first = await database.createMessagePair(DEFAULT_OWNER_KEY, conversation.id, '第一个问题');
+        const second = await database.createMessagePair(DEFAULT_OWNER_KEY, conversation.id, '第二个问题');
+
+        const attachment = await database.createAttachment({
+            conversationId: conversation.id,
+            fileName: 'pic.png',
+            relativePath: `${conversation.id}/1-pic.png`,
+            mimeType: 'image/png',
+            sizeBytes: 1024,
+            sha256: 'deadbeef',
+            width: 10,
+            height: 10,
+        });
+        await database.linkAttachmentsToMessage(first.userMessage.id, [attachment.id], conversation.id);
+        await database.recordToolCall({
+            conversationId: conversation.id,
+            messageId: first.assistantMessage.id,
+            toolName: 'search_intervention_apps',
+            toolCallId: 'call_x',
+            arguments: '{}',
+            resultSize: 10,
+            status: 'success',
+            round: 0,
+        });
+
+        // 从第二条 user 消息截断：只保留第一对。
+        const orphans = await database.deleteMessagesFrom(DEFAULT_OWNER_KEY, conversation.id, second.userMessage.id);
+        expect(orphans).toEqual([]);
+        const afterFirst = database.listMessages(DEFAULT_OWNER_KEY, conversation.id).map((m) => m.id);
+        expect(afterFirst).toEqual([first.userMessage.id, first.assistantMessage.id]);
+
+        // 从第一条 user 消息截断：清空，第一对的附件变 orphaned 并返回路径，工具审计被清。
+        const orphanPaths = await database.deleteMessagesFrom(DEFAULT_OWNER_KEY, conversation.id, first.userMessage.id);
+        expect(orphanPaths).toEqual([{ id: attachment.id, relativePath: `${conversation.id}/1-pic.png` }]);
+        expect(database.listMessages(DEFAULT_OWNER_KEY, conversation.id)).toHaveLength(0);
+        expect(database.listToolCalls(first.assistantMessage.id)).toHaveLength(0);
+        const orphaned = database.listAttachments(conversation.id);
+        // listAttachments 过滤 status='deleted'，但 orphaned 仍可见且与消息脱钩。
+        expect(orphaned.find((item) => item.id === attachment.id)).toMatchObject({ status: 'orphaned', messageId: null });
+    });
+
+    test('deleteMessagesFrom guards ownership, role and existence', async () => {
+        const conversation = await database.createConversation(DEFAULT_OWNER_KEY, 'special_ed_teacher');
+        const pair = await database.createMessagePair(DEFAULT_OWNER_KEY, conversation.id, '问题');
+
+        await expect(database.deleteMessagesFrom('another-owner', conversation.id, pair.userMessage.id))
+            .rejects.toMatchObject({ kind: 'conversation_not_found' });
+        // 另一 owner 被拒后，原消息仍在。
+        expect(database.listMessages(DEFAULT_OWNER_KEY, conversation.id)).toHaveLength(2);
+
+        await expect(database.deleteMessagesFrom(DEFAULT_OWNER_KEY, conversation.id, pair.assistantMessage.id))
+            .rejects.toMatchObject({ kind: 'invalid_input' });
+        await expect(database.deleteMessagesFrom(DEFAULT_OWNER_KEY, conversation.id, 'does-not-exist'))
+            .rejects.toMatchObject({ kind: 'message_not_found' });
     });
 
     test('persists conversations, message status and exact monthly usage across reopen', async () => {
@@ -393,5 +451,60 @@ describe('AI assistant database', () => {
             monthlyTokenLimit: 10000000,
             hardLimitEnabled: true,
         });
+    });
+
+    test('migrates schema v4 to v5 adding endpoints_json and knowledge_section_visible columns', async () => {
+        const dbPath = path.join(tempDirectory, 'ai-assistant.db');
+        await database.close();
+        const SQL = await initSqlJs();
+        const legacy = new SQL.Database(await fs.promises.readFile(dbPath));
+        legacy.run("UPDATE ai_schema_meta SET value = '4' WHERE key = 'schema_version'");
+        await fs.promises.writeFile(dbPath, Buffer.from(legacy.export()));
+        legacy.close();
+
+        database = new AIAssistantDatabase({ dbPath });
+        await database.initialize();
+        expect(database.getSchemaVersion()).toBe(SCHEMA_VERSION);
+        const providerCols = database._query('PRAGMA table_info(ai_provider)').map((row) => row.name);
+        const preferenceCols = database._query('PRAGMA table_info(ai_preference)').map((row) => row.name);
+        expect(providerCols).toContain('endpoints_json');
+        expect(preferenceCols).toContain('knowledge_section_visible');
+        // DeepSeek 已下线：迁移后仅剩火山方舟；其 model 为空故 endpoints 为空列表。
+        expect(database.getProvider('deepseek')).toBeNull();
+        const volcengine = database.getProvider('volcengine');
+        expect(volcengine.endpoints).toEqual([]);
+        expect(volcengine.activeEndpoint).toBe('');
+        // 新偏好位默认隐藏，默认 provider 为火山方舟。
+        expect(database.getPreference(DEFAULT_OWNER_KEY).knowledgeSectionVisible).toBe(false);
+        expect(database.getPreference(DEFAULT_OWNER_KEY).currentProviderCode).toBe('volcengine');
+    });
+
+    test('saveProvider persists endpoints list and treats model as the active endpoint', async () => {
+        await database.saveProvider({
+            ownerKey: DEFAULT_OWNER_KEY,
+            code: 'volcengine',
+            baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+            model: 'ep-pro',
+            supportsVision: false,
+            endpointsJson: JSON.stringify(['ep-fast', 'ep-pro']),
+        });
+        const provider = database.getProvider('volcengine');
+        expect(provider.endpoints).toEqual(['ep-fast', 'ep-pro']);
+        expect(provider.model).toBe('ep-pro');
+        expect(provider.activeEndpoint).toBe('ep-pro');
+    });
+
+    test('updatePreference toggles the knowledge section visibility per owner and ignores unknown keys', async () => {
+        expect(database.getPreference(DEFAULT_OWNER_KEY).knowledgeSectionVisible).toBe(false);
+        const updated = await database.updatePreference(DEFAULT_OWNER_KEY, { knowledgeSectionVisible: true });
+        expect(updated.knowledgeSectionVisible).toBe(true);
+        expect(database.getPreference(DEFAULT_OWNER_KEY).knowledgeSectionVisible).toBe(true);
+
+        // 未知键被忽略，不影响已持久化的值。
+        const noop = await database.updatePreference(DEFAULT_OWNER_KEY, { unknownFlag: true });
+        expect(noop.knowledgeSectionVisible).toBe(true);
+
+        // owner 隔离：另一 owner 默认隐藏。
+        expect(database.getPreference('another-owner').knowledgeSectionVisible).toBe(false);
     });
 });

@@ -93,6 +93,11 @@
             </section>
 
             <footer class="composer" id="composer">
+                <div class="edit-banner" id="editBanner" hidden>
+                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                    <span class="edit-banner-text">正在编辑最近一条消息，发送将替换原消息并重新生成</span>
+                    <button class="edit-banner-cancel" id="editBannerCancel" type="button">取消</button>
+                </div>
                 <div class="attachment-preview-strip" id="attachmentPreviewStrip" hidden></div>
                 <div class="composer-box">
                     <textarea id="messageInput" rows="1" maxlength="30000" placeholder="先选择一位助手" aria-label="输入消息" disabled></textarea>
@@ -139,11 +144,18 @@
                         <input id="providerBaseUrl" name="baseUrl" type="url" inputmode="url" autocomplete="off" required>
                         <small class="field-error" id="providerBaseUrlError"></small>
                     </label>
-                    <label class="form-field" for="providerModel">
+                    <div class="form-field endpoint-field">
                         <span id="providerModelLabel">模型</span>
-                        <input id="providerModel" name="model" type="text" maxlength="200" autocomplete="off" required>
+                        <ul class="endpoint-list" id="endpointList" role="list"></ul>
+                        <div class="endpoint-add-row">
+                            <input id="endpointInput" name="endpoint" type="text" maxlength="200" autocomplete="off" placeholder="输入接入点 ID 或模型名" aria-label="新增模型或接入点 ID">
+                            <button class="secondary-button compact-button" id="addEndpointButton" type="button">
+                                <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                <span>添加</span>
+                            </button>
+                        </div>
                         <small class="field-error" id="providerModelError"></small>
-                    </label>
+                    </div>
                     <label class="form-field" for="providerApiKey">
                         <span>API Key</span>
                         <input id="providerApiKey" name="apiKey" type="password" maxlength="4096" autocomplete="off" spellcheck="false" placeholder="留空则保留现有密钥">
@@ -173,7 +185,7 @@
                 </form>
             </section>
 
-            <section class="settings-section" aria-labelledby="budgetHeading">
+            <section class="settings-section budget-section" aria-labelledby="budgetHeading" hidden>
                 <div class="section-title-row">
                     <h3 id="budgetHeading">本月额度</h3>
                     <span class="usage-month" id="usageMonth"></span>
@@ -214,7 +226,7 @@
                 </div>
             </section>
 
-            <section class="settings-section agent-governance-section" aria-labelledby="agentGovernanceHeading">
+            <section class="settings-section agent-governance-section" aria-labelledby="agentGovernanceHeading" hidden>
                 <div class="section-title-row">
                     <h3 id="agentGovernanceHeading">智能体管理</h3>
                     <button class="secondary-button compact-button" id="createAgentButton" type="button">
@@ -225,7 +237,7 @@
                 <div class="agent-governance-list" id="agentGovernanceList" role="list"></div>
             </section>
 
-            <section class="settings-section knowledge-section" aria-labelledby="knowledgeHeading">
+            <section class="settings-section knowledge-section" aria-labelledby="knowledgeHeading" hidden>
                 <div class="section-title-row">
                     <h3 id="knowledgeHeading">知识技能</h3>
                     <span class="usage-month" id="knowledgeCatalogSummary"></span>

@@ -252,6 +252,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
         throw error;
       });
   },
+  // AI 功能开关（系统维护）相关 API
+  getAiFeatureFlags: () => {
+    return ipcRenderer
+      .invoke('get-ai-feature-flags')
+      .catch((error) => {
+        handleIpcError('getAiFeatureFlags', error, null);
+        throw error;
+      });
+  },
+  setAiFeatureFlags: (newConfig) => {
+    return ipcRenderer
+      .invoke('set-ai-feature-flags', newConfig)
+      .catch((error) => {
+        handleIpcError('setAiFeatureFlags', error, null);
+        throw error;
+      });
+  },
   uploadLogo: (filePath) => {
     return ipcRenderer
       .invoke('upload-logo', filePath)

@@ -49,6 +49,7 @@ describe('AI IPC contract', () => {
             cancelChat: jest.fn(),
             acceptPrivacy: jest.fn(),
             updateBudget: jest.fn(),
+            updatePreference: jest.fn(),
         };
         shell = { openExternal: jest.fn(async () => undefined) };
         registerAIIPC({
@@ -75,6 +76,7 @@ describe('AI IPC contract', () => {
             AI_CHANNELS.chatCancel,
             AI_CHANNELS.privacyAccept,
             AI_CHANNELS.budgetUpdate,
+            AI_CHANNELS.preferenceUpdate,
             AI_CHANNELS.externalOpen,
             AI_CHANNELS.agentList,
             AI_CHANNELS.agentCreate,

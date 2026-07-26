@@ -62,6 +62,21 @@ const moduleNameConfig = {
     configFileName: 'module-names.json',
 };
 
+/**
+ * AI 功能开关配置
+ * 系统级（跨 owner）的 AI 能力放行开关，由「系统维护」统一控制。
+ */
+const aiFeatureFlagsConfig = {
+    defaults: {
+        // 默认隐藏「智能体管理」，需在系统维护里显式放行后才会显示。
+        agentManagementEnabled: false,
+        // 默认隐藏「知识技能」与「本月额度」区块，同样由系统维护统一放行。
+        knowledgeSectionVisible: false,
+        budgetSectionVisible: false,
+    },
+    configFileName: 'ai-feature-flags.json',
+};
+
 const logoConfig = {
     // 支持的图片格式
     supportedFormats: ['.png', '.jpg', '.jpeg', '.gif', '.ico'],
@@ -140,6 +155,30 @@ function getModuleNameConfigPath() {
             activationConfig.appDataDirName,
             productNameConfig.configDirName,
             moduleNameConfig.configFileName
+        );
+    }
+
+    return storagePath;
+}
+
+function getAiFeatureFlagsConfigPath() {
+    let storagePath;
+
+    if (process.platform === 'win32') {
+        storagePath = path.join(
+            app.getPath('appData'),
+            activationConfig.appDataDirName,
+            productNameConfig.configDirName,
+            aiFeatureFlagsConfig.configFileName
+        );
+    } else {
+        storagePath = path.join(
+            app.getPath('home'),
+            'Library',
+            'Application Support',
+            activationConfig.appDataDirName,
+            productNameConfig.configDirName,
+            aiFeatureFlagsConfig.configFileName
         );
     }
 
@@ -339,6 +378,10 @@ const ipcChannels = {
     getModuleNameConfig: 'get-module-name-config',
     setModuleNameConfig: 'set-module-name-config',
 
+    // AI 功能开关相关（系统维护）
+    getAiFeatureFlags: 'get-ai-feature-flags',
+    setAiFeatureFlags: 'set-ai-feature-flags',
+
     // Logo 相关
     uploadLogo: 'upload-logo',
     getLogosList: 'get-logos-list',
@@ -506,6 +549,8 @@ module.exports = {
     getEntryModuleConfigPath,
     moduleNameConfig,
     getModuleNameConfigPath,
+    aiFeatureFlagsConfig,
+    getAiFeatureFlagsConfigPath,
     logoConfig,
     loggingConfig,
     logMessages,

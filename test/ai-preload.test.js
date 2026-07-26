@@ -42,6 +42,8 @@ describe('AI preload contract', () => {
             'startChat',
             'cancelChat',
             'acceptPrivacy',
+            'updateBudget',
+            'updatePreference',
             'setAgentToolsEnabled',
             'uploadAttachment',
             'listAttachments',
@@ -55,14 +57,16 @@ describe('AI preload contract', () => {
         expect(aiAPI.execute).toBeUndefined();
 
         await aiAPI.bootstrap();
-        await aiAPI.saveProvider({ code: 'deepseek' });
+        await aiAPI.saveProvider({ code: 'volcengine' });
         await aiAPI.startChat({ conversationId: 'conversation-1', content: 'hello' });
         await aiAPI.cancelChat('request-1', 'conversation-1');
         await aiAPI.setAgentToolsEnabled({ code: 'special_ed_teacher', enabled: true });
+        await aiAPI.updatePreference({ knowledgeSectionVisible: true });
 
         expect(ipcInvoke).toHaveBeenCalledWith('ai:bootstrap');
-        expect(ipcInvoke).toHaveBeenCalledWith('ai:provider:save', { code: 'deepseek' });
+        expect(ipcInvoke).toHaveBeenCalledWith('ai:provider:save', { code: 'volcengine' });
         expect(ipcInvoke).toHaveBeenCalledWith('ai:agent:setToolsEnabled', { code: 'special_ed_teacher', enabled: true });
+        expect(ipcInvoke).toHaveBeenCalledWith('ai:preference:update', { knowledgeSectionVisible: true });
         expect(ipcInvoke).toHaveBeenCalledWith('ai:chat:start', { conversationId: 'conversation-1', content: 'hello' });
         expect(ipcInvoke).toHaveBeenCalledWith('ai:chat:cancel', {
             requestId: 'request-1',

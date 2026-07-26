@@ -19,6 +19,7 @@ const AI_CHANNELS = Object.freeze({
     chatToolStep: 'ai:chat:tool:step',
     privacyAccept: 'ai:privacy:accept',
     budgetUpdate: 'ai:budget:update',
+    preferenceUpdate: 'ai:preference:update',
     externalOpen: 'ai:external:open',
     agentList: 'ai:agent:list',
     agentCreate: 'ai:agent:create',
@@ -105,6 +106,7 @@ function registerAIIPC({ ipcMain, getAIWindow, getService, shell, logger }) {
     );
     register(AI_CHANNELS.privacyAccept, (service, _event, payload) => service.acceptPrivacy(payload));
     register(AI_CHANNELS.budgetUpdate, (service, _event, payload) => service.updateBudget(payload));
+    register(AI_CHANNELS.preferenceUpdate, (service, _event, payload) => service.updatePreference(payload));
     register(AI_CHANNELS.externalOpen, async (_service, _event, payload) => {
         const url = validateExternalUrl(payload?.url);
         await shell.openExternal(url);

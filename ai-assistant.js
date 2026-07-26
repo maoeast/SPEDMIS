@@ -23,6 +23,8 @@
         currentConversationId: null,
         messages: [],
         providerCode: null,
+        draftEndpoints: [],
+        draftActiveEndpoint: '',
         activeRequest: null,
         startingConversationId: null,
         cancelStartingRequested: false,
@@ -32,6 +34,7 @@
         bootstrapped: false,
         allAgents: [],
         currentAttachments: [],
+        editingMessageId: null,
     };
 
     const elements = {};
@@ -74,9 +77,11 @@
             'providerForm',
             'providerBaseUrl',
             'providerBaseUrlError',
-            'providerModel',
             'providerModelLabel',
             'providerModelError',
+            'endpointList',
+            'endpointInput',
+            'addEndpointButton',
             'providerApiKey',
             'saveProviderButton',
             'testProviderButton',
@@ -108,9 +113,14 @@
             'closeSettingsPanelButton',
             'settingsPanel',
             'panelBackdrop',
+            'editBanner',
+            'editBannerCancel',
         ].forEach((id) => {
             elements[id] = getElement(id);
         });
+        elements.knowledgeSection = document.querySelector('.knowledge-section');
+        elements.agentGovernanceSection = document.querySelector('.agent-governance-section');
+        elements.budgetSection = document.querySelector('.budget-section');
     }
 
     function createElement(tagName, className, text) {
@@ -219,6 +229,10 @@
 
     function currentAgent() {
         return getAgent(currentConversation()?.agentCode);
+    }
+
+    function isBusy() {
+        return Boolean(state.activeRequest || state.startingConversationId);
     }
 
     function showStatus(message, kind = 'warning', duration = 6000) {
@@ -417,32 +431,85 @@
         });
     }
 
+    function buildHeroCard(agent) {
+        const card = createElement('article', 'agent-card agent-card--hero');
+        const avatar = createAgentAvatar(agent, 'agent-avatar agent-avatar--hero', agent.name.slice(0, 1));
+
+        const titles = createElement('div', 'agent-hero-titles');
+        titles.appendChild(createElement('h3', '', agent.displayName || agent.name));
+        titles.appendChild(createElement('p', '', agent.tagline || agent.teacherSupport || ''));
+
+        const cta = createElement('button', 'agent-select-button agent-hero-cta', '开始对话');
+        cta.type = 'button';
+        cta.addEventListener('click', () => chooseAgent(agent.code));
+
+        const head = createElement('div', 'agent-hero-head');
+        head.append(avatar, titles, cta);
+        card.appendChild(head);
+
+        const prompts = Array.isArray(agent.starterPrompts) ? agent.starterPrompts.slice(0, 3) : [];
+        if (prompts.length > 0) {
+            const promptRow = createElement('div', 'agent-hero-prompts');
+            prompts.forEach((prompt) => {
+                const chip = createElement('button', 'starter-button', prompt);
+                chip.type = 'button';
+                chip.title = prompt;
+                chip.addEventListener('click', () => chooseAgent(agent.code, prompt));
+                promptRow.appendChild(chip);
+            });
+            card.appendChild(promptRow);
+        }
+        return card;
+    }
+
+    function buildCompactTile(agent) {
+        const tile = createElement('button', 'agent-card agent-card--compact');
+        tile.type = 'button';
+        tile.title = agent.displayName || agent.name;
+        tile.addEventListener('click', () => chooseAgent(agent.code));
+
+        const avatar = createAgentAvatar(agent, 'agent-avatar agent-avatar--compact', agent.name.slice(0, 1));
+        const body = createElement('div', 'agent-card-body');
+        body.appendChild(createElement('h3', '', agent.displayName || agent.name));
+        body.appendChild(createElement('p', '', agent.tagline || agent.teacherSupport || ''));
+        const hint = createElement('span', 'agent-tile-hint', '开始对话');
+
+        tile.append(avatar, body, hint);
+        return tile;
+    }
+
+    function buildSimpleAgentCard(agent, inConversation) {
+        const card = createElement('article', 'agent-card');
+        const avatar = createAgentAvatar(agent, 'agent-avatar', agent.name.slice(0, 1));
+        const body = createElement('div', 'agent-card-body');
+        body.appendChild(createElement('h3', '', agent.displayName || agent.name));
+        body.appendChild(createElement('p', '', agent.tagline || agent.teacherSupport || ''));
+        const actions = createElement('div', 'agent-card-actions');
+        const chooseButton = createElement('button', 'agent-select-button', inConversation ? '继续对话' : '开始对话');
+        chooseButton.type = 'button';
+        chooseButton.addEventListener('click', () => chooseAgent(agent.code));
+        actions.appendChild(chooseButton);
+        body.appendChild(actions);
+        card.append(avatar, body);
+        return card;
+    }
+
     function renderAgentGrid() {
         elements.agentGrid.replaceChildren();
-        const agents = currentConversation() ? [currentAgent()].filter(Boolean) : state.agents;
+        const inConversation = Boolean(currentConversation());
+        const agents = inConversation ? [currentAgent()].filter(Boolean) : state.agents;
+        const showFeatured = !inConversation && agents.length > 1;
 
-        agents.forEach((agent) => {
-            const card = createElement('article', 'agent-card');
-            const avatar = createAgentAvatar(agent, 'agent-avatar', agent.name.slice(0, 1));
-
-            const body = createElement('div', 'agent-card-body');
-            body.appendChild(createElement('h3', '', agent.displayName || agent.name));
-            body.appendChild(createElement('p', '', agent.tagline || agent.teacherSupport));
-
-            const actions = createElement('div', 'agent-card-actions');
-            const chooseButton = createElement('button', 'agent-select-button', currentConversation() ? '继续对话' : '开始使用');
-            chooseButton.type = 'button';
-            chooseButton.addEventListener('click', () => chooseAgent(agent.code));
-            const starterButton = createElement('button', 'starter-button', agent.starterPrompts?.[0] || '从这里开始');
-            starterButton.type = 'button';
-            starterButton.title = starterButton.textContent;
-            starterButton.addEventListener('click', () => {
-                chooseAgent(agent.code, agent.starterPrompts?.[0] || '');
-            });
-            actions.append(chooseButton, starterButton);
-            body.appendChild(actions);
-            card.append(avatar, body);
-            elements.agentGrid.appendChild(card);
+        agents.forEach((agent, index) => {
+            if (showFeatured && index === 0) {
+                elements.agentGrid.appendChild(buildHeroCard(agent));
+                return;
+            }
+            if (showFeatured) {
+                elements.agentGrid.appendChild(buildCompactTile(agent));
+                return;
+            }
+            elements.agentGrid.appendChild(buildSimpleAgentCard(agent, inConversation));
         });
     }
 
@@ -481,9 +548,12 @@
         return '';
     }
 
-    function renderMessage(message) {
+    function renderMessage(message, editable = false) {
         const row = createElement('article', `message-row is-${message.role}`);
         row.dataset.messageId = message.id;
+        if (state.editingMessageId && state.editingMessageId === message.id) {
+            row.classList.add('is-editing');
+        }
 
         if (message.role === 'assistant') {
             const agent = currentAgent();
@@ -496,6 +566,18 @@
         meta.appendChild(createElement('strong', '', message.role === 'user' ? '你' : (currentAgent()?.name || 'AI 助手')));
         if (message.createdAt) {
             meta.appendChild(createElement('span', '', formatTime(message.createdAt)));
+        }
+        if (message.role === 'user' && editable) {
+            const editButton = createElement('button', 'message-edit-button');
+            editButton.type = 'button';
+            editButton.title = '编辑并重发';
+            editButton.setAttribute('aria-label', '编辑并重发这条消息');
+            editButton.appendChild(createIcon('fa-solid fa-pen'));
+            if (state.editingMessageId === message.id) {
+                editButton.classList.add('is-active');
+            }
+            editButton.addEventListener('click', () => editMessage(message));
+            meta.appendChild(editButton);
         }
         const content = createElement('div', 'message-content');
         renderSafeMessageContent(content, message);
@@ -899,8 +981,17 @@
 
     function renderMessages(forceScroll = false) {
         elements.messageList.replaceChildren();
-        state.messages.forEach((message) => {
-            elements.messageList.appendChild(renderMessage(message));
+        const busy = isBusy();
+        let lastUserIndex = -1;
+        for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+            if (state.messages[index].role === 'user') {
+                lastUserIndex = index;
+                break;
+            }
+        }
+        state.messages.forEach((message, index) => {
+            const editable = index === lastUserIndex && !busy;
+            elements.messageList.appendChild(renderMessage(message, editable));
         });
         scrollToBottom(forceScroll);
     }
@@ -956,7 +1047,11 @@
     }
 
     function clearProviderFieldErrors() {
-        [elements.providerBaseUrl, elements.providerModel].forEach((input) => input.removeAttribute('aria-invalid'));
+        [elements.providerBaseUrl, elements.endpointInput].forEach((input) => {
+            if (input) {
+                input.removeAttribute('aria-invalid');
+            }
+        });
         elements.providerBaseUrlError.textContent = '';
         elements.providerModelError.textContent = '';
     }
@@ -970,13 +1065,95 @@
         renderProviderSegments();
         clearProviderFieldErrors();
         elements.providerBaseUrl.value = provider.baseUrl || '';
-        elements.providerModel.value = provider.model || '';
-        elements.providerModelLabel.textContent = provider.code === 'volcengine' ? '接入点 ID' : '模型';
-        elements.providerModel.placeholder = provider.code === 'volcengine' ? '例如 ep-2024…' : '例如 deepseek-chat';
+        const isVolcengine = provider.code === 'volcengine';
+        elements.providerModelLabel.textContent = isVolcengine ? '接入点 ID' : '模型';
+        elements.endpointInput.placeholder = isVolcengine ? '例如 ep-2024…' : '例如 model-name';
+        state.draftEndpoints = Array.isArray(provider.endpoints) ? [...provider.endpoints] : [];
+        state.draftActiveEndpoint = provider.activeEndpoint || (state.draftEndpoints[0] || '');
+        elements.endpointInput.value = '';
+        renderEndpointList();
         elements.providerApiKey.value = '';
         elements.providerSupportsVision.checked = Boolean(provider.supportsVision);
         elements.providerKeyStatus.textContent = provider.hasApiKey ? '已配置' : '未配置';
         elements.providerKeyStatus.classList.toggle('is-configured', Boolean(provider.hasApiKey));
+    }
+
+    function renderEndpointList() {
+        const list = elements.endpointList;
+        if (!list) {
+            return;
+        }
+        list.replaceChildren();
+        state.draftEndpoints.forEach((value) => {
+            const isActive = value === state.draftActiveEndpoint;
+            const item = createElement('li', `endpoint-item${isActive ? ' is-active' : ''}`);
+            item.setAttribute('role', 'listitem');
+
+            const radio = createElement('span', 'endpoint-radio');
+            radio.setAttribute('aria-hidden', 'true');
+            item.appendChild(radio);
+
+            item.appendChild(createElement('span', 'endpoint-name', value));
+
+            if (isActive) {
+                item.appendChild(createElement('span', 'endpoint-tag', '当前'));
+            } else {
+                const useButton = createElement('button', 'endpoint-action', '设为当前');
+                useButton.type = 'button';
+                useButton.addEventListener('click', () => setActiveEndpoint(value));
+                item.appendChild(useButton);
+            }
+
+            const removeButton = createElement('button', 'endpoint-action is-remove', '删除');
+            removeButton.type = 'button';
+            removeButton.addEventListener('click', () => removeEndpoint(value));
+            item.appendChild(removeButton);
+
+            list.appendChild(item);
+        });
+    }
+
+    function addEndpoint() {
+        const value = (elements.endpointInput.value || '').trim();
+        if (!value) {
+            return;
+        }
+        if (value.length > 200) {
+            elements.providerModelError.textContent = '单个接入点/模型不能超过 200 字符。';
+            elements.endpointInput.setAttribute('aria-invalid', 'true');
+            return;
+        }
+        if (state.draftEndpoints.includes(value)) {
+            elements.endpointInput.value = '';
+            return;
+        }
+        clearProviderFieldErrors();
+        state.draftEndpoints.push(value);
+        if (!state.draftActiveEndpoint) {
+            state.draftActiveEndpoint = value;
+        }
+        elements.endpointInput.value = '';
+        renderEndpointList();
+    }
+
+    function setActiveEndpoint(value) {
+        if (!state.draftEndpoints.includes(value)) {
+            return;
+        }
+        state.draftActiveEndpoint = value;
+        renderEndpointList();
+    }
+
+    function removeEndpoint(value) {
+        const index = state.draftEndpoints.indexOf(value);
+        if (index === -1) {
+            return;
+        }
+        state.draftEndpoints.splice(index, 1);
+        if (state.draftActiveEndpoint === value) {
+            state.draftActiveEndpoint = state.draftEndpoints[0] || '';
+        }
+        renderEndpointList();
     }
 
     function renderBudget() {
@@ -1010,6 +1187,33 @@
         renderBudget();
         renderPrivacyStatus();
         renderCurrentAgent();
+        renderKnowledgeSectionVisibility();
+        renderAgentGovernanceVisibility();
+        renderBudgetSectionVisibility();
+    }
+
+    function renderKnowledgeSectionVisibility() {
+        if (!elements.knowledgeSection) {
+            return;
+        }
+        // 系统级开关：由「系统维护」统一放行，AI 面板只读反映，不暴露开关。
+        elements.knowledgeSection.hidden = !Boolean(state.features?.knowledgeSectionVisible);
+    }
+
+    function renderAgentGovernanceVisibility() {
+        if (!elements.agentGovernanceSection) {
+            return;
+        }
+        // 系统级开关：由「系统维护」统一放行，AI 面板只读反映，不暴露开关。
+        elements.agentGovernanceSection.hidden = !Boolean(state.features?.agentManagementEnabled);
+    }
+
+    function renderBudgetSectionVisibility() {
+        if (!elements.budgetSection) {
+            return;
+        }
+        // 系统级开关：由「系统维护」统一放行，AI 面板只读反映，不暴露开关。
+        elements.budgetSection.hidden = !Boolean(state.features?.budgetSectionVisible);
     }
 
     function updateCharacterCount() {
@@ -1070,6 +1274,7 @@
         }
         await cancelActiveRequest();
         clearAttachments();
+        resetEditingState();
         state.currentConversationId = conversationId;
         state.messages = [];
         renderConversations();
@@ -1088,6 +1293,7 @@
 
     async function beginNewConversation() {
         await cancelActiveRequest();
+        resetEditingState();
         state.currentConversationId = null;
         state.messages = [];
         renderConversations();
@@ -1106,6 +1312,7 @@
         closeAgentSwitcher();
         if (!currentConversation() || currentConversation().agentCode !== agentCode) {
             await cancelActiveRequest();
+            resetEditingState();
             try {
                 const conversation = unwrap(await api.createConversation({ agentCode }), '无法创建会话。');
                 updateConversationRecord(conversation);
@@ -1241,9 +1448,9 @@
             message.toolSteps = payload.toolSteps;
         }
         state.usage = payload.usage || state.usage;
+        finishActiveRequest();
         renderMessages(true);
         renderBudget();
-        finishActiveRequest();
         showStatus('回复已完成。', 'success', 1800);
     }
 
@@ -1256,8 +1463,8 @@
             Object.assign(message, payload.message);
         }
         const error = normalizeError(payload.error, '回复未完成，请重试。');
-        renderMessages(true);
         finishActiveRequest();
+        renderMessages(true);
         if (error.kind !== 'cancelled') {
             showStatus(error.message, 'error', 0);
         }
@@ -1277,7 +1484,7 @@
         });
     }
 
-    async function sendContent(content) {
+    async function sendContent(content, options = {}) {
         if (!state.currentConversationId || state.activeRequest || state.startingConversationId) {
             return;
         }
@@ -1286,6 +1493,7 @@
             updateCharacterCount();
             return;
         }
+        const replaceFromMessageId = options.replaceFromMessageId || null;
         state.startingConversationId = state.currentConversationId;
         updateComposerState();
         try {
@@ -1294,6 +1502,7 @@
                 conversationId: state.currentConversationId,
                 content: normalizedContent,
                 attachmentIds,
+                replaceFromMessageId,
             }), '无法开始回复。');
             clearAttachments();
             const requestWasCancelled = state.cancelStartingRequested
@@ -1312,12 +1521,24 @@
                     // The request is already outside the active view; Main will clean it up.
                 }
                 state.activeRequest = null;
+                state.editingMessageId = null;
+                hideEditBanner();
                 updateComposerState();
                 state.pendingEvents.delete(result.requestId);
                 return;
             }
-            state.messages = state.messages.filter((message) => message.id !== result.userMessage.id && message.id !== result.assistantMessage.id);
+            if (replaceFromMessageId) {
+                // 编辑/重发：本地视图从锚点 user 消息起截断，再追加新生成的一对。
+                const fromIndex = state.messages.findIndex((item) => item.id === replaceFromMessageId);
+                state.messages = fromIndex >= 0
+                    ? state.messages.slice(0, fromIndex)
+                    : state.messages.filter((message) => message.id !== result.userMessage.id && message.id !== result.assistantMessage.id);
+            } else {
+                state.messages = state.messages.filter((message) => message.id !== result.userMessage.id && message.id !== result.assistantMessage.id);
+            }
             state.messages.push(result.userMessage, result.assistantMessage);
+            state.editingMessageId = null;
+            hideEditBanner();
             updateConversationRecord(result.conversation);
             elements.messageInput.value = '';
             resizeMessageInput();
@@ -1328,6 +1549,7 @@
         } catch (error) {
             state.startingConversationId = null;
             updateComposerState();
+            // 预检失败（预算/Provider/隐私）时 DB 未截断，保留编辑态供用户修正后重试。
             showStatus(normalizeError(error, '无法开始回复。').message, 'error', 0);
         }
     }
@@ -1436,7 +1658,7 @@
             }
             return;
         }
-        await sendContent(content);
+        await sendContent(content, { replaceFromMessageId: state.editingMessageId });
     }
 
     async function acceptPrivacy() {
@@ -1471,8 +1693,52 @@
         showStatus('未发送任何内容。', 'warning', 2500);
     }
 
+    function showEditBanner() {
+        if (elements.editBanner) {
+            elements.editBanner.hidden = false;
+        }
+    }
+
+    function hideEditBanner() {
+        if (elements.editBanner) {
+            elements.editBanner.hidden = true;
+        }
+    }
+
+    // 切换会话/新建时丢弃编辑态（不触发表单重渲染，由调用方负责后续渲染）。
+    function resetEditingState() {
+        state.editingMessageId = null;
+        hideEditBanner();
+    }
+
+    function editMessage(message) {
+        if (isBusy() || !message || message.role !== 'user') {
+            return;
+        }
+        state.editingMessageId = message.id;
+        elements.messageInput.value = message.content || '';
+        updateCharacterCount();
+        resizeMessageInput();
+        showEditBanner();
+        renderMessages();
+        elements.messageInput.focus();
+    }
+
+    function cancelEdit() {
+        state.editingMessageId = null;
+        hideEditBanner();
+        if (elements.messageInput) {
+            elements.messageInput.value = '';
+            updateCharacterCount();
+            resizeMessageInput();
+        }
+        if (state.messages.length > 0) {
+            renderMessages();
+        }
+    }
+
     async function retryMessage(message) {
-        if (state.activeRequest || state.startingConversationId) {
+        if (isBusy()) {
             return;
         }
         const index = state.messages.findIndex((item) => item.id === message.id);
@@ -1481,16 +1747,14 @@
             showStatus('找不到可重试的原消息。', 'error');
             return;
         }
-        elements.messageInput.value = previous.content;
-        updateCharacterCount();
-        await requestSend();
+        // 截断重发：从上一条 user 消息起替换，避免历史里出现重复的 user 消息。
+        await sendContent(previous.content, { replaceFromMessageId: previous.id });
     }
 
     function validateProviderForm() {
         clearProviderFieldErrors();
         let valid = true;
         const baseUrl = elements.providerBaseUrl.value.trim();
-        const model = elements.providerModel.value.trim();
         try {
             const url = new URL(baseUrl);
             if (url.protocol !== 'https:' || url.username || url.password) {
@@ -1501,9 +1765,8 @@
             elements.providerBaseUrlError.textContent = '请输入不含账号信息的 HTTPS 地址。';
             valid = false;
         }
-        if (!model || model.length > 200) {
-            elements.providerModel.setAttribute('aria-invalid', 'true');
-            elements.providerModelError.textContent = '请填写有效的模型或接入点 ID。';
+        if (state.draftEndpoints.length === 0) {
+            elements.providerModelError.textContent = '请至少添加一个模型或接入点 ID。';
             valid = false;
         }
         return valid;
@@ -1519,13 +1782,16 @@
             const provider = unwrap(await api.saveProvider({
                 code: state.providerCode,
                 baseUrl: elements.providerBaseUrl.value.trim(),
-                model: elements.providerModel.value.trim(),
+                endpoints: [...state.draftEndpoints],
+                activeEndpoint: state.draftActiveEndpoint,
                 apiKey: elements.providerApiKey.value,
                 supportsVision: elements.providerSupportsVision.checked,
             }), 'Provider 配置未保存。');
             state.providers = state.providers.map((item) => item.code === provider.code ? provider : item);
             state.preference.currentProviderCode = provider.code;
             state.providerCode = provider.code;
+            state.draftEndpoints = Array.isArray(provider.endpoints) ? [...provider.endpoints] : [];
+            state.draftActiveEndpoint = provider.activeEndpoint || (state.draftEndpoints[0] || '');
             elements.providerApiKey.value = '';
             renderSettings();
             closePanels();
@@ -1613,6 +1879,9 @@
         if (elements.createAgentButton) {
             elements.createAgentButton.addEventListener('click', () => createCustomAgent());
         }
+        if (elements.editBannerCancel) {
+            elements.editBannerCancel.addEventListener('click', cancelEdit);
+        }
         if (elements.attachImageButton) {
             elements.attachImageButton.addEventListener('click', () => {
                 if (elements.imageFileInput) {
@@ -1630,6 +1899,13 @@
         elements.providerForm.addEventListener('submit', saveProvider);
         elements.testProviderButton.addEventListener('click', testProvider);
         elements.clearProviderButton.addEventListener('click', clearProvider);
+        elements.addEndpointButton.addEventListener('click', addEndpoint);
+        elements.endpointInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                addEndpoint();
+            }
+        });
         elements.budgetForm.addEventListener('submit', saveBudget);
         elements.sendButton.addEventListener('click', requestSend);
         elements.stopButton.addEventListener('click', async () => {
@@ -1697,6 +1973,7 @@
             state.preference = data.preference || null;
             state.usage = data.usage || null;
             state.knowledge = data.knowledge || null;
+            state.features = data.features || null;
             state.providerCode = state.preference?.currentProviderCode || state.providers[0]?.code || null;
             state.bootstrapped = true;
             elements.initializingLayer.hidden = true;

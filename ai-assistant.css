@@ -1,12 +1,12 @@
 :root {
     color-scheme: light;
-    --canvas: #f7f9f8;
+    --canvas: #f1f4f2;
     --surface: #ffffff;
-    --surface-left: #edf2f0;
-    --surface-right: #eef2f3;
-    --surface-muted: #e5ebe8;
-    --line: #d5dedb;
-    --line-strong: #becbc7;
+    --surface-left: #e7ece9;
+    --surface-right: #edf1f0;
+    --surface-muted: #e2e7e4;
+    --line: #d4dad6;
+    --line-strong: #bcc6c0;
     --text: #18211e;
     --text-secondary: #596762;
     --text-muted: #78847f;
@@ -15,6 +15,8 @@
     --accent-soft: #fbe9e6;
     --teal: #16877d;
     --teal-soft: #e0f2ef;
+    --blue: #2563eb;
+    --blue-strong: #1e5bd8;
     --warning: #a46712;
     --warning-soft: #fff3d7;
     --danger: #b34048;
@@ -639,7 +641,7 @@ button:disabled {
 .agent-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 16px;
 }
 
 .agent-card {
@@ -649,13 +651,13 @@ button:disabled {
     min-height: 154px;
     padding: 16px;
     background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-low);
 }
 
-.agent-card:first-child {
+.agent-grid > .agent-card:only-child {
     grid-column: 1 / -1;
-    min-height: 138px;
 }
 
 .agent-avatar {
@@ -697,11 +699,150 @@ button:disabled {
     font-size: 12px;
 }
 
+.agent-card--hero {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-height: 0;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+}
+
+.agent-hero-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+}
+
+.agent-avatar--hero {
+    flex: 0 0 200px;
+    width: 200px;
+    height: 200px;
+    font-size: 72px;
+}
+
+.agent-hero-titles {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.agent-hero-titles h3 {
+    margin: 0 0 6px;
+    font-size: 22px;
+}
+
+.agent-hero-titles p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.agent-hero-cta {
+    flex: 0 0 auto;
+    align-self: center;
+    margin-left: auto;
+    padding: 0 28px;
+    font-size: 14px;
+}
+
+.agent-hero-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.agent-hero-prompts .starter-button {
+    flex: 1 1 220px;
+    max-width: 360px;
+    padding: 10px 14px;
+    text-align: left;
+    white-space: normal;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.agent-card--compact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    min-height: 0;
+    padding: 18px 16px;
+    width: 100%;
+    text-align: center;
+    color: inherit;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-low);
+    cursor: pointer;
+    transition: transform 120ms var(--ease-out), box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.agent-card--compact .agent-avatar {
+    width: 200px;
+    height: 200px;
+    aspect-ratio: 1 / 1;
+    font-size: 72px;
+}
+
+.agent-card--compact .agent-card-body {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agent-card--compact h3 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.agent-card--compact p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.agent-card--compact:hover {
+    border-color: var(--line-strong);
+    box-shadow: 0 6px 18px rgba(24, 33, 30, 0.12);
+}
+
+.agent-card--compact:active {
+    transform: scale(0.98);
+}
+
+.agent-tile-hint {
+    margin-top: 4px;
+    align-self: center;
+    color: var(--blue);
+    font-size: 13px;
+    font-weight: 700;
+}
+
 .agent-select-button {
     flex: 0 0 auto;
     color: #ffffff;
-    background: var(--text);
+    background: var(--blue);
     font-weight: 700;
+}
+
+.agent-select-button:hover {
+    background: var(--blue-strong);
 }
 
 .starter-button {
@@ -871,6 +1012,71 @@ button:disabled {
     background: var(--danger-soft);
     font-size: 12px;
     font-weight: 700;
+}
+
+.message-edit-button {
+    min-height: 26px;
+    width: 26px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    color: var(--text-muted);
+    background: transparent;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.message-edit-button:hover {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.message-edit-button.is-active {
+    color: #fff;
+    background: var(--accent);
+}
+
+.message-row.is-editing .message-content {
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.edit-banner {
+    width: min(100%, 850px);
+    margin: 0 auto 8px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 12px;
+    background: var(--warning-soft);
+    color: var(--warning);
+    font-size: 12.5px;
+}
+
+.edit-banner[hidden] {
+    display: none;
+}
+
+.edit-banner-text {
+    flex: 1;
+}
+
+.edit-banner-cancel {
+    min-height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.edit-banner-cancel:hover {
+    text-decoration: underline;
 }
 
 .typing-dots {
@@ -1102,6 +1308,115 @@ body.show-settings .settings-panel {
     color: var(--text-muted);
     font-size: 10px;
     letter-spacing: 0.02em;
+}
+
+.endpoint-field {
+    margin-top: 14px;
+}
+
+.endpoint-field > span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.endpoint-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.endpoint-list:empty {
+    display: none;
+}
+
+.endpoint-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--surface-muted);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.endpoint-item.is-active {
+    border-color: var(--blue);
+    background: var(--surface);
+}
+
+.endpoint-radio {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    border: 2px solid var(--line-strong);
+    background: transparent;
+}
+
+.endpoint-item.is-active .endpoint-radio {
+    border-color: var(--blue);
+    background: var(--blue);
+    box-shadow: inset 0 0 0 2px var(--surface);
+}
+
+.endpoint-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--text);
+}
+
+.endpoint-tag {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--blue);
+    letter-spacing: 0.02em;
+}
+
+.endpoint-actions {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.endpoint-action {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 11px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.endpoint-action:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+}
+
+.endpoint-action.is-remove:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.endpoint-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.endpoint-add-row input {
+    flex: 1 1 160px;
+    min-width: 0;
 }
 
 .knowledge-badge-row {
@@ -1760,6 +2075,10 @@ progress.is-over-limit::-webkit-progress-value {
         padding-left: 20px;
     }
 
+    .agent-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .message-list {
         padding-right: 18px;
         padding-left: 18px;
@@ -1822,13 +2141,18 @@ progress.is-over-limit::-webkit-progress-value {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .agent-card:first-child {
-        grid-column: auto;
-    }
-
     .agent-card {
         min-height: 148px;
         padding: 14px;
+    }
+
+    .agent-card--hero {
+        padding: 18px;
+    }
+
+    .agent-hero-prompts .starter-button {
+        flex: 1 1 100%;
+        max-width: 100%;
     }
 
     .message-row {

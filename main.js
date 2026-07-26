@@ -8,6 +8,7 @@ const { getLogger } = require('./logger');
 const productNameManager = require('./modules/product-name-manager');
 const entryModuleManager = require('./modules/entry-module-manager');
 const moduleNameManager = require('./modules/module-name-manager');
+const aiFeatureFlagsManager = require('./modules/ai-feature-flags-manager');
 const logoHandler = require('./modules/logo-handler');
 const usageStats = require('./modules/usage-stats');
 const permissionManager = require('./modules/permission-manager');
@@ -208,6 +209,7 @@ async function initializeAIService() {
     appsCatalog,
     usageStatsModule: usageStats,
     attachmentDir: path.join(app.getPath('userData'), 'ai-attachments'),
+    getFeatureFlags: () => aiFeatureFlagsManager.getAiFeatureFlags(),
     logger,
   });
 
@@ -675,6 +677,30 @@ ipcMain.handle(config.ipcChannels.setModuleNameConfig, async (event, newConfig) 
     return { success: true, data: updatedConfig };
   } catch (error) {
     logger.error('Failed to set module name config', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(config.ipcChannels.getAiFeatureFlags, async () => {
+  try {
+    logger.debug('AI feature flags request received');
+    const featureFlags = aiFeatureFlagsManager.getAiFeatureFlags();
+    return { success: true, data: featureFlags };
+  } catch (error) {
+    logger.error('Failed to get AI feature flags', { error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle(config.ipcChannels.setAiFeatureFlags, async (event, newConfig) => {
+  try {
+    logger.info('AI feature flags update request received', {
+      agentManagementEnabled: newConfig?.agentManagementEnabled,
+    });
+    const updatedConfig = aiFeatureFlagsManager.setAiFeatureFlags(newConfig);
+    return { success: true, data: updatedConfig };
+  } catch (error) {
+    logger.error('Failed to set AI feature flags', { error: error.message });
     return { success: false, error: error.message };
   }
 });

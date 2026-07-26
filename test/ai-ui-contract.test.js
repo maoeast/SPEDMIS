@@ -16,6 +16,7 @@ describe('AI assistant UI contract', () => {
         expect(html).toContain('id="switchAgentButton"');
         expect(html).toContain('id="agentSwitcherList"');
         expect(html).toContain('id="providerForm"');
+        expect(html).toContain('id="endpointList"');
         expect(html).toContain('id="knowledgeCatalogList"');
         expect(html).toContain('id="knowledgeCatalogSummary"');
         expect(html).toContain('id="agentGovernanceList"');

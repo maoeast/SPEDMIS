@@ -14,6 +14,7 @@ const MAX_TITLE_LENGTH = 80;
 const MAX_MODEL_LENGTH = 200;
 const MAX_BASE_URL_LENGTH = 500;
 const MAX_API_KEY_LENGTH = 4096;
+const MAX_ENDPOINTS = 10;
 
 class AIServiceError extends Error {
     constructor(kind, message) {
@@ -115,6 +116,7 @@ class AIAssistantService {
         this.toolDefinitions = Array.isArray(options.toolDefinitions) ? options.toolDefinitions : AI_TOOLS;
         this.attachmentDir = options.attachmentDir || null;
         this.attachmentStore = options.attachmentStore || attachmentStore;
+        this.getFeatureFlags = typeof options.getFeatureFlags === 'function' ? options.getFeatureFlags : null;
         this.activeRequests = new Map();
         this.activeConversationRequests = new Map();
         this.initialized = false;
@@ -136,7 +138,16 @@ class AIAssistantService {
 
     bootstrap() {
         this._assertReady();
-        return this.database.getBootstrap(this.ownerKey, this.privacyVersion);
+        const data = this.database.getBootstrap(this.ownerKey, this.privacyVersion);
+        const flags = this.getFeatureFlags ? (this.getFeatureFlags() || {}) : {};
+        return {
+            ...data,
+            features: {
+                agentManagementEnabled: Boolean(flags.agentManagementEnabled),
+                knowledgeSectionVisible: Boolean(flags.knowledgeSectionVisible),
+                budgetSectionVisible: Boolean(flags.budgetSectionVisible),
+            },
+        };
     }
 
     listKnowledge() {
@@ -284,7 +295,32 @@ class AIAssistantService {
 
         const baseUrlInput = requireString(payload.baseUrl, 'Base URL', MAX_BASE_URL_LENGTH);
         const baseUrl = validateHttpsBaseUrl(baseUrlInput);
-        const model = requireString(payload.model, '模型或接入点 ID', MAX_MODEL_LENGTH);
+
+        // endpoints：优先数组；兼容旧载荷的单个 model 字段。
+        const rawEndpoints = Array.isArray(payload.endpoints) ? payload.endpoints : [];
+        const legacyModel = typeof payload.model === 'string' && payload.model.trim() ? payload.model.trim() : '';
+        const source = rawEndpoints.length > 0 ? rawEndpoints : (legacyModel ? [legacyModel] : []);
+        const seen = new Set();
+        const endpoints = [];
+        for (const item of source) {
+            const normalized = requireString(item, '模型或接入点 ID', MAX_MODEL_LENGTH);
+            if (!seen.has(normalized)) {
+                seen.add(normalized);
+                endpoints.push(normalized);
+            }
+        }
+        if (endpoints.length === 0) {
+            throw new AIServiceError('invalid_input', '请至少添加一个模型或接入点 ID。');
+        }
+        if (endpoints.length > MAX_ENDPOINTS) {
+            throw new AIServiceError('invalid_input', `接入点/模型最多 ${MAX_ENDPOINTS} 个。`);
+        }
+
+        // activeEndpoint：须为空或 ∈ endpoints；否则回退首项。model 即当前接入点。
+        const requestedActive = typeof payload.activeEndpoint === 'string' ? payload.activeEndpoint.trim() : '';
+        const activeEndpoint = endpoints.includes(requestedActive) ? requestedActive : endpoints[0];
+        const model = activeEndpoint;
+
         const apiKey = typeof payload.apiKey === 'string' ? payload.apiKey.trim() : '';
         if (apiKey.length > MAX_API_KEY_LENGTH) {
             throw new AIServiceError('invalid_input', 'API Key 内容过长。');
@@ -297,6 +333,8 @@ class AIAssistantService {
             baseUrl,
             model,
             apiKeyEncrypted,
+            supportsVision: payload.supportsVision,
+            endpointsJson: JSON.stringify(endpoints),
         });
     }
 
@@ -463,6 +501,12 @@ class AIAssistantService {
         };
     }
 
+    async updatePreference(payload = {}) {
+        this._assertReady();
+        const preference = await this.database.updatePreference(this.ownerKey, payload || {});
+        return { preference };
+    }
+
     async startChat(payload = {}, sender) {
         this._assertReady();
         const conversationId = optionalId(payload.conversationId, '会话标识');
@@ -520,9 +564,27 @@ class AIAssistantService {
             }
         }
 
+        // 编辑并重发：前置校验全部通过后，从指定 user 消息起截断会话尾部，再重建一对全新消息。
+        // 预检失败时不会到达此处，故绝不会在无法发送的情况下丢失历史。
+        let orphanAttachmentPaths = [];
+        if (payload.replaceFromMessageId) {
+            const fromMessageId = optionalId(payload.replaceFromMessageId, '消息标识');
+            orphanAttachmentPaths = await this.database.deleteMessagesFrom(
+                this.ownerKey,
+                conversationId,
+                fromMessageId
+            );
+        }
+
         const pair = await this.database.createMessagePair(this.ownerKey, conversationId, content);
         if (attachments.length > 0) {
             await this.database.linkAttachmentsToMessage(pair.userMessage.id, requestedAttachmentIds, conversationId);
+        }
+        if (this.attachmentDir && orphanAttachmentPaths.length > 0) {
+            await this.attachmentStore.cleanupOrphanedAttachments({
+                attachmentDir: this.attachmentDir,
+                paths: orphanAttachmentPaths,
+            });
         }
 
         // Phase 2a：按 agent 绑定组装知识块并前置到 system prompt。
