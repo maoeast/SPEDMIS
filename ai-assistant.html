@@ -145,7 +145,7 @@
                         <small class="field-error" id="providerBaseUrlError"></small>
                     </label>
                     <div class="form-field endpoint-field">
-                        <span id="providerModelLabel">模型</span>
+                        <span id="providerModelLabel">接入大模型</span>
                         <ul class="endpoint-list" id="endpointList" role="list"></ul>
                         <div class="endpoint-add-row">
                             <input id="endpointInput" name="endpoint" type="text" maxlength="200" autocomplete="off" placeholder="输入接入点 ID 或模型名" aria-label="新增模型或接入点 ID">
@@ -168,7 +168,7 @@
                         <input id="providerSupportsVision" name="supportsVision" type="checkbox">
                         <span class="toggle" aria-hidden="true"></span>
                     </label>
-                    <button class="primary-button full-width" id="saveProviderButton" type="submit">
+                    <button class="primary-button full-width is-confirm" id="saveProviderButton" type="submit">
                         <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
                         <span>保存并设为当前</span>
                     </button>

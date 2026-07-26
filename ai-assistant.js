@@ -1066,7 +1066,7 @@
         clearProviderFieldErrors();
         elements.providerBaseUrl.value = provider.baseUrl || '';
         const isVolcengine = provider.code === 'volcengine';
-        elements.providerModelLabel.textContent = isVolcengine ? '接入点 ID' : '模型';
+        elements.providerModelLabel.textContent = '接入大模型';
         elements.endpointInput.placeholder = isVolcengine ? '例如 ep-2024…' : '例如 model-name';
         state.draftEndpoints = Array.isArray(provider.endpoints) ? [...provider.endpoints] : [];
         state.draftActiveEndpoint = provider.activeEndpoint || (state.draftEndpoints[0] || '');
@@ -1104,8 +1104,10 @@
                 item.appendChild(useButton);
             }
 
-            const removeButton = createElement('button', 'endpoint-action is-remove', '删除');
+            const removeButton = createElement('button', 'endpoint-action is-remove');
             removeButton.type = 'button';
+            removeButton.setAttribute('aria-label', '删除该接入点');
+            removeButton.appendChild(createIcon('fa-solid fa-trash-can'));
             removeButton.addEventListener('click', () => removeEndpoint(value));
             item.appendChild(removeButton);
 
