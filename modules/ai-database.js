@@ -603,18 +603,27 @@ class AIAssistantDatabase {
     _syncProviders() {
         const timestamp = this.now();
         for (const provider of this.providerPresets) {
+            // 默认接入点列表：preset 显式给出则用之，否则退化为 [defaultModel]。
+            const defaultEndpoints = Array.isArray(provider.defaultEndpoints) && provider.defaultEndpoints.length > 0
+                ? provider.defaultEndpoints
+                : (provider.defaultModel ? [provider.defaultModel] : []);
+            const defaultActive = provider.defaultModel || '';
+            const endpointsJson = JSON.stringify(defaultEndpoints);
             this._execute(
                 `INSERT INTO ai_provider (
-                    code, name, base_url, model, api_key_enc, has_key, enabled, sort, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, '', 0, 1, ?, ?, ?)
+                    code, name, base_url, model, endpoints_json, api_key_enc, has_key, enabled, sort, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, '', 0, 1, ?, ?, ?)
                 ON CONFLICT(code) DO UPDATE SET
                     name = excluded.name,
-                    sort = excluded.sort`,
+                    sort = excluded.sort,
+                    endpoints_json = CASE WHEN ai_provider.endpoints_json = '[]' THEN excluded.endpoints_json ELSE ai_provider.endpoints_json END,
+                    model = CASE WHEN ai_provider.model = '' THEN excluded.model ELSE ai_provider.model END`,
                 [
                     provider.code,
                     provider.name,
                     provider.baseUrl,
-                    provider.defaultModel || '',
+                    defaultActive,
+                    endpointsJson,
                     provider.sort,
                     timestamp,
                     timestamp,

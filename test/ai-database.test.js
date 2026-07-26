@@ -469,11 +469,11 @@ describe('AI assistant database', () => {
         const preferenceCols = database._query('PRAGMA table_info(ai_preference)').map((row) => row.name);
         expect(providerCols).toContain('endpoints_json');
         expect(preferenceCols).toContain('knowledge_section_visible');
-        // DeepSeek 已下线：迁移后仅剩火山方舟；其 model 为空故 endpoints 为空列表。
+        // DeepSeek 已下线：迁移后仅剩火山方舟；preset 自带默认接入点（endpoints_json 为空时回填）。
         expect(database.getProvider('deepseek')).toBeNull();
         const volcengine = database.getProvider('volcengine');
-        expect(volcengine.endpoints).toEqual([]);
-        expect(volcengine.activeEndpoint).toBe('');
+        expect(volcengine.endpoints).toEqual(['doubao-seed-2-1-turbo-260628', 'deepseek-v4-flash-260425']);
+        expect(volcengine.activeEndpoint).toBe('deepseek-v4-flash-260425');
         // 新偏好位默认隐藏，默认 provider 为火山方舟。
         expect(database.getPreference(DEFAULT_OWNER_KEY).knowledgeSectionVisible).toBe(false);
         expect(database.getPreference(DEFAULT_OWNER_KEY).currentProviderCode).toBe('volcengine');

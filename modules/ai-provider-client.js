@@ -5,7 +5,11 @@ const PROVIDER_PRESETS = Object.freeze({
         code: 'volcengine',
         name: '火山方舟',
         baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-        defaultModel: '',
+        defaultModel: 'deepseek-v4-flash-260425',
+        defaultEndpoints: Object.freeze([
+            'doubao-seed-2-1-turbo-260628',
+            'deepseek-v4-flash-260425',
+        ]),
         sort: 1,
     }),
 });
