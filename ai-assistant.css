@@ -280,6 +280,10 @@ button:disabled {
     box-shadow: var(--shadow-low);
 }
 
+.conversation-item:not(:last-child) {
+    border-bottom: 1px solid var(--line);
+}
+
 .conversation-main {
     display: flex;
     width: 100%;

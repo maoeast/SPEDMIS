@@ -55,8 +55,6 @@
             'switchAgentButton',
             'agentSwitcher',
             'agentSwitcherList',
-            'headerProviderStatus',
-            'headerProviderText',
             'noticeBar',
             'noticeIcon',
             'noticeText',
@@ -337,19 +335,12 @@
     function renderCurrentAgent() {
         const agent = currentAgent();
         const conversation = currentConversation();
-        const provider = getProvider(state.preference?.currentProviderCode);
         const displayAgent = agent || null;
 
         updateAgentAvatar(elements.currentAgentAvatar, displayAgent, 'current-agent-avatar');
         elements.currentAgentName.textContent = displayAgent?.displayName || displayAgent?.name || '选择一位助手';
         elements.currentAgentTagline.textContent = displayAgent?.tagline || (conversation ? '准备开始新的教师工作对话' : '开始新的教师工作对话');
         elements.switchAgentButton.disabled = state.agents.length === 0;
-
-        const configured = Boolean(provider?.hasApiKey);
-        elements.headerProviderStatus.classList.toggle('is-ready', configured);
-        elements.headerProviderText.textContent = provider
-            ? `${provider.name} ${configured ? '已配置' : '未配置'}`
-            : '服务未配置';
     }
 
     function renderConversations() {
@@ -376,15 +367,6 @@
             mainButton.append(agentAvatar, copy);
 
             const actions = createElement('span', 'conversation-actions');
-            const renameButton = createElement('button', 'conversation-action');
-            renameButton.type = 'button';
-            renameButton.setAttribute('aria-label', `重命名 ${conversation.title}`);
-            renameButton.title = '重命名';
-            renameButton.appendChild(createIcon('fa-solid fa-pen'));
-            renameButton.addEventListener('click', (event) => {
-                event.stopPropagation();
-                renameConversation(conversation);
-            });
 
             const deleteButton = createElement('button', 'conversation-action');
             deleteButton.type = 'button';
@@ -395,7 +377,7 @@
                 event.stopPropagation();
                 deleteConversation(conversation);
             });
-            actions.append(renameButton, deleteButton);
+            actions.append(deleteButton);
             item.append(mainButton, actions);
             elements.conversationList.appendChild(item);
         });
