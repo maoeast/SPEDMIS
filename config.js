@@ -26,7 +26,7 @@ const productNameConfig = {
         shortName: '特教MIS',
         engName: 'Special Education Multimodal Intervention System',
         organization: '杭州炫灿科技有限公司',
-        copyright: '©2013-2025',
+        copyright: '©2013-2026',
         version: '1.2.0',
     },
     // 配置文件名称
