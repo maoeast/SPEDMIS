@@ -138,6 +138,7 @@ function normalizeMessages(messages) {
 function createRequestController(externalSignal, timeoutMs) {
     const controller = new AbortController();
     let abortKind = null;
+    let timer = null;
 
     const cancelFromExternal = () => {
         abortKind = 'cancelled';
@@ -150,26 +151,56 @@ function createRequestController(externalSignal, timeoutMs) {
         externalSignal.addEventListener('abort', cancelFromExternal, { once: true });
     }
 
-    const timer = setTimeout(() => {
-        if (!controller.signal.aborted) {
-            abortKind = 'timeout';
-            controller.abort();
+    const armTimer = () => {
+        if (timer) {
+            clearTimeout(timer);
         }
-    }, timeoutMs);
+        timer = setTimeout(() => {
+            if (!controller.signal.aborted) {
+                abortKind = 'timeout';
+                controller.abort();
+            }
+        }, timeoutMs);
+    };
+
+    // 是否已进入流式产出阶段（收到响应头或数据块后调用过 resetTimeout）。
+    // 用于在超时时区分「连接/首段超时」与「产出中停滞」。
+    let wasStreaming = false;
+
+    armTimer();
+
+    const resetTimeout = () => {
+        wasStreaming = true;
+        armTimer();
+    };
 
     return {
         signal: controller.signal,
         getAbortKind: () => abortKind,
+        // 重置超时计时。流式响应每收到一段数据调用一次，
+        // 让总超时退化为「两个数据块之间的空闲超时」，避免模型仍在输出时被误判超时。
+        resetTimeout,
+        get wasStreaming() {
+            return wasStreaming;
+        },
         cleanup: () => {
-            clearTimeout(timer);
+            if (timer) {
+                clearTimeout(timer);
+            }
+            timer = null;
             externalSignal?.removeEventListener?.('abort', cancelFromExternal);
         },
     };
 }
 
-function createAbortError(abortKind) {
+function createAbortError(controller) {
+    const abortKind = controller.getAbortKind();
     if (abortKind === 'cancelled') {
         return new AIProviderError('cancelled', '请求已停止。');
+    }
+    // 已进入流式产出却超时，说明模型中途停滞，而非连接超时。
+    if (controller.wasStreaming) {
+        return new AIProviderError('timeout', '模型响应停滞，请稍后重试。');
     }
     return new AIProviderError('timeout', `请求超时（${REQUEST_TIMEOUT_MS / 1000} 秒），请稍后重试。`);
 }
@@ -288,7 +319,7 @@ class AIProviderClient {
         } catch (error) {
             requestController.cleanup();
             if (requestController.signal.aborted || error?.name === 'AbortError') {
-                throw createAbortError(requestController.getAbortKind());
+                throw createAbortError(requestController);
             }
             throw new AIProviderError('network', '无法连接模型服务，请检查网络和 Provider 地址。');
         }
@@ -298,6 +329,10 @@ class AIProviderClient {
             await response.text().catch(() => '');
             throw describeHttpError(response.status, providerName);
         }
+
+        // 响应头已到达，连接成功建立：把超时从「请求发出以来的总时长」重置为
+        // 「等待下一段流式数据」，随后在 readResponseChunks 中每收到一段数据继续重置。
+        requestController.resetTimeout();
 
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
@@ -340,12 +375,13 @@ class AIProviderClient {
             await readResponseChunks(response.body, (value) => {
                 buffer += decoder.decode(value, { stream: true });
                 consumeBuffer();
+                requestController.resetTimeout();
             });
             buffer += decoder.decode();
             consumeBuffer(true);
         } catch (error) {
             if (requestController.signal.aborted || error?.name === 'AbortError') {
-                throw createAbortError(requestController.getAbortKind());
+                throw createAbortError(requestController);
             }
             if (error instanceof AIProviderError) {
                 throw error;
@@ -435,7 +471,7 @@ class AIProviderClient {
             }
         } catch (error) {
             if (requestController.signal.aborted || error?.name === 'AbortError') {
-                throw createAbortError(requestController.getAbortKind());
+                throw createAbortError(requestController);
             }
             if (error instanceof AIProviderError) {
                 throw error;

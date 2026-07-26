@@ -112,6 +112,68 @@ describe('AI provider client', () => {
         await expect(request).rejects.toMatchObject({ kind: 'cancelled' });
     });
 
+    test('keeps streaming past the timeout as long as chunks keep arriving', async () => {
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const fetchImpl = jest.fn(async () => ({
+            ok: true,
+            status: 200,
+            text: jest.fn(async () => ''),
+            body: {
+                async *[Symbol.asyncIterator]() {
+                    // 相邻 chunk 间隔 40ms，总时长约 120ms 超过 timeoutMs(80)；
+                    // 但任意两次到达之间 < 80ms，属正常流式，不应判超时。
+                    for (const chunk of [
+                        'data: {"choices":[{"delta":{"content":"a"}}]}\n\n',
+                        'data: {"choices":[{"delta":{"content":"b"}}]}\n\n',
+                        'data: {"choices":[{"delta":{"content":"c"}}]}\n\n',
+                        'data: [DONE]\n\n',
+                    ]) {
+                        await sleep(40);
+                        yield Buffer.from(chunk, 'utf8');
+                    }
+                },
+            },
+        }));
+        const client = new AIProviderClient({ fetchImpl, timeoutMs: 80 });
+        const result = await client.streamChat({
+            apiKey: 'k',
+            baseUrl: 'https://example.com/v1',
+            model: 'm',
+            messages: [{ role: 'user', content: 'hi' }],
+        });
+        expect(result.content).toBe('abc');
+    });
+
+    test('reports a streaming stall when chunks stop arriving mid-response', async () => {
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const fetchImpl = jest.fn((_url, options) => ({
+            ok: true,
+            status: 200,
+            text: jest.fn(async () => ''),
+            body: {
+                async *[Symbol.asyncIterator]() {
+                    yield Buffer.from('data: {"choices":[{"delta":{"content":"a"}}]}\n\n', 'utf8');
+                    // 产出一段后长时间无后续数据 → 空闲超时
+                    await sleep(120);
+                    // 真实 fetch 流在 abort 后读取会抛 AbortError，此处模拟该行为
+                    if (options.signal?.aborted) {
+                        const error = new Error('aborted');
+                        error.name = 'AbortError';
+                        throw error;
+                    }
+                    yield Buffer.from('data: [DONE]\n\n', 'utf8');
+                },
+            },
+        }));
+        const client = new AIProviderClient({ fetchImpl, timeoutMs: 50 });
+        await expect(client.streamChat({
+            apiKey: 'k',
+            baseUrl: 'https://example.com/v1',
+            model: 'm',
+            messages: [{ role: 'user', content: 'hi' }],
+        })).rejects.toMatchObject({ kind: 'timeout', message: '模型响应停滞，请稍后重试。' });
+    });
+
     test('rejects non-HTTPS and credential-bearing base URLs', () => {
         expect(() => validateHttpsBaseUrl('http://example.com')).toThrow(AIProviderError);
         expect(() => validateHttpsBaseUrl('https://user:pass@example.com')).toThrow(AIProviderError);
