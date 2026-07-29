@@ -21,6 +21,7 @@ const { createAISecretStore } = require('./modules/ai-secret-store');
 const { AIProviderClient } = require('./modules/ai-provider-client');
 const { AIAssistantService, AIServiceError } = require('./modules/ai-service');
 const { registerAIIPC } = require('./modules/ai-ipc');
+const { PsyseenLoginState } = require('./psyseen-login-state');
 
 let mainWindow;
 let iepWindow = null;
@@ -871,18 +872,24 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
         }
       });
       
-      // 监听导航事件，检测是否登录成功
-      let loginCompleted = false;
+      // 监听导航事件，区分登录成功与凭据错误。
+      const loginState = new PsyseenLoginState();
       
       const checkLoginComplete = (event, url) => {
         logger.debug('BrowserView navigation', { url });
-        if (url.includes('/dashboard') || url.includes('#/dashboard')) {
-          loginCompleted = true;
+        const status = loginState.recordNavigation(url);
+        if (status === 'success') {
           logger.info('Psyseen login completed in background');
-          
-          // 移除监听器
-          loginView.webContents.removeListener('did-navigate', checkLoginComplete);
-          loginView.webContents.removeListener('did-navigate-in-page', checkLoginComplete);
+        } else if (status === 'invalid-credentials') {
+          logger.warn('Psyseen login rejected by login page');
+        }
+      };
+
+      const destroyLoginView = () => {
+        loginView.webContents.removeListener('did-navigate', checkLoginComplete);
+        loginView.webContents.removeListener('did-navigate-in-page', checkLoginComplete);
+        if (!loginView.webContents.isDestroyed()) {
+          loginView.webContents.destroy();
         }
       };
       
@@ -894,9 +901,17 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
       
       // 等待页面完全加载
       await new Promise(resolve => setTimeout(resolve, 2000));
+
+      if (loginState.isSuccessful()) {
+        destroyLoginView();
+        await callerWindow.webContents.loadURL('https://org.psyseen.com/#/dashboard');
+        return { success: true };
+      }
+
+      loginState.markSubmissionAttempted();
       
       // 自动填充表单并提交
-      await loginView.webContents.executeJavaScript(`
+      const submitResult = await loginView.webContents.executeJavaScript(`
         (function() {
           return new Promise((resolve) => {
             var usernameInput = document.querySelector('input[type="text"], input[type="email"], input[name="username"], input[id="username"]');
@@ -939,14 +954,19 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
           });
         })();
       `);
+
+      if (!submitResult || !submitResult.success) {
+        destroyLoginView();
+        return { success: false, error: submitResult?.error || '未找到登录表单，请稍后重试' };
+      }
       
       logger.info('Psyseen login form submitted in background');
       
       // 等待登录完成（最多等待 10 秒）
       for (let i = 0; i < 20; i++) {
-        if (loginCompleted) {
+        if (loginState.isSuccessful()) {
           // 清理后台 BrowserView
-          loginView.webContents.destroy();
+          destroyLoginView();
           
           // 在调用者窗口中加载 dashboard
           await callerWindow.webContents.loadURL('https://org.psyseen.com/#/dashboard');
@@ -954,14 +974,16 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
           logger.info('Dashboard loaded in independent window');
           return { success: true };
         }
+        if (loginState.isFailed()) {
+          destroyLoginView();
+          return { success: false, error: loginState.getError() };
+        }
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // 超时，直接加载 dashboard
-      logger.warn('Psyseen login timeout, loading dashboard anyway');
-      loginView.webContents.destroy();
-      await callerWindow.webContents.loadURL('https://org.psyseen.com/#/dashboard');
-      return { success: true };
+      logger.warn('Psyseen login timeout');
+      destroyLoginView();
+      return { success: false, error: loginState.getError() };
     } else {
       // 主窗口 BrowserView 模式（保留向后兼容）
       logger.info('Login from main window BrowserView mode (deprecated)');
@@ -986,22 +1008,28 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
       const { width, height } = mainWindow.getBounds();
       hiddenView.setBounds({ x: 0, y: 0, width, height });
       
-      // 监听导航事件，检测是否登录成功（跳转到 dashboard）
-      let loginCompleted = false;
+      // 监听导航事件，区分登录成功与凭据错误。
+      const loginState = new PsyseenLoginState();
       
       const checkLoginComplete = (event, url) => {
         logger.debug('BrowserView navigation', { url });
-        // 检测是否已跳转到 dashboard（登录成功标志）
-        if (url.includes('/dashboard') || url.includes('#/dashboard')) {
-          loginCompleted = true;
+        const status = loginState.recordNavigation(url);
+        if (status === 'success') {
           logger.info('Psyseen login completed, showing view');
-          
-          // 登录成功，添加到窗口显示
-          mainWindow.setBrowserView(hiddenView);
-          
-          // 移除监听器
-          hiddenView.webContents.removeListener('did-navigate', checkLoginComplete);
-          hiddenView.webContents.removeListener('did-navigate-in-page', checkLoginComplete);
+        } else if (status === 'invalid-credentials') {
+          logger.warn('Psyseen login rejected by login page');
+        }
+      };
+
+      const stopHiddenNavigationMonitor = () => {
+        hiddenView.webContents.removeListener('did-navigate', checkLoginComplete);
+        hiddenView.webContents.removeListener('did-navigate-in-page', checkLoginComplete);
+      };
+
+      const destroyHiddenView = () => {
+        stopHiddenNavigationMonitor();
+        if (!hiddenView.webContents.isDestroyed()) {
+          hiddenView.webContents.destroy();
         }
       };
       
@@ -1013,6 +1041,15 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
       
       // 等待页面完全加载
       await new Promise(resolve => setTimeout(resolve, 2000));
+
+      if (loginState.isSuccessful()) {
+        stopHiddenNavigationMonitor();
+        psyseenView = hiddenView;
+        mainWindow.setBrowserView(hiddenView);
+        return { success: true };
+      }
+
+      loginState.markSubmissionAttempted();
       
       // 自动填充表单并提交
       const submitResult = await hiddenView.webContents.executeJavaScript(`
@@ -1058,13 +1095,20 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
           });
         })();
       `);
+
+      if (!submitResult || !submitResult.success) {
+        destroyHiddenView();
+        return { success: false, error: submitResult?.error || '未找到登录表单，请稍后重试' };
+      }
       
       logger.info('Psyseen login form submitted', { result: submitResult });
       
       // 等待登录完成并跳转（最多等待 10 秒）
       for (let i = 0; i < 20; i++) {
-        if (loginCompleted) {
+        if (loginState.isSuccessful()) {
+          stopHiddenNavigationMonitor();
           psyseenView = hiddenView;
+          mainWindow.setBrowserView(hiddenView);
           
           // 确保 BrowserView 大小正确
           setTimeout(() => {
@@ -1074,14 +1118,16 @@ ipcMain.handle('psyseen-login', async (event, { username, password, redirectUrl 
           
           return { success: true };
         }
+        if (loginState.isFailed()) {
+          destroyHiddenView();
+          return { success: false, error: loginState.getError() };
+        }
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // 超时，可能已经登录成功了，直接显示
-      logger.warn('Psyseen login timeout, showing view anyway');
-      psyseenView = hiddenView;
-      mainWindow.setBrowserView(hiddenView);
-      return { success: true };
+      logger.warn('Psyseen login timeout');
+      destroyHiddenView();
+      return { success: false, error: loginState.getError() };
     }
   } catch (error) {
     logger.error('Failed to login to psyseen', { error: error.message });

@@ -635,11 +635,13 @@
                         });
                     }, 1500);
                 } else {
+                    loadingMessage.style.display = 'none';
                     errorMessage.textContent = result.error || '登录失败，请检查账号密码';
                     errorMessage.style.display = 'block';
                     loginBtn.disabled = false;
                 }
             } catch (error) {
+                loadingMessage.style.display = 'none';
                 errorMessage.textContent = error.message || '登录失败，请稍后重试';
                 errorMessage.style.display = 'block';
                 loginBtn.disabled = false;
