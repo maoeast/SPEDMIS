@@ -58,12 +58,10 @@ flash/
 .superpowers/
 .learnings/
 .playwright-cli/
+.thincoder/
 
 # Documentation drafts
 docs/*
-!docs/planning/
-docs/planning/*
-!docs/planning/2026-07-23-spedmis-ai-agent-chat-migration-plan.md
 
 # Tools
 tools/
