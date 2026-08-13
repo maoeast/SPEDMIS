@@ -282,6 +282,10 @@
                 粘贴激活码
             </button>
         </div>
+        <button type="button" id="importLisButton" class="secondary-btn" onclick="importLisFile()">
+            导入激活文件(.lis)
+        </button>
+        <input type="file" id="lisFileInput" accept=".lis" style="display: none;">
         <button onclick="activate()">提交激活</button>
         <div class="error" id="errorMessage"></div>
         <div class="contact-info">
@@ -345,6 +349,61 @@
                     console.error('粘贴失败:', error);
                 });
         }
+
+        // 导入激活文件(.lis)
+        function importLisFile() {
+            document.getElementById('lisFileInput').click();
+        }
+
+        document.getElementById('lisFileInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            // 无论成功失败都重置，允许再次选择同一文件
+            event.target.value = '';
+
+            if (!file) {
+                return;
+            }
+
+            if (!file.name.toLowerCase().endsWith('.lis')) {
+                showError('请选择 .lis 激活文件');
+                return;
+            }
+
+            let text;
+            try {
+                text = await file.text();
+            } catch (error) {
+                showError('读取激活文件失败，请重试');
+                console.error('读取激活文件失败:', error);
+                return;
+            }
+
+            if (!window.electronAPI || typeof window.electronAPI.parseActivationLis !== 'function') {
+                showError('当前环境不支持导入激活文件');
+                return;
+            }
+
+            const result = await window.electronAPI.parseActivationLis(text);
+            if (!result || !result.success) {
+                showError(result && result.error ? result.error : '激活文件解析失败');
+                return;
+            }
+
+            const fileMachineCode = result.data.machineCode;
+            const currentMachineCode = document.getElementById('machineCode').textContent.trim();
+            if (!currentMachineCode || currentMachineCode === '正在生成机器码...' || currentMachineCode === '无法生成机器码') {
+                showError('机器码尚未生成，请稍后重试');
+                return;
+            }
+            if (fileMachineCode !== currentMachineCode) {
+                showError('激活文件与当前电脑不匹配（机器码不一致），请联系客服重新获取');
+                return;
+            }
+
+            // 自动填入激活码并提交激活
+            document.getElementById('activationCode').value = result.data.activationCode;
+            activate();
+        });
 
         function activate() {
             const activationCode = document.getElementById('activationCode').value.trim();

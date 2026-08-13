@@ -357,6 +357,7 @@ const ipcChannels = {
     activate: 'activate',
     getMachineCode: 'get-machine-code',
     machineCodeResponse: 'machine-code-response',
+    parseActivationLis: 'parse-activation-lis',
 
     // 模块相关
     getModuleCategories: 'get-module-categories',

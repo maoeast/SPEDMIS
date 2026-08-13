@@ -8,9 +8,11 @@
 tools/
 ├── activation-code-generator.js      # 核心生成模块（不依赖任何特定框架）
 ├── activation-tool-cli.js            # 命令行工具（node.js）
-├── activation-tool-gui.html          # Web 图形界面（纯 HTML5 + CSS3 + JS）
-├── activation-tool-server.js         # Express 服务器（支持 Web 界面）
-└── README.md                          # 本文件
+├── activation-tool-gui.html          # 单文件 Web 图形界面（纯 HTML5 + CSS3 + JS，双击即用）
+├── test-activation-generator.js      # 工具自测脚本（17 项）
+├── QUICKSTART.md                     # 快速上手
+├── README.md                         # 本文件
+└── 特殊教育多模态干预系统激活安全密钥.txt  # 密钥部署配置说明
 ```
 
 ## 🚀 快速开始
@@ -45,6 +47,18 @@ node activation-tool-cli.js --interactive
 node activation-tool-cli.js --machine-code abc123def456...
 ```
 
+#### 导出激活文件（.lis，推荐分发方式）
+
+```bash
+# 生成激活码并导出 .lis 激活文件（默认 ./SPEDMIS-<机器码前8位>.lis）
+node activation-tool-cli.js --export-lis abc123def456...
+
+# 指定输出路径
+node activation-tool-cli.js --export-lis abc123def456... --lis-output ./out/abc.lis
+```
+
+交互模式中，生成单个激活码或批量生成后也会询问是否导出 .lis 文件。
+
 #### 从 CSV 文件批量生成
 
 创建 `machine_codes.csv`：
@@ -75,25 +89,25 @@ node activation-tool-cli.js --help
 
 ### 2. Web 图形界面
 
-#### 启动服务器
+#### 单文件模式（推荐，无需服务器）
 
-```bash
-cd tools
-npm install express multer  # 首次需要安装依赖
-node activation-tool-server.js --port 3000
-```
+直接双击打开 `activation-tool-gui.html`（或用浏览器打开该文件）即可使用全部功能：
 
-然后在浏览器中打开：
-```
-http://localhost:3000
-```
+- **单个生成**：输入机器码 → 生成激活码 → 复制 / 导出激活文件(.lis)
+- **批量生成**：CSV 批量生成 → 下载结果 CSV → 📦 一键导出全部 .lis（ZIP 打包，浏览器内完成）
+- **.lis 验证**：拖入 .lis 文件 → 解析内容（机器码/激活码/签发时间）→ 校验激活码有效性
+- **验证激活码**：机器码 + 激活码匹配校验
+- **生成器状态**：密钥管理（内置当前生产密钥，可修改并保存在本机浏览器 localStorage）与参数状态
+
+> 全部计算（HMAC-SHA256、ZIP 打包）在本机浏览器完成，无任何网络请求。密钥默认内置，可在「生成器状态」页修改。
 
 #### 功能
 
-- **单个生成**：输入机器码，生成单个激活码，支持一键复制
-- **批量生成**：上传 CSV 文件，批量生成激活码，下载结果
+- **单个生成**：输入机器码，生成单个激活码，支持一键复制、导出激活文件(.lis)
+- **批量生成**：上传 CSV 文件批量生成激活码，下载结果 CSV，一键导出全部 .lis（ZIP 打包），表格内每行可单独导出
+- **.lis 验证**：拖入或选择 .lis 激活文件，解析内容（机器码/激活码/签发时间）并校验激活码有效性
 - **验证激活码**：验证激活码是否与机器码匹配
-- **生成器状态**：查看生成器配置和初始化状态
+- **生成器状态**：查看密钥加载情况、修改密钥（localStorage 持久化）与生成参数
 
 ---
 
@@ -139,6 +153,25 @@ generator.saveToCSV(csvResult.results, 'output.csv');
 // 获取状态
 const status = generator.getStatus();
 ```
+
+---
+
+## 📄 激活文件（.lis）
+
+激活文件是激活码的分发载体，内容为 UTF-8 文本：
+
+```
+# SPEDMIS Activation File v1
+machineCode=<64位十六进制机器码>
+activationCode=<64位十六进制激活码>
+issuedAt=<ISO 8601 签发时间>
+```
+
+**使用流程**：
+
+1. 开发/客服人员使用工具导出 .lis 文件（CLI `--export-lis` 或 Web 界面「导出激活文件(.lis)」按钮）
+2. 将 .lis 文件发送给用户
+3. 用户在应用的激活页面点击「导入激活文件(.lis)」，选择该文件后自动完成激活
 
 ---
 
@@ -307,13 +340,12 @@ node activation-tool-cli.js --verify <码> --machine-code <码>
 # 应为 64 个十六进制字符 (0-9, a-f)
 ```
 
-### Q: Web 界面无法连接？
+### Q: Web 界面无法打开？
 
 **检查步骤：**
-1. 确认服务器已启动：`node activation-tool-server.js`
-2. 检查端口是否被占用：`netstat -an | findstr 3000`（Windows）
-3. 尝试其他端口：`node activation-tool-server.js --port 8080`
-4. 检查防火墙设置
+1. 确认 `activation-tool-gui.html` 未被重命名或移动（其目录下所有功能均在本机浏览器完成）
+2. 使用较新的浏览器（Chrome / Edge 等，需支持 Web Crypto `crypto.subtle`）
+3. 顶部徽章显示「密钥：未加载」时，在「生成器状态」页配置密钥
 
 ### Q: 批量生成很慢？
 
@@ -369,16 +401,14 @@ node activation-tool-cli.js --csv machines.csv --output codes.csv
 
 ### 示例 3：使用 Web 界面
 
-```bash
-# 1. 启动 Web 服务器
-node activation-tool-server.js
-
-# 2. 在浏览器中打开 http://localhost:3000
-# 3. 使用各种功能：
-#    - 单个生成：复制粘贴机器码，点击生成
-#    - 批量生成：上传 CSV 文件
+```text
+# 1. 直接双击打开 activation-tool-gui.html（无需服务器）
+# 2. 使用各种功能：
+#    - 单个生成：复制粘贴机器码，点击生成，可导出 .lis 激活文件
+#    - 批量生成：上传 CSV 文件，可一键导出全部 .lis（ZIP）
+#    - .lis 验证：拖入 .lis 文件解析并校验激活码
 #    - 验证激活码：验证生成的激活码
-# 4. 下载结果 CSV 文件
+# 3. 下载结果 CSV / ZIP 文件
 ```
 
 ---

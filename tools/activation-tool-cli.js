@@ -14,6 +14,7 @@ const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
 const ActivationCodeGenerator = require('./activation-code-generator');
+const { buildLisContent, buildLisFileName } = require('../modules/activation-lis');
 
 class ActivationToolCLI {
     constructor() {
@@ -45,6 +46,8 @@ class ActivationToolCLI {
   
   --secret-key <key>        指定激活系统密钥（如未设置环境变量）
   --verify <code>           验证激活码是否正确
+  --export-lis <code>       生成激活码并导出 .lis 激活文件（与 --machine-code 配合）
+  --lis-output <file>       指定 .lis 文件输出路径（默认 ./SPEDMIS-<机器码前8位>.lis）
 
 示例 (Examples):
 
@@ -163,6 +166,12 @@ CSV 输出文件示例 (output.csv):
                 return;
             }
 
+            // 处理导出 .lis 激活文件
+            if (args['export-lis']) {
+                this.exportLis(args['export-lis'], args['lis-output']);
+                return;
+            }
+
             // 如果没有参数，显示帮助或进入交互模式
             if (Object.keys(args).length === 0) {
                 console.log('未提供参数。进入交互模式...\n');
@@ -242,7 +251,18 @@ CSV 输出文件示例 (output.csv):
             return;
         }
 
-        this.generateSingle(machineCode.trim());
+        const activationCode = this.generateSingle(machineCode.trim());
+        if (!activationCode) {
+            return;
+        }
+
+        const exportLis = await this.question('是否导出激活文件(.lis)？(y/n): ');
+        if (exportLis.trim().toLowerCase() === 'y') {
+            const defaultName = buildLisFileName(machineCode.trim());
+            let outputPath = await this.question(`输出路径 (默认: ${defaultName}): `);
+            outputPath = outputPath.trim() || defaultName;
+            this.exportLis(machineCode.trim(), outputPath, activationCode);
+        }
     }
 
     /**
@@ -259,10 +279,93 @@ CSV 输出文件示例 (output.csv):
 
             // 提供复制建议
             console.log('复制激活码到剪贴板或保存以供分发给用户。\n');
+            return result.activationCode;
         } else {
             console.log('✗ 生成失败！\n');
             console.log(`  错误: ${result.error}\n`);
+            return null;
         }
+    }
+
+    /**
+     * 导出激活文件(.lis)
+     *
+     * @param {string} machineCode - 机器码
+     * @param {string} [outputPath] - 输出路径（默认 ./SPEDMIS-<机器码前8位>.lis）
+     * @param {string} [activationCode] - 已生成的激活码（可复用，避免重复生成）
+     * @returns {string|null} 输出路径（失败返回 null）
+     */
+    exportLis(machineCode, outputPath, activationCode) {
+        console.log('\n生成并导出激活文件(.lis)...\n');
+
+        let code = activationCode;
+        if (!code) {
+            const result = this.generator.generateActivationCode(machineCode);
+            if (!result.success) {
+                console.log('✗ 生成失败！\n');
+                console.log(`  错误: ${result.error}\n`);
+                return null;
+            }
+            code = result.activationCode;
+        }
+
+        const lisContent = buildLisContent(machineCode, code);
+        const targetPath = outputPath || buildLisFileName(machineCode);
+
+        try {
+            fs.writeFileSync(targetPath, lisContent, 'utf8');
+            console.log('✓ 激活文件导出成功！\n');
+            console.log(`  机器码:    ${machineCode}`);
+            console.log(`  激活码:    ${code}`);
+            console.log(`  文件路径:  ${targetPath}\n`);
+            console.log('将 .lis 文件发送给用户，用户可在激活页面点击"导入激活文件(.lis)"自动激活。\n');
+            return targetPath;
+        } catch (error) {
+            console.log('✗ 导出失败！\n');
+            console.log(`  错误: ${error.message}\n`);
+            return null;
+        }
+    }
+
+    /**
+     * 批量导出激活文件(.lis)
+     * 为每个生成成功的机器码导出一个 .lis 文件到指定目录
+     *
+     * @param {Array} results - 生成结果数组（含 machineCode / activationCode / status）
+     * @param {string} outputDir - 输出目录（不存在时自动创建）
+     * @returns {number} 导出数量
+     */
+    exportLisBatch(results, outputDir) {
+        const targetDir = outputDir || 'lis-files';
+
+        try {
+            fs.mkdirSync(targetDir, { recursive: true });
+        } catch (error) {
+            console.log(`✗ 创建导出目录失败: ${error.message}\n`);
+            return 0;
+        }
+
+        let count = 0;
+        for (const result of results) {
+            if (result.status !== 'success' || !result.activationCode) {
+                continue;
+            }
+            try {
+                const content = buildLisContent(result.machineCode, result.activationCode);
+                const filePath = path.join(targetDir, buildLisFileName(result.machineCode));
+                fs.writeFileSync(filePath, content, 'utf8');
+                count++;
+            } catch (error) {
+                console.log(`✗ 导出失败 (${result.machineCode.substring(0, 8)}...): ${error.message}`);
+            }
+        }
+
+        if (count > 0) {
+            console.log(`✓ 已导出 ${count} 个激活文件(.lis)到目录: ${targetDir}\n`);
+        } else {
+            console.log('✗ 没有可导出的激活文件\n');
+        }
+        return count;
     }
 
     /**
@@ -281,11 +384,22 @@ CSV 输出文件示例 (output.csv):
         let outputFile = await this.question('输出文件路径 (默认: output.csv): ');
         outputFile = outputFile.trim() || 'output.csv';
 
-        this.generateFromCSV(inputFile.trim(), outputFile, hasHeader.toLowerCase() === 'y');
+        const outcome = this.generateFromCSV(inputFile.trim(), outputFile, hasHeader.toLowerCase() === 'y');
+
+        if (outcome && outcome.success) {
+            const exportLis = await this.question('是否同时导出 .lis 激活文件？(y/n): ');
+            if (exportLis.trim().toLowerCase() === 'y') {
+                let lisDir = await this.question('导出目录 (默认: lis-files): ');
+                lisDir = lisDir.trim() || 'lis-files';
+                this.exportLisBatch(outcome.results, lisDir);
+            }
+        }
     }
 
     /**
      * 从 CSV 文件生成
+     *
+     * @returns {Object|null} 生成结果（含 results 数组与保存状态；失败返回 null）
      */
     generateFromCSV(inputFile, outputFile, hasHeader = false) {
         console.log('\n处理中...\n');
@@ -302,13 +416,16 @@ CSV 输出文件示例 (output.csv):
                 console.log(`  总数:        ${result.total}`);
                 console.log(`  成功:        ${result.successCount}`);
                 console.log(`  失败:        ${result.failureCount}\n`);
+                return { ...result, saveSuccess: true };
             } else {
                 console.log('✗ 保存结果失败！\n');
                 console.log(`  错误: ${saveResult.error}\n`);
+                return { ...result, saveSuccess: false };
             }
         } else {
             console.log('✗ 生成失败！\n');
             console.log(`  错误: ${result.error}\n`);
+            return null;
         }
     }
 

@@ -14,6 +14,7 @@ const usageStats = require('./modules/usage-stats');
 const permissionManager = require('./modules/permission-manager');
 const secretManager = require('./modules/secret-manager');
 const activationCrypto = require('./modules/activation-crypto');
+const { parseLisContent } = require('./modules/activation-lis');
 const machineCodeManager = require('./modules/machine-code-manager');
 const vmDetector = require('./modules/vm-detector');
 const { AIAssistantDatabase } = require('./modules/ai-database');
@@ -425,6 +426,24 @@ ipcMain.handle(config.ipcChannels.activate, async (event, arg) => {
   } catch (err) {
     logger.error('Failed to save activation information', { error: err.message });
     throw new Error(config.logMessages.activation.failedToSaveActivationInfo);
+  }
+});
+
+// 解析激活文件（.lis）内容
+ipcMain.handle(config.ipcChannels.parseActivationLis, (event, content) => {
+  try {
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('激活文件内容为空');
+    }
+    const parsed = parseLisContent(content);
+    logger.debug('Activation lis file parsed', {
+      machineCode: parsed.machineCode.substring(0, 8) + '...',
+      hasIssuedAt: !!parsed.issuedAt,
+    });
+    return { success: true, data: parsed };
+  } catch (error) {
+    logger.warn('Failed to parse activation lis file', { error: error.message });
+    return { success: false, error: error.message };
   }
 });
 

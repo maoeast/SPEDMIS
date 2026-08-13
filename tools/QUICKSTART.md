@@ -31,21 +31,23 @@ node activation-tool-cli.js --interactive
 
 然后按菜单提示操作。
 
-#### 方式 2️⃣：Web 图形界面
+#### 方式 2️⃣：单文件 Web 界面（无需服务器，推荐）
 
-```bash
-cd tools
-npm install express multer  # 首次需要
-node activation-tool-server.js
-```
+直接双击打开 `activation-tool-gui.html`，浏览器即用：
 
-在浏览器打开：`http://localhost:3000`
+- **单个生成** → 复制激活码 / 导出激活文件(.lis)
+- **批量生成** → 下载结果 CSV / 📦 一键导出全部 .lis（ZIP 打包）
+- **.lis 验证** → 拖入 .lis 文件，解析并校验激活码有效性
+- **验证激活码** / **生成器状态**（密钥已内置，可修改）
 
 #### 方式 3️⃣：命令行直接生成
 
 ```bash
 # 生成单个激活码
 node activation-tool-cli.js --machine-code abc123def456...
+
+# 导出激活文件(.lis)（推荐：用户可在激活页面一键导入）
+node activation-tool-cli.js --export-lis abc123def456...
 
 # 批量生成（从 CSV）
 node activation-tool-cli.js --csv input.csv --output output.csv
@@ -204,18 +206,12 @@ node activation-tool-cli.js --csv input.csv --output output.csv
 
 ### 问题 3：Web 界面无法打开
 
-**错误：** "无法连接到 localhost:3000"
+**错误：** 双击 `activation-tool-gui.html` 无反应或功能不可用
 
 **解决：**
-```bash
-# 1. 检查服务器是否启动
-node activation-tool-server.js
-
-# 2. 尝试其他端口
-node activation-tool-server.js --port 8080
-
-# 3. 检查防火墙设置
-```
+1. 使用较新的 Chrome / Edge 浏览器打开（需支持 Web Crypto `crypto.subtle`）
+2. 若顶部徽章显示「密钥：未加载」，在「生成器状态」页输入密钥（≥32 字符）
+3. 确认文件未被移动或改名（页面为自包含单文件，无外部依赖）
 
 ---
 
@@ -243,8 +239,8 @@ node activation-tool-server.js --port 8080
    # 快速生成
    node activation-tool-cli.js --machine-code ...
    
-   # 或使用 Web 界面
-   node activation-tool-server.js
+   # 或使用单文件 Web 界面
+   双击 tools/activation-tool-gui.html
    ```
 
 3. **批量处理：**

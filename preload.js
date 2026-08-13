@@ -158,6 +158,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.send('get-machine-code');
     });
   },
+  parseActivationLis: (content) => {
+    return ipcRenderer
+      .invoke('parse-activation-lis', content)
+      .catch((error) =>
+        handleIpcError('parseActivationLis', error, null)
+      );
+  },
   getModuleCategories: (domain) => {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
