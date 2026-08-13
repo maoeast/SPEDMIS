@@ -67,7 +67,7 @@ describe('Product Name Manager', () => {
     test('should have copyright info in default config', () => {
         const config_ = productNameManager.getProductNameConfig();
         expect(config_).toHaveProperty('copyright');
-        expect(config_.copyright).toBe('©2013-2025');
+        expect(config_.copyright).toBe('©2013-2026');
     });
 
     test('should get English name correctly', () => {
@@ -79,7 +79,7 @@ describe('Product Name Manager', () => {
 
     test('should get copyright correctly', () => {
         const copyright = productNameManager.getCopyright();
-        expect(copyright).toBe('©2013-2025');
+        expect(copyright).toBe('©2013-2026');
         expect(typeof copyright).toBe('string');
         expect(copyright.length).toBeGreaterThan(0);
     });
