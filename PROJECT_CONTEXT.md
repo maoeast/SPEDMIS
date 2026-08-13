@@ -56,3 +56,20 @@
 - 同步清理引用：`tools/README.md`（文件结构/FAQ/示例 3 改单文件模式）、`tools/QUICKSTART.md`（方式 2/排查/日常使用）、`modules/activation-lis.js` 注释、`modules/ai-skill-catalog.js` 注释（标注生成器已归档）、`系统参数技术文档.md` 相关文件列表。
 - 保留：`activation-code-generator.js`、`activation-tool-cli.js`、`activation-tool-gui.html`、`test-activation-generator.js`、`README.md`、`QUICKSTART.md`、`特殊教育多模态干预系统激活安全密钥.txt`（运维密钥配置）。
 - 全量 36/40 套件（4 个 EPERM 环境性问题为预存，与本次无关）；旧 3000 端口 server 进程已停止。
+
+## 2026-08-13 分批提交
+- 分 3 个提交推送工作区：`8ef7c4f` docs（AGENTS.md 补全 + 文档清理）、`212eed9` feat(activation)（密钥轮换 + .lis + GUI v2.1）、`d2f382d` fix(test)（版权断言）。
+
+## 2026-08-13 用户操作手册重写（真实截图）
+- 按用户要求重写 `系统使用说明书.md`（566 行 → 202 行）：**移除安装与激活步骤**，聚焦已激活用户的日常操作；新增真实 UI 截图 7 张（images/screenshots/）。
+- 截图方案：临时 Electron 脚本（.tmp/capture-screens.js 保留备用）+ 最小 IPC stub（真实 apps.json 聚合分类、真实内置智能体、默认配置）+ 本地 HTTP 静态服务器 + capturePage；踩坑记录：Electron 23 同进程第二个 BrowserWindow 加载必失败（改用单窗口顺序导航）、真实 preload.js 与 query URL 冲突（改用极简 stub preload）、ai 通道需 {success,data} 包装（与 ai-ipc.js 一致）。
+- 手册章节：主界面 / 模块导航 / AI 教师工作台（5 智能体）/ AI 心理测评 / 高级设置 / 使用统计 / 用户中心 / FAQ（无安装激活内容）。
+
+## 2026-08-13 手册补全综合测评领域（IEP）
+- 按用户要求补全「综合测评领域」：截图脚本启用 webviewTag 截取 `iep/index.html`（webview 内嵌 embedded-entry.html），iep.png 为真实「资源教室管理系统-IEP」登录页（DOM 验证通过：标题/登录表单/页脚）。
+- 手册新增第 4 章「综合测评领域（IEP）」（入口、导航按钮、登录流程、标题同步说明），后续章节顺延为 5-10；docx 重新生成（105 段 / 8 图 / 3 表）。
+
+## 2026-08-13 docx 封面与封底
+- 按用户要求参考「企业文档封面模板.docx」为说明书添加封面/封底：A4 三节结构（封面节无页脚 / 正文节居中页码 / 封底节无页脚）。
+- 封面：Logo（images/logo.png）+ 品牌蓝大标题 + 副标题 + 英文副标题 + 分隔线 + 版本信息（v1.1.0 / SPEDMIS v1.2.2 / 2026-08-13）+ 公司信息；封底：Logo + 系统名 + 联系信息 + 版权。
+- 正文 8 张截图 + 封面/封底 2 张 Logo = 10 图；转换脚本 .tmp/md2docx.py 更新（含页码域），验证通过。
