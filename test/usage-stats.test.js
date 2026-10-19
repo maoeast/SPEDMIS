@@ -3,26 +3,31 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-const TEST_HOME_DIR = '/tmp/spedmis-usage-stats-test-home';
-const TEST_DB_DIR = path.join(
-    TEST_HOME_DIR,
-    'Library',
-    'Application Support',
-    '特殊教育多模态干预系统'
-);
+const TEST_APP_DATA_DIR = path.join(os.tmpdir(), 'spedmis-usage-stats-appdata');
+const TEST_HOME_DIR = path.join(os.tmpdir(), 'spedmis-usage-stats-test-home');
+const TEST_DB_DIRS = [
+    path.join(TEST_APP_DATA_DIR, '特殊教育多模态干预系统', 'data'),
+    path.join(TEST_HOME_DIR, 'Library', 'Application Support', '特殊教育多模态干预系统', 'data'),
+];
 
-jest.mock('electron', () => ({
-    app: {
-        getPath: jest.fn((pathName) => {
-            if (pathName === 'appData') {
-                return 'C:\\Users\\test\\AppData\\Roaming';
-            }
-            return TEST_HOME_DIR;
-        })
-    }
-}));
+jest.mock('electron', () => {
+    const os = require('os');
+    const path = require('path');
+
+    return {
+        app: {
+            getPath: jest.fn((pathName) => {
+                if (pathName === 'appData') {
+                    return path.join(os.tmpdir(), 'spedmis-usage-stats-appdata');
+                }
+                return path.join(os.tmpdir(), 'spedmis-usage-stats-test-home');
+            })
+        }
+    };
+});
 
 jest.mock('../logger', () => ({
     getLogger: jest.fn(() => ({
@@ -38,13 +43,13 @@ const usageStats = require('../modules/usage-stats');
 describe('Usage Statistics Module', () => {
     beforeEach(() => {
         usageStats.closeDatabase();
-        fs.rmSync(TEST_DB_DIR, { recursive: true, force: true });
+        TEST_DB_DIRS.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
         jest.clearAllMocks();
     });
 
     afterAll(() => {
         usageStats.closeDatabase();
-        fs.rmSync(TEST_DB_DIR, { recursive: true, force: true });
+        TEST_DB_DIRS.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
     });
 
     describe('recordUsageStart', () => {

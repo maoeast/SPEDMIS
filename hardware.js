@@ -1,6 +1,14 @@
 const os = require('os');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const crypto = require('crypto');
+
+const HARDWARE_COMMAND_TIMEOUTS = {
+  wmic: 4000,
+  powershell: 10000,
+  shell: 8000,
+};
+const HARDWARE_COLLECTION_TIMEOUT_MS = 15000;
+const MAX_COMMAND_BUFFER = 1024 * 1024;
 
 function normalizeHardwareValue(value, fallback) {
   if (typeof value !== 'string') {
@@ -204,232 +212,378 @@ function choosePreferredDiskSerial(serials) {
   return ranked[0].serial;
 }
 
-function getHardDiskSerial(callback) {
-  if (process.platform === 'win32') {
-    exec('powershell -NoProfile -Command "Get-CimInstance Win32_DiskDrive | Select-Object Index,InterfaceType,MediaType,Model,PNPDeviceID,SerialNumber | ConvertTo-Json -Compress"', (error, stdout) => {
-      if (!error && stdout.trim()) {
-        const disks = parseWindowsDiskInventory(stdout);
-        const preferredDisk = choosePreferredWindowsDisk(disks);
-
-        if (preferredDisk !== 'UNKNOWN_HD') {
-          callback(preferredDisk);
-          return;
-        }
-      }
-
-      exec('wmic diskdrive get SerialNumber', (fallbackError, fallbackStdout) => {
-        if (!fallbackError) {
-          const serials = parseWindowsDiskSerials(fallbackStdout);
-          const preferredSerial = choosePreferredDiskSerial(serials);
-
-          if (preferredSerial !== 'UNKNOWN_HD') {
-            callback(preferredSerial);
-            return;
-          }
-        }
-
-        callback('UNKNOWN_HD');
-      });
-    });
-  } else if (process.platform === 'linux') {
-    exec('lsblk -nd -o SERIAL /dev/sda 2>/dev/null || hdparm -I /dev/sda 2>/dev/null | grep "Serial Number" || cat /sys/block/sda/serial 2>/dev/null', (error, stdout) => {
-      if (!error && stdout.trim()) {
-        const serials = parseWindowsDiskSerials(stdout);
-        if (serials.length > 0) {
-          callback(serials[0]);
-          return;
-        }
-      }
-
-      exec('dmidecode -t disk 2>/dev/null | grep -A1 "Serial Number" | tail -1', (error2, stdout2) => {
-        if (!error2 && stdout2.trim()) {
-          callback(stdout2.trim());
-          return;
-        }
-
-        callback('UNKNOWN_HD');
-      });
-    });
-  } else {
-    exec('ioreg -l | grep IOPlatformSerialNumber', (error, stdout) => {
-      if (!error) {
-        const match = stdout.match(/"([^"]+)"$/m);
-        if (match) {
-          callback(match[1].trim());
-          return;
-        }
-      }
-
-      callback('UNKNOWN_HD');
-    });
-  }
+function normalizeCommandResult(error, stdout, startedAt) {
+  return {
+    ok: !error,
+    stdout: String(stdout || ''),
+    error: error || null,
+    timedOut: !!(error && (error.killed || error.signal)),
+    durationMs: Date.now() - startedAt,
+  };
 }
 
-function getMotherboardSerial(callback) {
-  if (process.platform === 'win32') {
-    exec('wmic baseboard get serialnumber', (error, stdout) => {
-      if (!error) {
-        const values = parseWindowsWmicValues(stdout, /^serialnumber$/i);
-        const serial = values[0] ? values[0].replace(/\s+/g, '') : '';
-        if (serial) {
-          callback(serial);
-          return;
-        }
-      }
+function runHardwareCommand(spec, timeoutMs) {
+  return new Promise((resolve) => {
+    const startedAt = Date.now();
+    const options = {
+      timeout: timeoutMs,
+      windowsHide: true,
+      maxBuffer: MAX_COMMAND_BUFFER,
+    };
 
-      callback('UNKNOWN_MB');
-    });
-  } else if (process.platform === 'linux') {
-    exec('dmidecode -t baseboard 2>/dev/null | grep "Serial Number" | head -1', (error, stdout) => {
-      if (!error && stdout.trim()) {
-        const serial = stdout.trim().replace(/Serial Number:\s*/i, '').trim();
-        if (serial && serial !== 'None' && serial !== 'Not Specified') {
-          callback(serial);
-          return;
-        }
-      }
+    const handleResult = (error, stdout) => {
+      resolve(normalizeCommandResult(error, stdout, startedAt));
+    };
 
-      exec('lshw -c motherboard 2>/dev/null | grep "serial:" | head -1', (error2, stdout2) => {
-        if (!error2 && stdout2.trim()) {
-          const serial = stdout2.trim().replace(/serial:\s*/i, '').trim();
-          if (serial) {
-            callback(serial);
-            return;
-          }
-        }
-
-        callback('UNKNOWN_MB');
-      });
-    });
-  } else {
-    exec('system_profiler SPHardwareDataType | grep "Model Identifier"', (error, stdout) => {
-      if (!error) {
-        const match = stdout.match(/Model Identifier:\s*(.+)/i);
-        if (match) {
-          callback(match[1].trim());
-          return;
-        }
-      }
-
-      callback('UNKNOWN_MB');
-    });
-  }
-}
-
-function getCpuSerial(callback) {
-  if (process.platform === 'win32') {
-    exec('wmic cpu get ProcessorId', (error, stdout) => {
-      if (!error) {
-        const values = parseWindowsWmicValues(stdout, /^processorid$/i);
-        const serial = values[0] ? values[0].replace(/\s+/g, '') : '';
-        if (serial) {
-          callback(serial);
-          return;
-        }
-      }
-
-      callback('UNKNOWN_CPU');
-    });
-  } else if (process.platform === 'linux') {
-    exec('cat /proc/cpuinfo 2>/dev/null | grep "model name" | head -1', (error, stdout) => {
-      if (!error && stdout.trim()) {
-        const cpuModel = stdout.trim().replace(/model name\s*:\s*/i, '').trim();
-        if (cpuModel) {
-          exec('cat /proc/cpuinfo 2>/dev/null | grep "cpu cores" | head -1', (error2, stdout2) => {
-            let cpuCores = '';
-            if (!error2 && stdout2.trim()) {
-              cpuCores = stdout2.trim().replace(/cpu cores\s*:\s*/i, '').trim();
-            }
-            callback(`${cpuModel}${cpuCores ? `-${cpuCores}cores` : ''}`);
-          });
-          return;
-        }
-      }
-
-      exec('dmidecode -t processor 2>/dev/null | grep "ID" | head -1', (error3, stdout3) => {
-        if (!error3 && stdout3.trim()) {
-          const cpuId = stdout3.trim().replace(/ID:\s*/i, '').trim();
-          if (cpuId && cpuId !== 'None') {
-            callback(cpuId);
-            return;
-          }
-        }
-
-        callback('UNKNOWN_CPU');
-      });
-    });
-  } else {
-    exec('sysctl -n machdep.cpu.brand_string', (error, stdout) => {
-      if (!error) {
-        const cpuInfo = stdout.trim();
-        if (cpuInfo) {
-          callback(cpuInfo);
-          return;
-        }
-      }
-
-      callback('UNKNOWN_CPU');
-    });
-  }
-}
-
-function getHardwareInfo(callback) {
-  const hardware = {};
-  let completed = false;
-
-  const timeout = setTimeout(() => {
-    if (!completed) {
-      completed = true;
-      callback(hardware);
+    if (spec.file) {
+      execFile(spec.file, spec.args || [], options, handleResult);
+      return;
     }
-  }, 5000);
 
-  hardware.mac = getMacAddress();
-  hardware.stableMac = getStableMacAddress();
+    exec(spec.command, options, handleResult);
+  });
+}
 
-  getCpuSerialAsync()
-    .then(cpu => {
-      hardware.cpu = cpu;
-      return getMotherboardSerialAsync();
-    })
-    .then(mb => {
-      hardware.motherboard = mb;
-      return getHardDiskSerialAsync();
-    })
-    .then(hd => {
-      hardware.hardDisk = hd;
-      hardware.stableHardDisk = hd;
-      if (!completed) {
-        completed = true;
-        clearTimeout(timeout);
-        callback(hardware);
-      }
-    })
-    .catch(() => {
-      if (!completed) {
-        completed = true;
-        clearTimeout(timeout);
-        callback(hardware);
-      }
+function parseFirstNonEmptyLine(stdout) {
+  const line = String(stdout || '')
+    .split(/\r?\n/)
+    .map(item => item.trim())
+    .find(Boolean);
+
+  return line ? line.replace(/\s+/g, '') : '';
+}
+
+function parseWmicField(stdout, headerPattern) {
+  const value = parseWindowsWmicValues(stdout, headerPattern)[0];
+  return value ? value.replace(/\s+/g, '') : '';
+}
+
+async function runAttempts(attempts, fallback, context) {
+  const results = [];
+
+  for (const attempt of attempts) {
+    const timeoutMs = context.timeouts[attempt.timeoutKey] || HARDWARE_COMMAND_TIMEOUTS.shell;
+    const result = await context.commandRunner(attempt.spec, timeoutMs);
+    const value = result.ok && typeof attempt.parse === 'function'
+      ? attempt.parse(result.stdout)
+      : '';
+
+    results.push({
+      label: attempt.spec.label,
+      durationMs: result.durationMs,
+      timedOut: result.timedOut,
+      resolved: !!value,
     });
+
+    if (value) {
+      return { value, source: attempt.spec.label, attempts: results };
+    }
+  }
+
+  return { value: fallback, source: 'none', attempts: results };
 }
 
-function getCpuSerialAsync() {
-  return new Promise((resolve) => {
-    getCpuSerial(result => resolve(result));
-  });
+async function collectCpuSerial(context) {
+  if (process.platform === 'win32') {
+    return runAttempts([
+      {
+        timeoutKey: 'wmic',
+        spec: {
+          label: 'cpu-wmic',
+          file: 'wmic.exe',
+          args: ['cpu', 'get', 'ProcessorId'],
+        },
+        parse: stdout => parseWmicField(stdout, /^processorid$/i),
+      },
+      {
+        timeoutKey: 'powershell',
+        spec: {
+          label: 'cpu-powershell',
+          file: 'powershell.exe',
+          args: [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            '(Get-CimInstance Win32_Processor | Select-Object -First 1).ProcessorId',
+          ],
+        },
+        parse: parseFirstNonEmptyLine,
+      },
+    ], 'UNKNOWN_CPU', context);
+  }
+
+  if (process.platform === 'linux') {
+    const primary = await context.commandRunner({
+      label: 'cpu-linux',
+      command: 'cat /proc/cpuinfo 2>/dev/null | grep "model name" | head -1',
+    }, context.timeouts.shell);
+
+    if (primary.ok && primary.stdout.trim()) {
+      const cpuModel = primary.stdout.trim().replace(/model name\s*:\s*/i, '').trim();
+
+      if (cpuModel) {
+        const cores = await context.commandRunner({
+          label: 'cpu-linux-cores',
+          command: 'cat /proc/cpuinfo 2>/dev/null | grep "cpu cores" | head -1',
+        }, context.timeouts.shell);
+        const cpuCores = cores.ok && cores.stdout.trim()
+          ? cores.stdout.trim().replace(/cpu cores\s*:\s*/i, '').trim()
+          : '';
+
+        return {
+          value: `${cpuModel}${cpuCores ? `-${cpuCores}cores` : ''}`,
+          source: 'cpu-linux',
+          attempts: [],
+        };
+      }
+    }
+
+    return runAttempts([
+      {
+        timeoutKey: 'shell',
+        spec: {
+          label: 'cpu-linux-dmidecode',
+          command: 'dmidecode -t processor 2>/dev/null | grep "ID" | head -1',
+        },
+        parse: (stdout) => {
+          const value = stdout.trim().replace(/ID:\s*/i, '').trim();
+          return value && value !== 'None' ? value : '';
+        },
+      },
+    ], 'UNKNOWN_CPU', context);
+  }
+
+  return runAttempts([
+    {
+      timeoutKey: 'shell',
+      spec: {
+        label: 'cpu-darwin',
+        command: 'sysctl -n machdep.cpu.brand_string',
+      },
+      parse: stdout => stdout.trim(),
+    },
+  ], 'UNKNOWN_CPU', context);
 }
 
-function getMotherboardSerialAsync() {
-  return new Promise((resolve) => {
-    getMotherboardSerial(result => resolve(result));
-  });
+async function collectMotherboardSerial(context) {
+  if (process.platform === 'win32') {
+    return runAttempts([
+      {
+        timeoutKey: 'wmic',
+        spec: {
+          label: 'mb-wmic',
+          file: 'wmic.exe',
+          args: ['baseboard', 'get', 'serialnumber'],
+        },
+        parse: stdout => parseWmicField(stdout, /^serialnumber$/i),
+      },
+      {
+        timeoutKey: 'powershell',
+        spec: {
+          label: 'mb-powershell',
+          file: 'powershell.exe',
+          args: [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            '(Get-CimInstance Win32_BaseBoard | Select-Object -First 1).SerialNumber',
+          ],
+        },
+        parse: (stdout) => {
+          const value = parseFirstNonEmptyLine(stdout);
+          return value && value !== 'None' && value !== 'NotSpecified' ? value : '';
+        },
+      },
+    ], 'UNKNOWN_MB', context);
+  }
+
+  if (process.platform === 'linux') {
+    return runAttempts([
+      {
+        timeoutKey: 'shell',
+        spec: {
+          label: 'mb-linux-dmidecode',
+          command: 'dmidecode -t baseboard 2>/dev/null | grep "Serial Number" | head -1',
+        },
+        parse: (stdout) => {
+          const value = stdout.trim().replace(/Serial Number:\s*/i, '').trim();
+          return value && value !== 'None' && value !== 'Not Specified' ? value : '';
+        },
+      },
+      {
+        timeoutKey: 'shell',
+        spec: {
+          label: 'mb-linux-lshw',
+          command: 'lshw -c motherboard 2>/dev/null | grep "serial:" | head -1',
+        },
+        parse: stdout => stdout.trim().replace(/serial:\s*/i, '').trim(),
+      },
+    ], 'UNKNOWN_MB', context);
+  }
+
+  return runAttempts([
+    {
+      timeoutKey: 'shell',
+      spec: {
+        label: 'mb-darwin',
+        command: 'system_profiler SPHardwareDataType | grep "Model Identifier"',
+      },
+      parse: (stdout) => {
+        const match = stdout.match(/Model Identifier:\s*(.+)/i);
+        return match ? match[1].trim() : '';
+      },
+    },
+  ], 'UNKNOWN_MB', context);
 }
 
-function getHardDiskSerialAsync() {
-  return new Promise((resolve) => {
-    getHardDiskSerial(result => resolve(result));
-  });
+async function collectHardDiskSerial(context) {
+  if (process.platform === 'win32') {
+    return runAttempts([
+      {
+        timeoutKey: 'powershell',
+        spec: {
+          label: 'disk-powershell',
+          file: 'powershell.exe',
+          args: [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            'Get-CimInstance Win32_DiskDrive | Select-Object Index,InterfaceType,MediaType,Model,PNPDeviceID,SerialNumber | ConvertTo-Json -Compress',
+          ],
+        },
+        parse: (stdout) => {
+          const preferred = choosePreferredWindowsDisk(parseWindowsDiskInventory(stdout));
+          return preferred === 'UNKNOWN_HD' ? '' : preferred;
+        },
+      },
+      {
+        timeoutKey: 'wmic',
+        spec: {
+          label: 'disk-wmic',
+          file: 'wmic.exe',
+          args: ['diskdrive', 'get', 'SerialNumber'],
+        },
+        parse: (stdout) => {
+          const preferred = choosePreferredDiskSerial(parseWindowsDiskSerials(stdout));
+          return preferred === 'UNKNOWN_HD' ? '' : preferred;
+        },
+      },
+    ], 'UNKNOWN_HD', context);
+  }
+
+  if (process.platform === 'linux') {
+    return runAttempts([
+      {
+        timeoutKey: 'shell',
+        spec: {
+          label: 'disk-linux',
+          command: 'lsblk -nd -o SERIAL /dev/sda 2>/dev/null || hdparm -I /dev/sda 2>/dev/null | grep "Serial Number" || cat /sys/block/sda/serial 2>/dev/null',
+        },
+        parse: (stdout) => {
+          const serials = parseWindowsDiskSerials(stdout);
+          return serials[0] || '';
+        },
+      },
+      {
+        timeoutKey: 'shell',
+        spec: {
+          label: 'disk-linux-dmidecode',
+          command: 'dmidecode -t disk 2>/dev/null | grep -A1 "Serial Number" | tail -1',
+        },
+        parse: stdout => stdout.trim(),
+      },
+    ], 'UNKNOWN_HD', context);
+  }
+
+  return runAttempts([
+    {
+      timeoutKey: 'shell',
+      spec: {
+        label: 'disk-darwin',
+        command: 'ioreg -l | grep IOPlatformSerialNumber',
+      },
+      parse: (stdout) => {
+        const match = stdout.match(/"([^"]+)"$/m);
+        return match ? match[1].trim() : '';
+      },
+    },
+  ], 'UNKNOWN_HD', context);
+}
+
+function getHardwareInfo(callback, options = {}) {
+  const commandRunner = typeof options.commandRunner === 'function'
+    ? options.commandRunner
+    : runHardwareCommand;
+  const timeouts = {
+    ...HARDWARE_COMMAND_TIMEOUTS,
+    ...(options.commandTimeouts || {}),
+  };
+  const overallTimeoutMs = Number.isFinite(options.overallTimeoutMs)
+    ? options.overallTimeoutMs
+    : HARDWARE_COLLECTION_TIMEOUT_MS;
+  const context = { commandRunner, timeouts };
+  const startedAt = Date.now();
+
+  const hardware = {
+    mac: getMacAddress(),
+    stableMac: getStableMacAddress(),
+  };
+
+  let completed = false;
+  let guardTimer = null;
+
+  const finish = (incomplete, fields) => {
+    if (completed) {
+      return;
+    }
+
+    completed = true;
+    if (guardTimer) {
+      clearTimeout(guardTimer);
+      guardTimer = null;
+    }
+
+    hardware.capture = {
+      incomplete,
+      durationMs: Date.now() - startedAt,
+      fields,
+    };
+
+    callback(hardware);
+  };
+
+  guardTimer = setTimeout(() => {
+    finish(true, {
+      cpu: hardware.cpu ? 'complete' : 'pending',
+      motherboard: hardware.motherboard ? 'complete' : 'pending',
+      hardDisk: hardware.hardDisk ? 'complete' : 'pending',
+    });
+  }, overallTimeoutMs);
+
+  if (guardTimer && typeof guardTimer.unref === 'function') {
+    guardTimer.unref();
+  }
+
+  Promise.all([
+    collectCpuSerial(context),
+    collectMotherboardSerial(context),
+    collectHardDiskSerial(context),
+  ])
+    .then(([cpu, motherboard, hardDisk]) => {
+      hardware.cpu = cpu.value;
+      hardware.motherboard = motherboard.value;
+      hardware.hardDisk = hardDisk.value;
+      hardware.stableHardDisk = hardDisk.value;
+
+      finish(false, {
+        cpu: { source: cpu.source, attempts: cpu.attempts },
+        motherboard: { source: motherboard.source, attempts: motherboard.attempts },
+        hardDisk: { source: hardDisk.source, attempts: hardDisk.attempts },
+      });
+    })
+    .catch((error) => {
+      finish(true, { error: error ? error.message : 'hardware collection failed' });
+    });
 }
 
 function generateMachineCode(hardwareInfo) {
@@ -453,3 +607,5 @@ exports.getHardwareInfo = getHardwareInfo;
 exports.generateMachineCode = generateMachineCode;
 exports.getMachineCodeCandidates = getMachineCodeCandidates;
 exports.generateMachineCodeMD5 = generateMachineCodeMD5;
+exports.HARDWARE_COMMAND_TIMEOUTS = HARDWARE_COMMAND_TIMEOUTS;
+exports.HARDWARE_COLLECTION_TIMEOUT_MS = HARDWARE_COLLECTION_TIMEOUT_MS;

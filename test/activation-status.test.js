@@ -183,7 +183,12 @@ describe('activation status compatibility', () => {
         machineCodeManager.getMachineCodeData.mockResolvedValue({
             machineCode: 'stable-machine-code',
             machineCodeCandidates: ['stable-machine-code', 'legacy-machine-code'],
-            hardwareInfo: { stableMac: 'ETH', stableHardDisk: 'DISK' },
+            hardwareInfo: {
+                stableMac: 'ETH',
+                stableHardDisk: 'DISK',
+                cpu: 'CPU-1',
+                motherboard: 'MB-1',
+            },
         });
 
         const mainModule = require('../main');
@@ -201,7 +206,7 @@ describe('activation status compatibility', () => {
         );
     });
 
-    test('should accept degraded current hardware when the saved device ledger still matches', async () => {
+    test('should accept degraded current hardware without migrating the degraded code', async () => {
         const config = require('../config');
         const machineCodeManager = require('../modules/machine-code-manager');
         const activationCrypto = require('../modules/activation-crypto');
@@ -243,14 +248,7 @@ describe('activation status compatibility', () => {
         const isActivated = await mainModule.checkActivationStatus();
 
         expect(isActivated).toBe(true);
-        expect(mockWriteFile).toHaveBeenCalledWith(
-            storagePath,
-            expect.stringContaining('"machineCode":"degraded-machine-code"')
-        );
-        expect(mockWriteFile).toHaveBeenCalledWith(
-            storagePath,
-            expect.stringContaining('"encrypted":"migrated-encrypted-payload"')
-        );
+        expect(mockWriteFile).not.toHaveBeenCalled();
     });
 
     test('should register entry module IPC handlers', () => {

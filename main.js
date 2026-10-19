@@ -49,6 +49,23 @@ function normalizeComparableHardwareValue(value) {
   return normalized;
 }
 
+function isDegradedHardwareCapture(hardwareInfo = {}) {
+  if (hardwareInfo && hardwareInfo.capture && hardwareInfo.capture.incomplete) {
+    return true;
+  }
+
+  const selectedValues = [
+    hardwareInfo.cpu,
+    hardwareInfo.motherboard,
+    hardwareInfo.stableHardDisk || hardwareInfo.hardDisk,
+    hardwareInfo.stableMac || hardwareInfo.mac,
+  ];
+
+  return selectedValues.some((value) => (
+    typeof value !== 'string' || !value.trim() || /^UNKNOWN_/i.test(value.trim())
+  ));
+}
+
 function collectComparableHardwareValues(hardwareInfo = {}, keys = []) {
   return [...new Set(
     keys
@@ -339,18 +356,30 @@ async function checkActivationStatus() {
       && matchesSavedDeviceLedger(hardwareInfo, savedDeviceLedger);
     const isActivated = matchesStoredMachineCode || matchesStoredDeviceLedger;
 
+    const degradedCapture = isDegradedHardwareCapture(hardwareInfo);
+
     if (isActivated && activationData.machineCode !== machineCode) {
-      await migrateActivationStorage(storagePath, activationData, machineCode, hardwareInfo);
-      logger.info('Activation storage migrated to stable machine code', {
-        previousMachineCode: activationData.machineCode ? `${activationData.machineCode.substring(0, 8)}...` : 'missing',
-        machineCode: `${machineCode.substring(0, 8)}...`,
-      });
+      if (degradedCapture) {
+        // 降级码（含 UNKNOWN_*）不是稳定标识，写回后会在下次完整采集时变化，
+        // 因此只保留原激活记录，继续凭设备台账匹配。
+        logger.warn('Activation storage migration skipped because hardware capture is degraded', {
+          capture: hardwareInfo.capture || null,
+        });
+      } else {
+        await migrateActivationStorage(storagePath, activationData, machineCode, hardwareInfo);
+        logger.info('Activation storage migrated to stable machine code', {
+          previousMachineCode: activationData.machineCode ? `${activationData.machineCode.substring(0, 8)}...` : 'missing',
+          machineCode: `${machineCode.substring(0, 8)}...`,
+        });
+      }
     }
 
     logger.info('Activation check completed', {
       activated: isActivated,
       machineCode: machineCode.substring(0, 8) + '...',
       matchStrategy: matchesStoredMachineCode ? 'machine-code' : matchesStoredDeviceLedger ? 'device-ledger' : 'none',
+      degradedCapture,
+      hardwareCapture: hardwareInfo.capture || null,
     });
 
     return isActivated;
@@ -459,8 +488,14 @@ ipcMain.on(config.ipcChannels.getMachineCode, (event) => {
       event.reply(config.ipcChannels.machineCodeResponse, machineCode);
     })
     .catch((error) => {
-      logger.error('Failed to generate machine code', { error: error.message });
-      event.reply('error', '无法生成机器码');
+      logger.error('Failed to generate machine code', {
+        error: error.message,
+        code: error.code || null,
+      });
+      const message = error.code === machineCodeManager.INCOMPLETE_CAPTURE_CODE
+        ? '硬件信息读取超时，请重试'
+        : '无法生成机器码';
+      event.reply('error', message);
     });
 });
 
@@ -527,26 +562,25 @@ ipcMain.handle(config.ipcChannels.launchApplication, async (event, appPath) => {
   });
 });
 
+function runVmDetection() {
+  vmDetector.detectVirtualMachine((vmResult) => {
+    if (vmResult.isVirtualMachine && process.env.ENABLE_VM_DETECTION !== 'false') {
+      logger.warn('Application is running in a virtual machine', {
+        indicators: vmResult.indicators,
+        confidence: vmResult.confidence,
+      });
+      // 可选：在生产环境中拒绝在虚拟机中运行（当前仅记录告警）
+    }
+  });
+}
+
 app.whenReady().then(async () => {
   // 初始化密钥管理器（必须在其他模块之前）
   secretManager.initialize();
   logger.info('Secret manager initialized');
 
-  // 初始化虚拟机检测
-  vmDetector.detectVirtualMachine((vmResult) => {
-    if (vmResult.isVirtualMachine && process.env.ENABLE_VM_DETECTION !== 'false') {
-      logger.warn('Application is running in a virtual machine', {
-        indicators: vmResult.indicators,
-        confidence: vmResult.confidence
-      });
-      // 可选：在生产环境中拒绝在虚拟机中运行
-      // if (process.env.NODE_ENV === 'production') {
-      //   logger.error('Application cannot run in virtual machine');
-      //   app.quit();
-      //   return;
-      // }
-    }
-  });
+  // 虚拟机检测会并发调用 systeminfo / wmic，推迟到首窗创建后执行，
+  // 避免与首次机器码采集争用 WMI。
 
   // 初始化产品名称管理器
   productNameManager.initialize();
@@ -557,6 +591,12 @@ app.whenReady().then(async () => {
   // 初始化权限管理器
   await permissionManager.initializePermissions();
   createWindow();
+
+  const vmDetectionTimer = setTimeout(runVmDetection, 20000);
+  if (vmDetectionTimer && typeof vmDetectionTimer.unref === 'function') {
+    vmDetectionTimer.unref();
+  }
+
   aiInitializationPromise = initializeAIService().catch((error) => {
     aiInitializationFailed = true;
     logger.error('AI assistant service initialization failed', {

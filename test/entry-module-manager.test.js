@@ -1,16 +1,22 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-jest.mock('electron', () => ({
-    app: {
-        getPath: jest.fn((pathName) => {
-            if (pathName === 'appData') {
-                return 'C:\\Users\\test\\AppData\\Roaming';
-            }
-            return '/tmp/spedmis-entry-home';
-        })
-    }
-}));
+jest.mock('electron', () => {
+    const os = require('os');
+    const path = require('path');
+
+    return {
+        app: {
+            getPath: jest.fn((pathName) => {
+                if (pathName === 'appData') {
+                    return path.join(os.tmpdir(), 'spedmis-entry-appdata');
+                }
+                return path.join(os.tmpdir(), 'spedmis-entry-home');
+            })
+        }
+    };
+});
 
 jest.mock('../logger', () => ({
     getLogger: jest.fn(() => ({
@@ -24,20 +30,20 @@ jest.mock('../logger', () => ({
 const config = require('../config');
 const entryModuleManager = require('../modules/entry-module-manager');
 
-const TEST_CONFIG_DIR = path.join(
-    'C:\\Users\\test\\AppData\\Roaming',
-    config.activationConfig.appDataDirName,
-    config.productNameConfig.configDirName
-);
+const TEST_APP_DATA_DIR = path.join(os.tmpdir(), 'spedmis-entry-appdata');
+const TEST_CONFIG_DIRS = [
+    path.join(TEST_APP_DATA_DIR, config.activationConfig.appDataDirName, config.productNameConfig.configDirName),
+    path.join(os.tmpdir(), 'spedmis-entry-home', 'Library', 'Application Support', config.activationConfig.appDataDirName, config.productNameConfig.configDirName),
+];
 
 describe('Entry Module Manager', () => {
     beforeEach(() => {
-        fs.rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+        TEST_CONFIG_DIRS.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
         jest.clearAllMocks();
     });
 
     afterAll(() => {
-        fs.rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+        TEST_CONFIG_DIRS.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
     });
 
     test('should return iep as the default entry module', () => {

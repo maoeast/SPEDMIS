@@ -70,6 +70,8 @@ tools/
 # Test files
 test/*
 !test/ai-*.test.js
+!test/hardware-collection.test.js
+!test/machine-code-timeouts.test.js
 
 # Temp
 .tmp/

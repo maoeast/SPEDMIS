@@ -93,6 +93,25 @@ describe('Logger', () => {
         expect(logger.logDir).toBe(path.join(os.tmpdir(), 'SPED_MIS', 'logs'));
     });
 
+    test('should re-resolve the default log directory after the app is ready', () => {
+        const logger = new Logger({ moduleName: 'TEST', enableFile: true });
+        const originalGetPath = app.getPath.getMockImplementation();
+
+        expect(logger.logDir).toBe(path.join(os.tmpdir(), 'SPED_MIS', 'logs'));
+
+        const mockAppData = path.join(os.tmpdir(), 'SPED_MIS_APPDATA');
+        app.isReady.mockReturnValue(true);
+        app.getPath.mockReturnValue(mockAppData);
+
+        try {
+            logger.info('log after ready');
+            expect(logger.logDir).toBe(path.join(mockAppData, '特殊教育多模态干预系统', 'logs'));
+        } finally {
+            app.isReady.mockReturnValue(false);
+            app.getPath.mockImplementation(originalGetPath);
+        }
+    });
+
     test('should log error messages when level allows', () => {
         const logger = new Logger({
             moduleName: 'TEST',
@@ -273,6 +292,18 @@ describe('getLogger', () => {
         const logger = getLogger('CUSTOM', { level: LogLevel.DEBUG });
 
         expect(logger.currentLevel).toBe(LogLevel.DEBUG);
+    });
+
+    test('should enable file logging by default for module loggers', () => {
+        const logger = getLogger('FILE_LOGGING_DEFAULT');
+
+        expect(logger.enableFile).toBe(true);
+    });
+
+    test('should allow disabling file logging explicitly', () => {
+        const logger = getLogger('FILE_LOGGING_DISABLED', { enableFile: false });
+
+        expect(logger.enableFile).toBe(false);
     });
 });
 

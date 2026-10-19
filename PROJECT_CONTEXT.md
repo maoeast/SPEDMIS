@@ -78,3 +78,15 @@
 - 规范化用户另存文件名（去除 0x7F 控制字符）：`特殊教育多模态干预系统-用户操作手册.docx/.pdf` 入库。
 - 提交：`9bd5270` docs(manual) 手册重写 + 8 截图 + Word/PDF 交付版；`f7f0c1a` chore(build) 排除 `**/*.docx`、`**/*.pdf` 出安装包。
 - `.gitignore` 排除 `企业文档封面模板.docx`（参考素材）；已推送 origin/main（7e6100e..f7f0c1a）。
+
+## 2026-10-19 机器码获取超时修复（1.2.3）
+- 根因：渲染层 `preload.js` 与主进程 `hardware.js` 各有一个 5 秒超时；主进程计时在 IPC 到达后才启动，采集一旦达到上限，回包必然晚于渲染层超时，激活页固定显示 `Failed to perform getMachineCode: Timeout`。
+- `hardware.js`：CPU/主板/硬盘三路并行；单条命令独立超时（WMIC 4s、PowerShell 10s）；整体 15s 兜底并标记 `capture.incomplete`；CPU/主板在 WMIC 不可用时回退 PowerShell CIM，硬盘保持 PowerShell 优先、WMIC 回退；机器码字段与算法不变（本机修复前后机器码一致）。
+- `preload.js`：渲染层超时 20s（必须大于主进程整体上限）；成功/失败/超时后清理监听。
+- `modules/machine-code-manager.js`：`incomplete` 采集不缓存、返回可重试错误；单条命令失败仍按 `UNKNOWN_*` 稳定降级。
+- `main.js`：降级硬件不迁移激活存储；虚拟机检测推迟到首窗创建后 20s；机器码失败日志带错误码。
+- `activation.html`：新增「重新获取机器码」按钮与 5s 进度提示。
+- 日志：`getLogger`/`createLogger` 默认开启文件日志，生产级别 warn，路径 `%APPDATA%/特殊教育多模态干预系统/logs/`；日志目录不可写时降级为仅控制台。
+- 测试：新增 `test/hardware-collection.test.js`、`test/machine-code-timeouts.test.js`；更新 `machine-code-manager` / `activation-status` / `logger` / `preload-api` / `activation-page-controls`；4 个历史 EPERM 测试套件改用系统临时目录。`npm test` 42/42 套件、300/300 用例通过。
+- 版本：`package.json` / `config.js` 升至 1.2.3。
+- 构建密钥校验：`build/inject-keys.js` 增加与 `tools/特殊教育多模态干预系统激活安全密钥.txt` 的一致性校验；环境变量中的 56 位激活密钥与生产 48 位密钥不一致时构建会中止。已用生产密钥重建 1.2.3 安装包，并复验打包后的 `embedded-secrets.js` 与用户激活码匹配。

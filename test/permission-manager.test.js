@@ -1,16 +1,22 @@
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
-jest.mock('electron', () => ({
-    app: {
-        getPath: jest.fn((pathName) => {
-            if (pathName === 'appData') {
-                return 'C:\\Users\\test\\AppData\\Roaming';
-            }
-            return '/tmp/spedmis-permission-test-home';
-        })
-    }
-}));
+jest.mock('electron', () => {
+    const os = require('os');
+    const path = require('path');
+
+    return {
+        app: {
+            getPath: jest.fn((pathName) => {
+                if (pathName === 'appData') {
+                    return path.join(os.tmpdir(), 'spedmis-permission-appdata');
+                }
+                return path.join(os.tmpdir(), 'spedmis-permission-test-home');
+            })
+        }
+    };
+});
 
 jest.mock('../logger', () => ({
     getLogger: jest.fn(() => ({
@@ -23,22 +29,21 @@ jest.mock('../logger', () => ({
 
 const permissionManager = require('../modules/permission-manager');
 
-const TEST_HOME_DIR = '/tmp/spedmis-permission-test-home';
-const TEST_CONFIG_DIR = path.join(
-    TEST_HOME_DIR,
-    'Library',
-    'Application Support',
-    '特殊教育多模态干预系统'
-);
+const TEST_HOME_DIR = path.join(os.tmpdir(), 'spedmis-permission-test-home');
+const TEST_APP_DATA_DIR = path.join(os.tmpdir(), 'spedmis-permission-appdata');
+const TEST_CONFIG_DIRS = [
+    path.join(TEST_APP_DATA_DIR, '特殊教育多模态干预系统', 'config'),
+    path.join(TEST_HOME_DIR, 'Library', 'Application Support', '特殊教育多模态干预系统', 'config'),
+];
 
 describe('Permission Manager Module', () => {
     beforeEach(() => {
-        fs.rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+        TEST_CONFIG_DIRS.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
         jest.clearAllMocks();
     });
 
     afterAll(() => {
-        fs.rmSync(TEST_CONFIG_DIR, { recursive: true, force: true });
+        TEST_CONFIG_DIRS.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
     });
 
     test('should initialize permission config with default permissions', async () => {

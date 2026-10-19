@@ -39,6 +39,7 @@ class Logger {
         this.enableConsole = options.enableConsole !== false;
         this.enableFile = options.enableFile || false;
         this.logDir = options.logDir || null;
+        this.autoLogDir = !options.logDir;
         this.maxFileSize = options.maxFileSize || 10 * 1024 * 1024; // 10MB
         this.maxBackups = options.maxBackups || 5;
 
@@ -60,7 +61,13 @@ class Logger {
             }
 
             if (app && typeof app.getPath === 'function') {
-                return path.join(app.getPath('userData'), 'logs');
+                // 固定用应用数据目录下的中文产品目录，保证开发模式与安装包
+                // 的日志路径一致（Electron 的 userData 在开发模式下是 SPED_MIS）。
+                return path.join(
+                    app.getPath('appData'),
+                    config.activationConfig.appDataDirName,
+                    'logs'
+                );
             }
         } catch (error) {
             // Electron 尚未 ready 或宿主路径不可用时，回退到临时目录。
@@ -74,8 +81,14 @@ class Logger {
      * @private
      */
     ensureLogDirExists() {
-        if (!fs.existsSync(this.logDir)) {
-            fs.mkdirSync(this.logDir, { recursive: true });
+        try {
+            if (!fs.existsSync(this.logDir)) {
+                fs.mkdirSync(this.logDir, { recursive: true });
+            }
+        } catch (error) {
+            // 日志目录不可写时降级为仅控制台，不能影响应用启动。
+            this.enableFile = false;
+            console.error('Failed to initialize log directory:', error.message);
         }
     }
 
@@ -145,6 +158,16 @@ class Logger {
      */
     logToFile(logEntry) {
         try {
+            // 默认日志目录在 app ready 前会解析到临时目录；
+            // 每次写入时重新解析，保证就绪后的日志落到 userData。
+            if (this.autoLogDir) {
+                const resolvedLogDir = this.getDefaultLogDir();
+                if (resolvedLogDir !== this.logDir) {
+                    this.logDir = resolvedLogDir;
+                    this.ensureLogDirExists();
+                }
+            }
+
             const logFile = path.join(this.logDir, `${logEntry.level.toLowerCase()}.log`);
             const { formatted } = logEntry;
 
@@ -293,11 +316,13 @@ function getLogger(moduleName = 'APP', options = {}) {
     const key = moduleName;
 
     if (!loggers[key]) {
+        // 默认写文件：生产级别为 warn，量小且能覆盖远程机器现场；
+        // 显式传 enableFile: false 可关闭。
         const mergedOptions = {
             moduleName,
             level: options.level || Logger.getLevel(config.getLogLevel()),
             enableConsole: options.enableConsole !== false,
-            enableFile: options.enableFile || false,
+            enableFile: options.enableFile !== false,
             ...options,
         };
 
@@ -318,7 +343,7 @@ function createLogger(moduleName = 'APP', options = {}) {
         moduleName,
         level: options.level || Logger.getLevel(config.getLogLevel()),
         enableConsole: options.enableConsole !== false,
-        enableFile: options.enableFile || false,
+        enableFile: options.enableFile !== false,
         ...options,
     });
 }

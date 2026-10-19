@@ -32,4 +32,13 @@ describe('activation page controls', () => {
         expect(html).toContain('navigator.clipboard.readText()');
         expect(html).toContain("document.getElementById('activationCode').value = pastedText.trim();");
     });
+
+    test('should render a retry control and a slow-read hint for machine code', () => {
+        const html = getActivationHtml();
+
+        expect(html).toContain('id="retryMachineCodeButton"');
+        expect(html).toContain('onclick="loadMachineCode()"');
+        expect(html).toContain('function loadMachineCode()');
+        expect(html).toContain('MACHINE_CODE_HINT_DELAY_MS = 5000');
+    });
 });

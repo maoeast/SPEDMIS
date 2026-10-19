@@ -148,6 +148,8 @@ npm run build
 # 输出位置：./dist/特殊教育多模态干预系统*.exe
 ```
 
+> **密钥一致性校验**：构建前请确认 `ACTIVATION_SECRET_KEY` / `ACTIVATION_ENCRYPTION_KEY` / `ACTIVATION_ENCRYPTION_IV` 与 `tools/特殊教育多模态干预系统激活安全密钥.txt` 中的生产密钥一致。`build/inject-keys.js` 会自动比对，不一致会中止构建，避免产出无法激活的安装包。
+
 ### 第5步：创建安装程序
 
 ```bash
@@ -155,7 +157,7 @@ npm run build
 npm run build
 
 # 输出文件：
-# - dist/特殊教育多模态干预系统 Setup 1.2.2.exe (NSIS 安装程序)
+# - dist/特殊教育多模态干预系统 Setup 1.2.3.exe (NSIS 安装程序)
 # - dist/builder-debug.yml / latest.yml (构建产物)
 ```
 
@@ -360,8 +362,22 @@ Select-String "ERROR" $logDir\*.log | Select-Object -First 20
 排查步骤：
   1. 验证 ACTIVATION_SECRET_KEY 环境变量是否设置
   2. 确认激活码生成工具使用相同密钥
-  3. 检查硬件信息采集是否正常（查看日志中的 machineCode）
+  3. 检查硬件信息采集是否正常（查看 `%APPDATA%\特殊教育多模态干预系统\logs\warn.log` 中的 `MACHINE_CODE` 记录）
   4. 确认激活码生成工具已更新为 SHA-256 算法
+```
+
+### 机器码获取超时
+
+```
+症状：激活页显示 "Failed to perform getMachineCode: Timeout"
+原因：
+  1. 旧版本硬件采集串行且整体上限 5s，慢盘/杀毒软件/冷启动时会超时
+  2. WMIC 不可用或 PowerShell 被拦截
+
+排查步骤：
+  1. 升级到 1.2.3 或更高版本（并行采集 + 分层超时）
+  2. 点击激活页「重新获取机器码」
+  3. 查看 %APPDATA%\特殊教育多模态干预系统\logs\ 下的 MACHINE_CODE / MAIN 记录
 ```
 
 ### 激活信息加解密失败
@@ -425,8 +441,8 @@ Select-String "ERROR" $logDir\*.log | Select-Object -First 20
 
 ## 版本信息
 
-- 应用版本：1.2.2
+- 应用版本：1.2.3
 - Electron：23.0.0
 - Node.js：16.0.0+
-- 发布日期：2026-07-29
+- 发布日期：2026-10-19
 - 安全修复：P0 x4, P1 x8（1.0.0 时代基线，已全部修复）

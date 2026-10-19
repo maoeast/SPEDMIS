@@ -123,6 +123,11 @@ function handleIpcError(operationName, error, reject) {
   }
 }
 
+// 机器码采集的整体超时时间（毫秒）。
+// 必须大于 hardware.js 的 HARDWARE_COLLECTION_TIMEOUT_MS（15s），
+// 否则渲染层会先超时、主进程随后才回包，激活页必然显示超时。
+const MACHINE_CODE_TIMEOUT_MS = 20000;
+
 // 暴露应用配置到渲染进程
 contextBridge.exposeInMainWorld('appConfig', {
   appIconMap: appIconMap // 使用定义的appIconMap
@@ -140,21 +145,47 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getMachineCode: () => {
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        ipcRenderer.removeAllListeners('machine-code-response');
-        handleIpcError('getMachineCode', new Error('Timeout'), reject);
-      }, 5000); // 5秒超时
+      let settled = false;
+      let timeout = null;
 
-      ipcRenderer.once('machine-code-response', (event, machineCode) => {
-        clearTimeout(timeout);
+      const cleanup = () => {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        ipcRenderer.removeListener('machine-code-response', onResponse);
+        ipcRenderer.removeListener('error', onError);
+      };
+
+      const onResponse = (event, machineCode) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
         resolve(machineCode);
-      });
+      };
 
-      ipcRenderer.once('error', (event, errorMessage) => {
-        clearTimeout(timeout);
+      const onError = (event, errorMessage) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
         handleIpcError('getMachineCode', new Error(errorMessage), reject);
-      });
+      };
 
+      timeout = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
+        handleIpcError('getMachineCode', new Error('Timeout'), reject);
+      }, MACHINE_CODE_TIMEOUT_MS);
+
+      ipcRenderer.once('machine-code-response', onResponse);
+      ipcRenderer.once('error', onError);
       ipcRenderer.send('get-machine-code');
     });
   },

@@ -271,6 +271,9 @@
             </button>
             <div class="copy-success" id="copySuccess">已复制!</div>
         </div>
+        <button type="button" id="retryMachineCodeButton" class="secondary-btn" onclick="loadMachineCode()" style="display: none;">
+            重新获取机器码
+        </button>
         <div class="activation-code-row">
             <input type="text" id="activationCode" placeholder="请输入64位激活码">
             <button
@@ -296,23 +299,68 @@
     </div>
 
     <script>
-        // 获取机器码
-        window.onload = function() {
+        // 机器码加载：主进程整体采集上限 15s，渲染层等待 20s；
+        // 5s 后仍未返回时提示正在读取，避免用户误以为卡死。
+        const MACHINE_CODE_HINT_DELAY_MS = 5000;
+        let machineCodeHintTimer = null;
+
+        function clearMachineCodeHintTimer() {
+            if (machineCodeHintTimer) {
+                clearTimeout(machineCodeHintTimer);
+                machineCodeHintTimer = null;
+            }
+        }
+
+        function loadMachineCode() {
+            const machineCodeElement = document.getElementById('machineCode');
+            const retryButton = document.getElementById('retryMachineCodeButton');
+
+            machineCodeElement.textContent = '正在生成机器码...';
+            retryButton.style.display = 'none';
+            clearMachineCodeHintTimer();
+            machineCodeHintTimer = setTimeout(() => {
+                if (getMachineCodeText() === '正在生成机器码...') {
+                    machineCodeElement.textContent = '正在读取硬件信息，请稍候…（首次读取可能需要几秒）';
+                }
+            }, MACHINE_CODE_HINT_DELAY_MS);
+
+            if (!window.electronAPI || typeof window.electronAPI.getMachineCode !== 'function') {
+                clearMachineCodeHintTimer();
+                machineCodeElement.textContent = '无法生成机器码';
+                showError('当前环境不支持获取机器码');
+                retryButton.style.display = 'block';
+                return;
+            }
+
             window.electronAPI.getMachineCode()
                 .then(machineCode => {
-                    document.getElementById('machineCode').textContent = machineCode;
+                    clearMachineCodeHintTimer();
+                    machineCodeElement.textContent = machineCode;
                 })
                 .catch(error => {
-                    document.getElementById('machineCode').textContent = '无法生成机器码';
+                    clearMachineCodeHintTimer();
+                    machineCodeElement.textContent = '无法生成机器码';
                     showError(`错误：${error.message}`);
+                    retryButton.style.display = 'block';
                 });
+        }
+
+        window.onload = function() {
+            loadMachineCode();
         };
         
+        function getMachineCodeText() {
+            return document.getElementById('machineCode').textContent.trim();
+        }
+
+        function hasReadyMachineCode() {
+            return /^[a-f0-9]{64}$/i.test(getMachineCodeText());
+        }
+
         // 复制机器码到剪贴板
         function copyMachineCode() {
-            const machineCode = document.getElementById('machineCode').textContent;
-            if (machineCode && machineCode !== '正在生成机器码...' && machineCode !== '无法生成机器码') {
-                navigator.clipboard.writeText(machineCode)
+            if (hasReadyMachineCode()) {
+                navigator.clipboard.writeText(getMachineCodeText())
                     .then(() => {
                         const copySuccess = document.getElementById('copySuccess');
                         copySuccess.classList.add('show');
@@ -390,11 +438,11 @@
             }
 
             const fileMachineCode = result.data.machineCode;
-            const currentMachineCode = document.getElementById('machineCode').textContent.trim();
-            if (!currentMachineCode || currentMachineCode === '正在生成机器码...' || currentMachineCode === '无法生成机器码') {
+            if (!hasReadyMachineCode()) {
                 showError('机器码尚未生成，请稍后重试');
                 return;
             }
+            const currentMachineCode = getMachineCodeText();
             if (fileMachineCode !== currentMachineCode) {
                 showError('激活文件与当前电脑不匹配（机器码不一致），请联系客服重新获取');
                 return;
